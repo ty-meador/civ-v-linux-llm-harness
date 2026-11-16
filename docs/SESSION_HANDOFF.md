@@ -12,13 +12,12 @@ alone and for both. Before the cycle's first call reached the ledger the turn ro
 seat's latest turn in a ledger that holds the Grok bench run): five seconds, as designed, said in the CHANGELOG.
 Claude's per-request read from its own directory is still the fixture test only; Grok's stream is its record.
 The board was reloaded at t242 and the notebook put back (`cmp` with `logs/bench191/notebook-before.json`);
-the spectator was stopped. **The registry republish is the user's** (`mcp-publisher publish`). **No issue is
+the spectator was stopped. **The registry has 2.17.0** (the user's `mcp-publisher publish`, 2026-11-16). **No issue is
 open.** What is known and not built or not seen, none of it filed: the benchmark (`docs/BENCHMARK.md` is a
 sketch not yet agreed; its "Not checked yet" list, a turn-0 board and a stock-AI anchor), the page holding every
 parsed row of a recording, the shim and the launch scripts outside the wheel, the tests that take the live
 per-socket lock (`test_assignments.py::test_the_four_tools`, two LeaderScreenGuard tests), LAN since 0.5.0.
-**"Still open" at the end of this file dates from 2026-10-24 to 26** (the Assyria game, the seat-binding and
-tool-surface stages since released): read it as history until someone prunes it.
+**"Still open" at the end of this file was pruned 2026-11-16** and says the same at more length.
 
 # Previous -- 2026-11-15 (late night): main = 2.16.0 + tokens per seat on the spectator page (unreleased; runtime v341, 9 tools, 2276 tests).
 **#189 is done and closed: token accounting stage 6, the last stage.** `python -m harness.spectator --ledger
@@ -421,185 +420,40 @@ Shipped work is in `CHANGELOG.md` (the 1.16.0 section holds t164-t208's fixes); 
 
 ## Still open
 
-- **Seen at t238, understood and read since (runtime v284, 2026-10-24 late evening; CHANGELOG Unreleased).** (1) The
-  two "Great Person born" notices were a Great Scientist (bulbed: Nanotechnology) and a Great Musician (a Great
-  Work), both spent on 2026-10-15 in the same t238 before the quick save -- the call ledger's `do` row at 00:07
-  has both missions; `notification_log` now names the person (`unit: SCIENTIST` / `MUSICIAN`, `of_type_now: 0`)
-  and a notice whose person the hook saw born reads `unit_gone` once it is spent. The Great Person count of
-  t238 is therefore right: nothing is missing. (2) Assignment 4's Swordsman 335873 stands THREE plots from Nimrud
-  (Map.PlotDistance agrees), not two; every assignment unit row now carries `distance`, both garrison assignments
-  (4 and 6) carry `review.max_distance: 0`, and assignment 4 reads needs_review ("3 plot(s) from its post (18,23)")
-  until the Swordsman is back on (18,23) or the assignment is amended. (3) `league_status` carries
-  `diplomatic_victory_enabled: false` with `diplo_victory_note`; the 42 is moot in this game.
-- **The Siam risk.** Denounced t235, Order against my Freedom, their army the largest, open borders running to t249.
-  Nothing in the harness is missing for a war (the England siege read everything), but the garrison roles and the
-  obsolete army are the seat's own problem; the renewals due t239 (Zulu Dye, Siam Salt) are the first decisions.
+Pruned 2026-11-16 at 2.17.0. No GitLab issue is open and `docs/GAPS.md` §0 has no open row beyond the engine's
+own limits under "Blocked". What stood here from 2026-10-24 to 26 (the t238 notices, the Siam risk of the Assyria
+game, the stage-by-stage record of seat binding and of the tool surface) is released as 2.0.0: CHANGELOG 2.0.0,
+`docs/ROADMAP.md` and git hold it. The two sections above ("Where the game is", "Where the code is") are the
+2026-10-27 state, kept for the record.
+
+- **The benchmark is a sketch** (`docs/BENCHMARK.md`, not yet agreed). Not checked: that this build autoplays a
+  human seat unattended (`Game.SetAIAutoPlay`) to a victory screen and at which handicap, how many AI-only games
+  a win estimator needs, and how much one board's result varies between two runs of one agent (it sets the
+  replicates and so the cost). Of the pilot only the Maya t242 board has been played (`logs/bench188/`,
+  `logs/bench191/`); there is no turn-0 board and no stock-AI anchor.
+- **Tokens on the spectator page:** a running Codex cycle was counted request by request under play (2.17.0);
+  the same for a Claude cycle read from its own directory is the fixture test only.
+- **Spectator page:** it holds every parsed row of a recording (fine since the cadence fix; the 72 MB pre-fix
+  file was 122 MB of heap under node, 70-72 MB in Chrome); a bounded window is not built.
+- **The wheel is a server only:** no `web/viz/` (the spectator's page), no shim, no launch scripts; a host gets
+  those from the repository (`docs/AGENT_INSTALL.md`).
 - **Not yet seen live**: `quick_save` under a decision popup (coded 2026-10-11), the `fogged_destination` hint on a
   "no path" refusal (unit tests only), S9's RETURN_CIVILIAN re-raise on load, the refused-melee *rule* (GAPS §0
   Blocked: needs a war with the t200 shape -- a city tile, a river, a second unit in the city; only the wording is
-  done).
-- **Two tests failed once, together, on the first `scripts/check.sh` run of 2026-10-10 evening** (the 1.15.0 cut):
-  `test_ranged_preview.py::test_ground_ranged_has_no_retaliation_or_interceptor_read` and
-  `test_runtime_source.py::test_a_failure_midway_is_not_current_and_the_corrected_retry_carries_state`; one of the
-  two failed once more in a loop of three runs of just those two files. The assertion text was not captured
-  either time. Not reproduced since: every full run through 2026-10-24 (three today, 1548 green) and 37 runs of the
-  pair. Both build a Lua state from `runtime_source.snapshot()` (one under ctypes liblua5.4, one under lupa). If it
-  shows again, keep the `E` lines: a `pairs`-order dependency under a randomized string-hash seed is the first
-  suspect, load the second.
+  done). LAN: nothing since 0.5.0, and a war on a city-state syncing over LAN (`docs/LIMITATIONS.md`).
 - `unit_displaced` (read live England t131): a *route* caravan on the city tile at the turn end did not move the
   General, only an idle trade unit does; why the engine moves the civilian and not the trade unit, and whether a
   Worker or Settler is moved the same way, is not known; the row reports the fact either way.
-- Spectator page: it still holds every parsed row of a recording (fine since the cadence fix; the 72 MB pre-fix
-  file was 122 MB of heap under node, 70-72 MB in Chrome); a bounded window is the ROADMAP's open visualization
-  item.
-- **Seat binding, stage 1 done (2026-10-24 late evening, uncommitted runtime untouched):** tunerd `--seats FILE`
-  binds connections by token or uid and refuses unbound `exec`/`query` (`tests/test_tunerd_seats.py`, 21 tests).
-  The live tunerd runs without a table (solo game; nothing to bind). **Stage 2 done 2026-10-25**
-  (`scripts/seat_survey.py`, GAPS "Stage 2, the survey"): the seat slot is per entry (90 first / 102 last / 15
-  middle), three Python-reached entries lack one (`H.diplo_event`, `H.plot_units`, `H.plots_around`), `Game.seat`
-  is the one attribute stage 3 replaces, and 48 `InGame` ad-hoc bodies become named entries. **Stage 3 done
-  2026-10-25 evening (runtime v285, `tests/test_seat_call.py`), not yet seen live:** tunerd's `call` / `runtime`
-  ops write the seat and install the runtime; `Game.h` names entries; no Lua text goes to `InGame` from the Python
-  side. Seen live the same evening after a cold start (Steam was up, the game was not): `load_latest` and every
-  read of the turn through `call` on a plain daemon; then on a daemon with a one-seat token table a tokened
-  `mcp_session.py` read `turn_status` / `units` / `todo_actions` / `generic_popup` / `tactical_view`, an untokened
-  one was refused unbound, and a tokened `cli lua` was refused for `InGame`. The stack was left up: the game at
-  t238 (nothing ordered, no turn ended), tunerd restarted **without** a table (the new code; the idle Claude Code
-  servers reconnect by themselves). **Next session's first `finish_turn` is the live turn through `call`**: watch
-  `logs/calls.jsonl` trips stay the usual (the daemon adds no trip once the runtime is checked) and the tunerd log
-  for a single `runtime v285 ... installed` on a bound daemon. **Stage 4 done 2026-10-25 late evening**
-  (`tests/test_seat_escape_hatches.py`): a bound server plays its binding only (a wrong `--seat` is refused on every
-  tool, `set_seat` moves nowhere else, the `lua` tool refuses), seen live at t238 on a one-seat table from this
-  sandbox (eight probes), tunerd restored **without** a table again. **Stage 5 done 2026-10-25 night, the route
-  complete:** the Alpha/Bravo hotseat (S2a, t229) played on a two-seat token table by two processes each holding only
-  its own token (`play_loop.py --seat N`): seat 0 ended t229-t231, seat 1 t229-t230, every turn end through `call` on a
-  bound daemon (so the live turn through `call` is seen; the Assyria `finish_turn` is still the user's), no refusal in
-  the tunerd log, and the eight escape-hatch probes from each agent's process as stage 4 says. The Assyria game was
-  quick-saved as `Ashurbanipal_0238 pre-stage5` before and reloaded after; the hotseat result is
-  `Alpha-Bravo_0231 two-agents-bound`; tunerd runs **without** a table again. The tool-surface plan is now GitLab
-  milestone 2.0.0 (one issue per stage item, tracking issue listed in `docs/ROADMAP.md`); work from the issues.
-  **Stage 0 (#44) done 2026-10-25 night:** `harness/surface/` (vocabulary, retirement map, survey, audit),
-  `scripts/tool_survey.py --write` -> `docs/measurements/tool_survey.md`, `tests/test_tool_survey.py`; the baseline
-  reproduces. **Stage 1a (#45) done 2026-10-25 night:** `harness/affordances.py` is the one place a `{tool, args}`
-  row is written; every `decisions` / `opportunities` row of the briefing carries `actions` (the read as is, then the
-  order, `choose` naming the arguments left to pick), the `todo_actions` summary's `actions` are the unit's orders
-  themselves, the prose `tools` map stays one release with `tools_note`, `attention.py` walks `actions` rows for any
-  tool, `tests/test_affordances.py` plays a fake-bridge turn from the rows alone; seen live at Assyria t238 with reads
-  only (an Infantry's and a Worker's summary rows; the briefing has no decisions there). **Stage 1b (#46) done the same
-  night:** `harness/rows.py` holds the row shape, every gate carries `actions` (from `gate.rows_for` / `popup_rows`),
-  the ten question-shaped reads carry `answers` (attached in the game mixins through `affordances.answered`); seen live
-  at t238 with reads only (`gate` null, `faith_great_person_options.answers` three rows, the rest `[]`). **Stage 1c
-  (#47) code done the same night:** `harness/affordances/` is a package (`decisions`, `units`, `questions`, `choices`,
-  `objects`); every `available_*` reply hands each choice back with `call` (and `buy`), the unit action rows carry
-  `call` / `read`, `units()` / `cities()` rows carry `actions`, `city_state_actions` and `trade_catalog` their buttons,
-  a paused order its two calls; 28 of 31 affordance replies carry rows (`turn_status`, `city_state_bonuses`,
-  `purchase_cost` only inform). Seen live at t238 with reads only. **Open on #47:** the live Assyria turn played from
-  rows alone -- it ends a game turn, so it waits for the user's go-ahead; the recipe is `scripts/mcp_session.py`
-  (reads from the briefing's rows, orders copied out of the reads' `call` rows, `finish_turn` last), ledger rows to
-  `docs/measurements/`. **Stage 2a (#48) done the same night:** `harness/surface/dispatch.py` (the retirement map
-  read the other way, the disambiguators, the shape refusal with an example, `answer` on the gate) and
-  `harness/mcp_tools/surface.py` (the nine registered beside the 145; `reference` grew a `book`); every new call runs
-  the old handler through `_run_tool_here`, replies unchanged; `tests/test_tool_surface.py`. Seen live at Assyria
-  t238 with reads only (c8a9a6b): a fresh server lists 153 tools (145 + the eight new; `reference` grew in place),
-  `state(what="league")` and `state(what="units")` match `league_status()` / `units()` byte for byte, `turn("status")`
-  reads t238 with no gate, `question()` says nothing is pending, `order(to="city", action="produce", id=8192)` is refused
-  naming `item` with an example row, `state("options", view="research")` hands back the three techs with their
-  `set_research` rows, `reference(book="playbook", section="turn_loop")` serves the playbook. **Stage 2c (#50) done 2026-10-25 (late night):** `harness/surface/forward.py` (the map read forward: `old_name`,
-  `new_call`, `renamed`, `example`, `marked`; `ALIASES` folded in from the server) and `harness/surface/schemas.py`
-  (the lazy schema leaf); `mcp_server.find_tool` resolves a called name once for the call wrapper, `_run_tool_here`
-  and `call`; an unlisted old name or alias runs its handler with `renamed` on the reply, the nine run the handlers
-  with `renamed=False`. Seen live at t238 with reads only through fresh stdio servers (`summary`, `status`,
-  compact-hidden `league_status` carry `renamed`; `overview` does not). **Stage 2b (#49) code done the same night:** `harness/surface/listing.py` (oneOf / flat `order` schema from the
-  vocabulary, the variant per client), set on the listing by a middleware in `harness/mcp_tools/surface.py`;
-  `--order-schema` / `CIV5_ORDER_SCHEMA` force one. **Open on #49:** the measurement on the three clients (the
-  table in ARCHITECTURE): Claude Code needs a session reconnected to a server on this code (then `ToolSearch` on
-  `order` shows what the client holds and a wrong pair shows who refuses it); Codex and the Grok client are the
-  user's sessions. **Stage 2d (#51) done 2026-10-26 (afternoon):** `harness/surface/classes.py` holds every
-  classification set keyed `(tool, action)` (`Keys` with `*` wildcards; `of_call` from a call's arguments,
-  `of_handler` from an old handler's row, `called_as` for the ledger row); the server's six name sets, the
-  ledger's `READ_TOOLS` / `WAIT_TOOLS`, `gate.resolutions_by_tool` (now `resolutions_by_key`) and attention's name
-  sets are gone; ledger rows carry `tool` / `action` / `called` and the page prints `tool · action`
-  (`callLabel`); `--tools compact` is gone and `call` is retired (`mcp_server.retire`, `retired_tools()`; the
-  table #52 fills). Seen live the same afternoon at Assyria t238 with reads only after a cold start (Steam, the
-  game, tunerd without a table; `load_latest` opened the t238 quick save): 152 names listed, old name and new call
-  one ledger key, `call` with the inner `renamed`, a batch refusing `turn(action="finish")`; the alias row's
-  `called` fixed from it. The stack was left up: game at t238 (nothing ordered, no turn ended), tunerd on
-  `/run/user/1000/civ5-tuner.sock`, the idle Claude Code session server (pid 5315, started before this commit:
-  its listing still carries `call` and its ledger rows the old `tool` names until it is restarted). 1671 tests.
-  **Stage 2e (#52) done 2026-10-26 (evening):** `@retired` where `@mcp.tool()` stood; the listing is the nine
-  (`scripts/mcp_call.py --list` prints 9, seen live), old names answer through the map with the request context
-  passed on and strict argument errors, the nine find their handlers by exact name, `--retired-names off` /
-  `CIV5_RETIRED_NAMES=off` makes old names unknown (seen live: `units` unknown, `state(what="units")` and
-  `turn(action="status")` answer), `tests/test_nine_only.py` is marked `new_vocabulary` and `scripts/check.sh`
-  runs the marker a second time with the map off; a list reply in a batch no longer marks it refused. Stage 2 of
-  the milestone is complete. The idle Claude Code session server (pid 5315) still lists the 153 of its own start.
-  **Stage 3a (#53) done 2026-10-26 (evening):** the instructions (1961 characters) and `docs/PLAYBOOK.md` in
-  the nine-tool vocabulary, `harness/surface/table.py` behind `reference(book="playbook", section="orders")`,
-  every reply's `hint` / `tool` sentence in the new words, the audit's `named_in` rule, the index's reply
-  references by their new call; seen live at Assyria t238 with reads only (the table through a fresh server,
-  the index, a refusal's hint). **Stage 3b (#54) done the same evening:** TOOL_REPLIES headings as the new
-  calls (either name reaches a section), README's loop in four lines and the nine named, AGENT_INSTALL /
-  ARCHITECTURE / LIMITATIONS in the new words, ROADMAP's before / after picture (145 tools, 112 KB -> 9 tools,
-  11 KB), `TheWordsTests` reads the five docs. **Stage 3c (#55) done the same night:** every row a reply hands
-  back is the new call (`harness/rows.py` renders through the map; `TOP_LEVEL` in the vocabulary), the gate's
-  `clear_with` / `read_first` / `why` say the new calls, `InvariantsTests` hold the nine's rules. Standing rule
-  from the user (2026-10-26): tests never weigh a refactor; they enforce the design. Stage 3 complete. Next:
-  stage 4. **Stage 4 (#56), the harness's half, done the same night:** `play_loop --profile` before / after (72
-  trips both), and `scripts/turn_from_rows.py` ended **t238 through the nine alone** (retired names off): the
-  Yerevan gift (250 gold, from the city-state read's row) and the turn's end in one call; **the game is now at
-  t239**, with its decisions open -- Worker 106504 and Great Merchant 1343522 need orders, Nineveh (16385) and
-  Nimrud (24578) have empty queues (their factories done), the Zulu Dye and Siam Salt renewals are due, the UN
-  session is at t244; the quick-save slot holds t239 (the finish's autosave), S10 still holds t238. A dry run
-  listed t239's rows and ordered nothing: the first production item of a list is UNIT_SETTLER, not a choice for
-  the science race. Open on #56: the league vote at t244 and the two fresh sessions (Claude Code reconnected to
-  a server on this code, Codex) -- the user's; #47's live turn from rows is this one. Then stage 5 (#57 the
-  runtime's strings and its `how` row, #58 release 2.0.0 and the Glama marks); the #49 measurement on the three
-  clients folds into the sessions. The audit's "seam" table in the measurement file lists the sites by file and
-  line (the briefing's eleven sentences stay until the prose `tools` map goes). Re-run `scripts/tool_survey.py --write`
-  after any tool or docstring change (the doc test checks the counts, not the bytes). **Stage 5a (#57) done
-  2026-10-26 evening, runtime v286:** the 87 runtime strings that named a retired tool say the new call, the
-  city-state gift's `how` row is the new row, a unit action row's `target_tool` is `target_view` (`targets` /
-  `home`); `tests/fixtures/runtime_entries.json` pins the 331 entries and 257 seat slots (text-only bump),
-  `harness/surface/runtime_audit.py` + `tests/test_runtime_words.py` keep the fragments' strings clean, the
-  survey prints the (empty) table. Deployed live at t239 by this session's own first `turn(action="status")`
-  (the plain daemon: the client installs; 392 trips once, then 4). **#56's Claude Code half done the same
-  evening:** this cleared session played **t239** through the nine as listed (20 calls, 122 trips): the Great
-  Merchant's trade mission at Belgrade (+770 gold, Belgrade the tenth ally, 26 delegates now), Nineveh and Nimrud
-  on PROCESS_RESEARCH, Worker 106504 automated, Portugal denounced me (answered "Very well."), Shaka's 1 Fur for
-  5 Iron refused; **the game is at t240, my turn, nothing blocking** (gold 2890; the UN session is t244 with
-  International Space Station and Ban Furs proposed; the Zulu Dye deal ended t239 and is worth re-proposing).
-  Found and fixed: four Python reply strings named old tools (`drill_down`, `how_to_answer`, `leader_screen_note`,
-  the frozen-game refusal; keys added to `audit.KEYS`), `turn`'s `notes` wording. **Done the same night:** (1) the missing notes were a
-  key that changed form (runtime v285 ships the map pattern's backslash intact: `pangaea`, where the inline
-  snippet had made it `Assets_Maps_pangaea`); `Notebook.adopt` renames a legacy file once, the live notebook was
-  merged by hand (five notes, six assignments, forty orders under `L36-C36-pangaea-Assur-t0-s0-seat0`) and the
-  session server reads it; (2) the 26 `err` / `note` sentences say the new calls and `audit.KEYS` holds both keys.
-  **The league vote done later the same night (t240-t246 played through the nine):** the t244 UN session's
-  votable rows carried no row and the vote's list reached Lua as a string (`_lua_items`, a v285 regression:
-  `league.lua:493 bad argument #1 to 'ipairs'`); fixed (the list goes as a list, `affordances/objects.py
-  league_rows` on the league read, the audit counts the league as a choice read) and the vote was cast from the
-  Furs row through a fresh `scripts/mcp_session.py` server (28 Nay; the ban failed 36-10, the ISS passed), the
-  proposal rows at t245 carry their calls and World Ideology: Freedom was proposed from one (session t251;
-  `docs/measurements/2026-10-26-assyria-t244-league-vote.md`). The audit now reads every sentence of the source
-  (81 more sites fixed, runtime v287 text only). **#56's Codex half done 2026-10-26 late night (stage 4
-  complete, #56 closed):** a fresh Codex session on a nine-only server (`CIV5_RETIRED_NAMES=off` in
-  `~/.codex/config.toml`, the stale per-tool approvals replaced by the nine) played t247 -- Ur's 500-gold gift
-  from its row (49 -> 89, the twelfth ally), ten calls, 77 trips, no refusal
-  (`docs/measurements/2026-10-26-assyria-t247-codex-session.md`). Its one report was #49's Codex
-  measurement: Codex renders schemas as TypeScript and the `oneOf` became a union of the branches alone, `id` /
-  `args` gone; `codex` is in `listing.FLAT_CLIENTS` (clientInfo `codex-mcp-client`) and the flat declaration
-  was measured complete through `codex exec`. **The game is at t248, my turn:** the SS Stasis Chamber unit
-  stands in Assur (add it to the ship), Assur's queue is empty, Nuclear Fission came free from the Siam RA,
-  the Siam open borders end t249 (do not renew), the Portugal Salt-Truffles deal ended t247 (reoffer now, t248);
-  happiness 74, twelve allies (Ur since t247), 28 delegates, World Ideology: Freedom on the t251 session.
-  **2.0.0 cut the same night** (`v2.0.0`, #58). **Open for the next session:** the Glama re-score (the user
-  re-submits https://glama.ai/mcp/servers/ty-meador/civ-v-linux-mcp; the GitHub mirror carries the tag), then
-  the four marks next to the 2026-10-04 ones on #59 and in the 2.0.0 changelog entry, and #58 / #59 closed;
-  #49 closed 2026-10-27: the Grok row measured from a fresh Grok CLI session at t238 (verbatim passthrough, no
-  validation) and Claude Code 2.1.311 measured again (the oneOf rendered as a wrong "exactly one of" sentence;
-  shown flat since); `docs/measurements/2026-10-27-assyria-t238-grok-session.md`.
-- **A test that can collide with a live game:** `tests/test_assignments.py::McpAssignmentTests::test_the_four_tools`
-  failed once on 2026-10-25 night with `another game operation is running (your own load_save, pid ...)` because
-  the suite ran while this sandbox's `load_save` held the real per-socket lock; alone it passes (31/31). The MCP
-  path takes the lock keyed by the live socket even under a fake game; worth a scratch lock path in that test.
-- The rest: `docs/GAPS.md` (§0 for the read gaps, the 2026-10-24 section for the seat-binding design gap).
+- **Tests that can collide with a live game:** `tests/test_assignments.py::McpAssignmentTests::test_the_four_tools`
+  (2026-10-25) and two of `tests/test_hotseat_live_fixes.py::LeaderScreenGuardTests` (2026-10-30) failed with
+  `another game operation is running (your own load_save, pid ...)` when the suite ran while a live `load` held
+  the real per-socket lock; alone they pass. The MCP path takes the lock keyed by the live socket even under a
+  fake game; a scratch lock path in those tests would end it. Until then do not run `scripts/check.sh` during a
+  live load or finish.
+- **Two tests failed once, together, on 2026-10-10** (the 1.15.0 cut):
+  `test_ranged_preview.py::test_ground_ranged_has_no_retaliation_or_interceptor_read` and
+  `test_runtime_source.py::test_a_failure_midway_is_not_current_and_the_corrected_retry_carries_state`; one of
+  them once more in a loop of three runs of the pair. The assertion text was not captured. Not reproduced in any
+  full run since. Both build a Lua state from `runtime_source.snapshot()` (one under ctypes liblua5.4, one under
+  lupa). If it shows again, keep the `E` lines: a `pairs`-order dependency under a randomized string-hash seed is
+  the first suspect, load the second.
