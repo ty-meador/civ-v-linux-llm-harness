@@ -109,8 +109,10 @@ return {auto = Game.GetAIAutoPlay(), active = Game.GetActivePlayer(), slot = Pre
 # cost) follow within the first turns (live 2026-11-17: all equal to the AIs' by turn 12). The setup screen cannot do
 # it: a human hosted on HANDICAP_AI_DEFAULT starts on Chieftain, and so does the game.
 ROW_AI = "PreGame.SetHandicap(%(seat)d, GameInfo.HandicapInfos.HANDICAP_AI_DEFAULT.ID)\n"
-# With Time valid a game stops at the speed's last turn for the highest score. `off` plays on to a real victory.
-TIME_OFF = "Game.SetVictoryValid(GameInfoTypes.VICTORY_TIME, false)\n"
+# With Time valid a game stops at the speed's last turn for the highest score. `off` plays on to a real victory. The
+# validity alone does not do it: with only `SetVictoryValid` a duel still ended by Time at turn 330; with the turn
+# limit cleared as well two games from a turn-325 save ran on to a Diplomatic victory at turn 372 (live 2026-11-17).
+TIME_OFF = "Game.SetVictoryValid(GameInfoTypes.VICTORY_TIME, false)\nPreGame.SetMaxTurns(0)\n"
 
 
 def start_chunk(burn: int, turns: int, seat: int, row: str = "own", time: str = "on") -> str:

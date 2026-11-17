@@ -380,6 +380,8 @@ class Continuations(unittest.TestCase):
         self.assertLess(start.index("Game.Rand("), start.index(setting))
         self.assertLess(start.index(setting), start.index(off))
         self.assertLess(start.index(off), start.index("Game.SetAIAutoPlay("))
+        # the validity alone is not enough: with it off a duel still ended by Time at turn 330 (live 2026-11-17)
+        self.assertIn("PreGame.SetMaxTurns(0)", start)
         self.assertEqual((c["seat_row"], c["time_victory"]), ("HANDICAP_AI_DEFAULT", False))
         plain = FakeGame([read()], polls=[poll(330, 1, winner=1)])
         self.go(plain)

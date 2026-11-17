@@ -435,11 +435,60 @@ played from turn 0 to the end by the stock AI: `--turns 400`.
   331, in 11.3 and 9.8 minutes. The run's value is 0 of 2, and with the game from turn 0 the seat has lost
   three of three on this board: outside rule 2's band, so this board would be dropped.
 
+### The seat's row, and the Time victory (2026-11-17, rule 8's tests)
+
+**A second board, the same end.** `board-tiny-prince-a-t0` (Tiny, Quick, Prince, Indonesia on the seat against
+Assyria, Brazil and America) played from turn 0 by the stock AI: 24.2 minutes, ended by Time at turn 330 for
+America with 1766; Brazil 1117, Assyria 1145, the seat last with 827, two cities and 68 science a turn. With
+the duel that is four whole games on two Prince boards, every one ended by Time and the seat never first.
+
+**Why the seat loses: it is not on the AIs' row.** Every real AI plays on `HANDICAP_AI_DEFAULT` at any
+difficulty; the engine-played seat keeps the human's row. Read from `GameInfo.HandicapInfos`:
+
+| column | Prince (the seat) | AI_DEFAULT (every AI) |
+|---|---|---|
+| `HappinessDefault` | 9 | 15 |
+| `ResearchPercent` | 100 | 85 |
+| `PolicyPercent` | 100 | 75 |
+| `BuildingCostPercent`, `UnitCostPercent` (upkeep) | 100 | 75 |
+| `NumCitiesUnhappinessMod`, `PopulationUnhappinessMod` | 100 | 90 |
+| `ProductionFreeUnits`, per city | 5, 2 | 7, 3 |
+| `RouteCostPercent` | 100 | 50 |
+
+The `AI...` columns of the two rows are the same, so the difference is the row alone. A value measured with
+the seat on the human's row is the worth of a position to a player the game handicaps against all others, and
+on the two boards that worth was nothing.
+
+**The setup screen cannot give a human that row.** Hosted with `PreGame.SetHandicap(0, AI_DEFAULT)` the game
+came up with the seat, and the game itself, on Chieftain (`board-tiny-chieftain-a-t0`): the AI columns of a
+Chieftain game make every engine-played seat pay 130%, the entrant alone would not, so that board is no use.
+
+**In a running game it can be set, and it holds.** `PreGame.SetHandicap(seat, AI_DEFAULT)` in the loaded turn-0
+save: `Player:GetHandicapType()` reads the new row at once and research costs follow at once (Writing 38 to
+32); the values a player caches (base happiness 9, policy cost 15) do not, until the engine has reason to work
+them out again. After twelve engine-played turns every figure of the seat was an AI's: base happiness 15, the
+city-count unhappiness of one city 2.70 against Prince's 3, the second policy at 15 culture like Assyria's.
+`Game.GetHandicapType()` stays Prince throughout, so nothing changes for the other players.
+
+**So the row belongs to whoever plays the seat** (`board_run.py --row ai`): an entrant's window is the stock
+Prince game as hosted, and in the call that hands the seat to the engine, for the anchor's window and for every
+continuation, the referee puts the seat on the AIs' row. The valuation then asks what a real stock AI makes of
+the position, which is what rule 1 meant. First two whole games on the duel with it: lost by Time 1806 to
+1910, and **won by Culture at turn 272**, the first Culture victory seen under autoplay.
+
+**Time, and what switches it off.** `Game.SetVictoryValid(VICTORY_TIME, false)` reads back false (so does
+`PreGame.IsVictory`) and the game still ended by Time at turn 330. `Game.GetMaxTurns()` follows
+`PreGame.SetMaxTurns`; with the limit cleared as well (`--time off` does both) two continuations from a
+turn-325 save ran past 330 and **both ended in a Diplomatic victory at turn 372** for the seat (2.2 minutes
+each, the seat ahead 1968 to 1824 at the save). So without Time a game does come to a real end not long after
+the old limit, and the first World Leader vote is one of the ways. A board hosted with Time unticked on the
+setup screen has no limit from the start and needs no lever; for the boards already made the lever is the same
+thing.
+
 ## Not checked yet
 
-- A spaceship, culture or diplomatic win under autoplay (Time and Domination are seen).
-- Whether a slot can be made an observer in a running game, and whether `PreGame.SetHandicap` in a running game
-  moves the seat's own row.
+- A spaceship win under autoplay (Time, Domination, Culture and Diplomatic are seen).
+- Whether a slot can be made an observer in a running game.
 - How many AI-only games a win estimator needs on stock rules.
 - How much one board's result varies between two runs of the same *agent* (the stock AI's spread on one late
   board is above), and the stock AI's spread on an opening board. They set how many replicates a board needs,
