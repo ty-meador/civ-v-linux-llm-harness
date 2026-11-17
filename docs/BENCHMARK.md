@@ -10,11 +10,22 @@ human sees, and it has to play anyway: every unit, city, deal and vote, for as l
 enforces the boundary; the benchmark measures the play. The benchmark is a definition (boards, windows, scoring)
 that this harness can run and that another harness holding the same boundary could run too.
 
-## Rules, version 0 (2026-11-16)
+## Rules, version 1 (2026-11-17)
 
 The user left the rules to be worked out (2026-11-16). These are the rules the measurements so far support. Each
 says what is seen and what is not, and rule 8 lists the tests that would overturn them. The sections after this
 one are the argument and the measurements; where they differ from a rule, the rule is the later thought.
+
+**What version 1 changed**, after the first night of rule 8's tests (36 games played out, "The seat's row" and
+"The floor against the anchor" below):
+
+- A board carries its terms: the seat is on the row every AI plays on, and there is no Time victory (rule 2).
+  At Prince as hosted the engine-played seat lost every whole game, all by Time.
+- A board's band is measured the way a run is valued, through the window, the save and the continuations
+  (rule 2). The first duel is 0.57 by whole games and 0.90 through the chain.
+- A continuation with no victory by a stop turn is not decided and is in no share (rule 1).
+- A value is given with its standard error and over all of an entrant's games on the board (rule 6).
+- Rule 8's first test failed on the first board and is open: see there.
 
 **1. A run is worth what the game was worth when the entrant's turns were over.** An entrant plays a seat for a
 window of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
@@ -33,20 +44,36 @@ window of turns. Then the game's own AI plays that seat and every other to the e
   same way. The path says whether a lead was built early and kept, thrown away, or won back from behind. The
   headline stays the value at the window's end: an average over the path would pay for a lead that was then
   lost.
-- Seen: autoplay to a Time and to a Domination win with no screen in the way, the winner read from
-  `Game.GetWinner()`. Not seen: a continuation from a save made at the window's end, the other three victory
-  types under autoplay, how long a continuation takes.
+- **A continuation is stopped at a turn the board names** (500 at Quick speed so far). With no victory by
+  then it is not decided: it is in no share and is counted beside the value. One whole game in eight on the
+  first duel ended that way, the seat far ahead.
+- Seen: 36 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
+  Diplomatic (22), Culture (5), Domination (3) and Time (5, before it was switched off), one stopped at turn
+  500; the chain of window, save, load and continuation; a continuation from turn 30 of a duel in 12 to 14
+  minutes. Not seen: a Science victory.
 
 **2. Boards.** A board is a save, a seat, a window and a number of deals.
 
-- Made from the single-player setup screen: Prince (the AI on the seat then has nearly no bonus, measured
-  below), the unused slots as the screen leaves them (the observer slot autoplay needs), every victory type on,
-  stock rules, no mod. Small maps (Duel to Small) at Quick speed, so that a continuation is minutes.
+- Hosted from the single-player setup screen: Prince, the unused slots as the screen leaves them (the observer
+  slot autoplay needs), stock rules, no mod. Small maps (Duel to Small) at Quick speed, so that a continuation
+  is minutes.
+- **Then made to carry its terms** (`board_run.py --terms`): the seat is put on the row every AI of the game
+  plays on (`HANDICAP_AI_DEFAULT`; the human's Prince row has base happiness 9 against 15, research at 100%
+  against 85%, policies at 100% against 75%), and the Time victory is switched off with the turn limit cleared.
+  The save keeps both. Every player of the game is then on one row, whoever plays the seat: an entrant, the
+  stock AI and the scripted floor play the same window on the same terms, and so does every continuation. The
+  entrant plays a game a little kinder than Prince; what is compared is always two players of the same seat.
+- Without Time a game runs to a victory someone took: on the first duel the World Leader vote, a Culture
+  victory or a conquest, between turn 126 and turn 425.
 - Three kinds by where the window sits: an opening (from turn 0), a middle game, a late game. They are reported
   apart. A middle or late board is cut from a game the stock AI played alone to that turn: an honest origin, no
   one's notebook, and as many boards as wanted for no tokens.
-- **A board is kept only if the stock AI's own value on it is between 0.2 and 0.8.** On a board the seat always
-  or never wins, no window can show anything.
+- **A board is kept only if the anchor's value on it is between 0.2 and 0.8**, the anchor's value being
+  measured as any run's is: the stock AI plays the window, the game is saved, and the save is played out. On a
+  board the seat always or never wins, no window can show anything. Whole games from the board's first turn
+  are not the measure: the first duel is 0.57 by eight whole games and 0.90 through the chain (below), and so
+  it is out. With ten decided games a value near 0.5 is known to 0.16 either way; a board near an edge of the
+  band needs more before it is kept or dropped.
 - **The seats of one map.** Where the same map can be started from each of its seats (a fixed map seed on the
   setup screen, not yet tried), every seat is a board, and an entrant's spread over the seats of one map is
   reported beside its mean: the same world from the river valley and from the tundra. Seats outside the band
@@ -61,8 +88,10 @@ window of turns. Then the game's own AI plays that seat and every other to the e
 **3. Entrants.** An entrant is a client, a model, an effort setting, a harness version and a prompt file. It has
 the nine tools and one seat: no shell on the game's machine, no save file, no Lua. It starts with no notebook;
 what it writes during the window is its own. Two entrants are always on a board beside the models: the stock AI
-playing the window (`stock-ai`, the anchor) and a scripted floor that answers only what the game forces
-(`scripts/play_loop.py`).
+playing the window (`stock-ai`, the anchor) and a scripted loop that answers only what the game forces, from
+fixed lists (`scripts/play_loop.py`). The loop was meant as a floor and is not one by construction: on the
+first duel its opening (Worker, Monument, Shrine, Granary, four Tradition policies, the Warrior at home) was
+worth as much as the stock AI's. It is reported as a second fixed player, not as a lower bound.
 
 **4. Deals.** An entrant's nth run on a board is deal n: 17 n draws from the game's random stream before the
 window, the same for every entrant, since a save otherwise replays the same game. A continuation takes its own
@@ -90,8 +119,12 @@ is not known.
 
 **6. What is reported.**
 
-- Per board and entrant: the value, mean over the finished deals, with the anchor's and the floor's beside
-  it, and the number of deals not finished.
+- Per board and entrant: the value over all the decided games of its finished deals (won W of N) with its
+  standard error, sqrt(p (1 - p) / N), the anchor's and the scripted loop's beside it, each deal's own value,
+  and the number of deals not finished. Ten games tell 1.0 from 0.6 and not 0.9 from 0.7; a difference of 0.15
+  between two entrants on one board needs about ninety games each. That is the price of a win as the unit,
+  it is paid in machine hours and not in tokens, and it is the reason the fitted estimator of rule 1 stays on
+  the list.
 - The headline has two parts and neither is given without the other: **the share of windows finished**, and
   over those **the mean over boards of the entrant's value less the anchor's**, per kind of board, with an
   interval from resampling boards. It reads "finished 8 of 9 windows, and left the seat this much more (or
@@ -117,21 +150,34 @@ ordering. They explain a value; they do not replace it.
 - *What the play cost.* Tokens and seconds a turn, calls a turn, orders refused by reason, the share of windows
   played.
 
-**8. What would overturn this, to be tested before any model's tokens are spent on it.**
+**8. What would overturn this, to be tested before any model's tokens are spent on it.** Where each test
+stands after the night of 2026-11-17:
 
-- *The value cannot tell a floor from the anchor.* On an opening board, the scripted floor for 30 turns
-  against the stock AI for 30 turns. If the continuations do not separate those two, the window or the
-  valuation is wrong.
-- *Continuations are too slow or too noisy.* Minutes a continuation on each map size, and the spread of the
-  value over 20 of them. A run should be valued within the hour.
-- *No board is undecided.* The real AIs keep their own handicap row at any difficulty (base happiness 15,
-  research at 85%), so an AI on the seat at Prince may still win too rarely on boards of several
-  civilizations. If so the difficulty or the map is changed until rule 2's band is met, or the rule is.
-- *The save in between.* Save at the window's end, load, autoplay to the end. Seen live as a chain 2026-11-17
-  ("A whole game on a Prince duel"); this one holds.
-- *Continuations end by score.* Added 2026-11-17: all three whole games on the first Prince duel ended by Time
-  at the turn limit, which is the higher score. If that is the usual end, rule 1 values a seat by score after
-  all, through the game's own rule. To be measured on boards of more civilizations before rule 1 is trusted.
+- *The value cannot tell a floor from the anchor.* **Failed on the first board, open.** On the duel's opening
+  (30 turns from turn 0, two deals, five continuations a deal) the scripted loop's value is 1.00 (10 of 10)
+  and the anchor's 0.90 (9 of 10). Nothing separates them, and both are outside the band: after either
+  opening the seat nearly always wins, mostly the World Leader vote. This says the board and window were
+  wrong (a duel leaves the seat one rival and few ways to lose, and 30 opening turns of sitting still cost
+  nothing there), and it does not yet say the valuation is right. The test is to be repeated on a board that is
+  in the band through the chain, with a window in which sitting still has a price; until one separates them
+  no model's value means anything.
+- *Continuations are too slow or too noisy.* **Slow and noisy, both measured.** From an opening a duel
+  continuation is 12 to 14 minutes, and a whole Tiny game to turn 330 took 24. Five an hour is a value known
+  to about 0.2. "Valued within the hour" holds only for late boards (a continuation from turn 325 took 2.2
+  minutes). Rule 6 now gives the standard error and says what a difference costs.
+- *No board is undecided.* **Answered for the row, open for the band.** The seat on the human's Prince row
+  lost every whole game; on the AIs' row the duel is 0.57 by whole games. Through the chain the same board is
+  0.90, out of the band from the other side. A board of more civilizations is the next candidate (Tiny, being
+  played).
+- *The save in between.* **Holds as a mechanism, and changes the result.** Twenty games played out from a
+  turn-30 save had no conquest; eight whole games on the same board had three, all by the Aztecs before turn
+  180. At turn 30 the two have not met, and what can be read of both players is the same before the save and
+  after the load. Either it is chance (three conquests in 28 games all falling among those eight: 0.017) or
+  the second hand-over matters: at the save the seat is the human's again, and a continuation hands it to the
+  engine anew. It does not make the comparison between entrants unfair, since every run goes through the same
+  chain, but it is why the band is measured through the chain, and it is not explained.
+- *Continuations end by score.* **Answered.** With Time off every decided game ended by a victory someone
+  took, and in five of them the winner had the lower score.
 
 **Considered and left out** (suggestions weighed 2026-11-16):
 
@@ -526,7 +572,8 @@ are that board's own value: the same two changes were made at turn 0 before the 
 
 The scripted loop (`scripts/play_loop.py`: it founds the capital where the Settler stands, automates Workers,
 skips every other unit, and for production, research and policy takes the first thing it can from a fixed
-list) played the first 30 turns of `board-duel-prince-a-t0-airow`, two deals, and each end save was played out five times
+list) played the first 30 turns of `board-duel-prince-a-t0-airow`, two deals, and each end save was played
+out five times
 (`--label play-loop --notebook none --turns 30 --runs 2 --continue 5 --last-turn 500`).
 
 | | deal 0 | deal 1 |
@@ -545,12 +592,35 @@ losses were all conquests before turn 180; after the scripted window the Aztecs 
 Three losses among seventeen games all falling to the stock AI's side has a chance of 35 in 680, about 0.05,
 if the two were the same.
 
-So the value does separate the two, and **the "floor" stands above the anchor**: what the stock AI makes of a
-capital that sat still for 30 turns with its Warrior at home and four policies taken is more than what it makes
-of its own opening. Before that is read as a fact about play, the chain has to be ruled out: the scripted run's
-continuations start from a save made at turn 30 and loaded again, the whole games never pass through a save.
-The control is the anchor as rule 3 defines it, the stock AI for the same 30 turns, the same save and the same
-five continuations a deal.
+Read alone that puts the "floor" above the anchor. It does not: the whole games never pass through a save,
+and the scripted run's continuations start from one made at turn 30. **The control is the anchor as rule 3
+defines it**, the stock AI for the same 30 turns, the same save and the same five continuations a deal
+(`--turns 30 --runs 2 --continue 5 --last-turn 500`, no command):
+
+| | deal 0 | deal 1 |
+|---|---|---|
+| the window | 30 turns in 72 s | 30 turns in 69 s |
+| the seat at turn 30 | one city of 3, 7 technologies, 3 policies, score 106, 207 gold | one city of 3, 7 technologies, 3 policies, score 102, 206 gold |
+| place by score | 1 of 2 | 2 of 2 |
+| continuations won | 5 of 5 | 4 of 5 |
+| ended by | Diplomatic four times, Culture once, turns 313 to 350 | Diplomatic five times, turns 337 to 397, one of them the Aztecs' |
+
+**Through the same chain the anchor is 0.90 (9 of 10) and the scripted loop 1.00 (10 of 10)**, 13.8 and 12.2
+minutes a game. Three things follow.
+
+- *The two are not told apart, and the board is out of the band.* After either opening the seat nearly always
+  wins. Rule 8's first test failed here; what that means is said there.
+- *The chain is not the whole game.* Twenty games from a turn-30 save: no conquest. Eight whole games: three,
+  and a value of 0.57. A second look for what a save might lose (`e5`, the engine playing 30 turns, a read of
+  both players, save, leave, load, the same read): at turn 30 Siam and the Aztecs have not met, and units,
+  gold, military might and every stance that can be read are the same after the load. So nothing readable is
+  lost, and the conquests come later than turn 30 in any case. What differs is that the seat is the human's
+  again when the save is made and is handed to the engine a second time by the continuation. Whether that is
+  the cause is not tested; the continuation now records the turn the seat is first at war and the most cities
+  it held, so the next whole games and the next chain games can be set side by side.
+- *The scripted loop is no floor.* Its fixed lists are an opening a person would recognise, and at turn 30 it
+  stood where the stock AI stood (score 112 and 120 against 106 and 102, a policy more, 110 gold less). Thirty
+  turns are too few for "answers only what is forced" to cost anything.
 
 ## Not checked yet
 
