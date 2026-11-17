@@ -55,6 +55,12 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   continuations keep every player's final score, technologies and cities. Live on the Prince duel: eight whole
   games, the seat won 4 of the 7 decided (Diplomatic three times, Culture once), lost 3 by Domination, one
   undecided at turn 500. `docs/BENCHMARK.md`, "The seat's row, and the Time victory".
+- **A board that carries its terms (2026-11-17; #194, #195).** A save keeps the seat's row and the cleared turn
+  limit (read back after a reload), so `scripts/board_run.py --save <hosted> --terms <board>` loads a hosted
+  save, puts the seat on the AIs' row, switches Time off and saves it as the board. Every window on that board,
+  an entrant's included, and every continuation are then played on the same terms with no lever at the
+  hand-over. `--summary` also prints the decided games as one pool (won W of N, with the standard error) and
+  the continuations the stop turn left undecided.
 - **The window's last turn, in the command and in the prompt (2026-11-17; #201).** `{until}` in a board_run
   command is the turn at which the window is over; `scripts/llm_seat_loop.py --until-turn N` puts it in the
   prompt, which now ends an instance on a turn ("turn T0+N is yours") and not on a count of turn ends, and says

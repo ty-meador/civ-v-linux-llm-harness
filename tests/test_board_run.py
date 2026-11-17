@@ -490,6 +490,63 @@ class EndSave(unittest.TestCase):
         self.assertNotIn("quick_save", g.sent)
 
 
+class Terms(unittest.TestCase):
+    """Live 2026-11-17: a save made after the seat was put on the AIs' row and Time switched off reads both back
+    after a reload, so a board can carry its terms and every window on it is played on them."""
+
+    TOLD = {"seat_row": "HANDICAP_AI_DEFAULT", "time_victory": False, "max_turns": 0}
+
+    def make(self, g, **kw):
+        saved = []
+        out = board_run.with_terms(g, "board-t0", "board-t0-terms", save_game=lambda _g, name: saved.append(name) or name, **kw)
+        return out, saved
+
+    @staticmethod
+    def sent_terms(g):
+        return next(c for c in g.sent if "seat_row" in c and "SetAIAutoPlay" not in c and "players = {}" not in c)
+
+    def test_the_board_is_changed_then_saved_under_the_new_name_and_left(self):
+        g = FakeGame([read(turn=0)], polls=[dict(self.TOLD)])
+        out, saved = self.make(g)
+        chunk = self.sent_terms(g)
+        self.assertIn("PreGame.SetHandicap(0, GameInfo.HandicapInfos.HANDICAP_AI_DEFAULT.ID)", chunk)
+        self.assertIn("PreGame.SetMaxTurns(0)", chunk)
+        self.assertFalse(any("SetAIAutoPlay" in c for c in g.sent))          # nobody plays a turn
+        self.assertEqual(saved, ["board-t0-terms"])
+        self.assertEqual(out, {**self.TOLD, "save": "board-t0-terms", "made_from": "board-t0", "seat": 0, "turn": 0})
+        self.assertEqual(g.left, 1)
+
+    def test_either_term_can_be_left_as_hosted(self):
+        g = FakeGame([read(turn=0)], polls=[dict(self.TOLD)])
+        self.make(g, row="own")
+        chunk = self.sent_terms(g)
+        self.assertNotIn("SetHandicap", chunk)
+        self.assertIn("PreGame.SetMaxTurns(0)", chunk)
+
+    def test_a_board_with_no_observer_slot_is_refused_unchanged_and_left(self):
+        g = FakeGame([read(slots=(3, 1, 2, 2))])
+        with self.assertRaises(board_run.Refused):
+            self.make(g)
+        self.assertFalse(any("SetHandicap" in c for c in g.sent))
+        self.assertEqual(g.left, 1)
+
+    def test_the_command_line_makes_both_terms_unless_told_otherwise(self):
+        seen = {}
+
+        def fake(_g, save, new, seat=None, row="ai", time_victory="off", **_kw):
+            seen.update(save=save, new=new, row=row, time=time_victory)
+            return {"save": new}
+
+        game = mock.Mock()
+        game.has_state.return_value = False
+        with mock.patch.object(board_run, "with_terms", fake), mock.patch("harness.game.Game", return_value=game), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(board_run.main(["--save", "a", "--terms", "b"]), 0)
+            self.assertEqual(seen, {"save": "a", "new": "b", "row": "ai", "time": "off"})
+            self.assertEqual(board_run.main(["--save", "a", "--terms", "b", "--time", "on"]), 0)
+            self.assertEqual(seen["time"], "on")
+
+
 class Views(unittest.TestCase):
     def test_shares_are_of_the_living_and_the_place_is_by_score(self):
         r = read(players=[player(0, human=True, score=100, techs=30), player(1, score=300, techs=50),
@@ -565,6 +622,16 @@ class Summary(unittest.TestCase):
         self.assertEqual(lines[0], "board: 1 runs, 0 played their window")
         self.assertTrue(lines[1].startswith("value: 0.250 (sd 0.000) over 1 finished runs and 1 continuations, 2.0 min each"))
         self.assertTrue(lines[1].endswith("ended by seat_dead"))
+
+    def test_the_games_as_one_pool_and_the_ones_the_stop_turn_left_open(self):
+        games = [{"end_reason": "victory", "won": True, "seconds": 60.0, "victory": "VICTORY_CULTURAL"},
+                 {"end_reason": "victory", "won": False, "seconds": 60.0, "victory": "VICTORY_DOMINATION"},
+                 {"end_reason": "turn_limit", "won": False, "seconds": 600.0, "turn": 500}]
+        lines = board_run.summarise([{"entrant": "board", "end_reason": "value_only", "value": 0.5,
+                                      "continuations": games}])
+        self.assertIn("and 2 continuations, 1.0 min each", lines[1])      # the open game is in no mean
+        self.assertEqual(lines[2], "games: the seat won 1 of 2 decided, 0.500 (standard error 0.354)")
+        self.assertEqual(lines[3], "not decided by the stop turn: 1 (turn 500), in no share")
 
     def test_no_run_that_played_its_window_is_one_line(self):
         self.assertEqual(len(board_run.summarise([row(0, reason="stalled")])), 1)

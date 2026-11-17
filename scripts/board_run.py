@@ -47,7 +47,14 @@ What it will not do (each seen live 2026-11-16, docs/BENCHMARK.md "Autoplay, che
   so the run is watched and the game is left for the main menu when it ends.
 
 The engine plays the seat with the AI bonuses of the save's difficulty (at Prince nearly none) on the human's
-own handicap row; `handicap` is in every row for that reason.
+own handicap row; `handicap` is in every row for that reason. Every real AI plays on another row
+(HANDICAP_AI_DEFAULT), so a board is made to carry its terms before anyone plays it:
+
+    scripts/board_run.py --save board-duel-prince-a-t0 --terms board-duel-prince-a-t0-airow
+
+loads the hosted save, puts the seat on the AIs' row, switches the Time victory off, and saves it under the new
+name. A save keeps both, so every window on that board and every continuation are played on the same terms.
+`--row ai` and `--time off` do the same at the hand-over, for a save that was not made that way.
 """
 from __future__ import annotations
 
@@ -218,6 +225,34 @@ def save_as(g, name: str, sleep=time.sleep, clock=time.monotonic, wait: float = 
         sleep(0.5)
     shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
     return name
+
+
+TERMS = """
+%(terms)s
+return {seat_row = GameInfo.HandicapInfos[Players[%(seat)d]:GetHandicapType()].Type,
+  time_victory = Game.IsVictoryValid(GameInfoTypes.VICTORY_TIME), max_turns = Game.GetMaxTurns()}
+"""
+
+
+def with_terms(g, save: str, new: str, seat: int | None = None, row: str = "ai", time_victory: str = "off",
+               save_game=save_as) -> dict:
+    """A board that carries its terms: `save` loaded, the seat put on the AIs' row and the Time victory switched off,
+    and the game saved as `new`. A save keeps both (live 2026-11-17: read back after a reload), so on such a board
+    every entrant's window, the stock AI's and every continuation are played on the same terms with no lever at
+    the hand-over. Says what the game reads after the change."""
+    loaded = g.load_save(save)
+    if not loaded.get("ok"):
+        raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
+    try:
+        before = g.q(READ)
+        seat = find_seat(before, seat)
+        check_observer_slot(before, seat)
+        terms = (ROW_AI % {"seat": seat} if row == "ai" else "") + (TIME_OFF if time_victory == "off" else "")
+        out = dict(g.q(TERMS % {"terms": terms, "seat": seat}))
+        out.update(save=save_game(g, new), made_from=save, seat=seat, turn=before["turn"])
+        return out
+    finally:
+        leave(g)
 
 
 def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
@@ -490,6 +525,23 @@ def summarise_entrant(name: str, rows: list[dict]) -> list[str]:
     return lines
 
 
+def pooled_lines(rows: list[dict], games: list[dict]) -> list[str]:
+    """Every decided continuation as one game: the share the seat won and its standard error, which is what says
+    how far two entrants on one board can be told apart; and the continuations the stop turn left undecided, which
+    are in no share and are counted here."""
+    lines = []
+    if games:
+        won = sum(1 for c in games if c.get("won"))
+        p = won / len(games)
+        lines.append(f"games: the seat won {won} of {len(games)} decided, {p:.3f} "
+                     f"(standard error {math.sqrt(p * (1 - p) / len(games)):.3f})")
+    undecided = [c for r in rows for c in r.get("continuations", []) if c.get("end_reason") == "turn_limit"]
+    if undecided:
+        lines.append(f"not decided by the stop turn: {len(undecided)} "
+                     f"(turn {', '.join(str(c.get('turn')) for c in undecided)}), in no share")
+    return lines
+
+
 def value_lines(rows: list[dict]) -> list[str]:
     """The entrant's value over its finished runs, each run's own, and its DNF as a count of their own: beside the
     value, never inside its mean. The last figure is the value with every DNF as 0, what an ordering uses."""
@@ -503,6 +555,7 @@ def value_lines(rows: list[dict]) -> list[str]:
         minutes = f", {mean_sd([c['seconds'] for c in games])[0] / 60:.1f} min each" if games else ""
         lines.append(f"value: {m:.3f} (sd {sd:.3f}) over {len(values)} finished runs and {len(games)} continuations{minutes}; "
                      f"by run: {', '.join(f'{v:.2f}' for v in values)}" + (f"; ended by {', '.join(how)}" if how else ""))
+        lines.extend(pooled_lines(rows, games))
     if dnf and (values or any("continuations" in r or "value" in r for r in rows)):
         why = ", ".join(sorted({r["end_reason"] for r in dnf}))
         lines.append(f"DNF: {len(dnf)} of {len(dnf) + len(values)} runs ({why}), below every finished run in an ordering"
@@ -575,15 +628,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--continue", dest="continuations", type=int, default=0, metavar="R",
                     help="value the run (rule 1): save at the window's end and let the engine play the game out R times "
                          "from there; the value is the share the seat's team wins")
-    ap.add_argument("--row", choices=("own", "ai"), default="own",
-                    help="the difficulty row the seat has while the engine plays it: its own (the human's), or the "
-                         "AIs' (HANDICAP_AI_DEFAULT, what every real AI plays on); an entrant's own window is never touched")
-    ap.add_argument("--time", choices=("on", "off"), default="on",
-                    help="off: the Time victory is switched off while the engine plays, so a game runs to a real victory")
+    ap.add_argument("--row", choices=("own", "ai"), default=None,
+                    help="the difficulty row the seat has while the engine plays it: its own (the default: nothing is "
+                         "changed), or the AIs' (HANDICAP_AI_DEFAULT, what every real AI plays on). Set at the hand-over, "
+                         "so an entrant's own window is not touched; a board made with --terms carries it for everyone")
+    ap.add_argument("--time", choices=("on", "off"), default=None,
+                    help="off: the Time victory is switched off when the engine takes the seat, so a game runs to a real "
+                         "victory (default on: nothing is changed)")
     ap.add_argument("--last-turn", type=int, default=None, metavar="T",
                     help="a continuation with no victory by game turn T is stopped there and counts as not decided")
     ap.add_argument("--value-only", action="store_true",
                     help="no window: value --save itself by --continue R continuations (a board's own worth)")
+    ap.add_argument("--terms", metavar="NEW",
+                    help="make a board that carries its terms and do nothing else: --save loaded, the seat put on the AIs' "
+                         "row and Time switched off (unless --row own, --time on), saved as NEW. Every window and every "
+                         "continuation on NEW is then played on the same terms, an entrant's included")
     ap.add_argument("--summary", type=Path, metavar="ROWS", help="print the summary of a rows file and do nothing else")
     ap.add_argument("command", nargs=argparse.REMAINDER,
                     help="after `--`: the entrant, a command that plays the seat and ends; {deal}, {turns} and {until} "
@@ -593,6 +652,22 @@ def main(argv: list[str] | None = None) -> int:
         print("\n".join(summarise(read_rows(a.summary))))
         return 0
     command = a.command[1:] if a.command[:1] == ["--"] else a.command
+    if a.terms:
+        if not a.save or command:
+            ap.error("--terms takes --save and no command")
+        from harness.game import Game
+        g = Game()
+        if g.has_state("InGame"):
+            print("a game is loaded: leave it for the main menu first (session main_menu); nothing was done", file=sys.stderr)
+            return 2
+        try:
+            # the levers' defaults are for a run (nothing changed); a board made to carry terms carries both
+            made = with_terms(g, a.save, a.terms, seat=a.seat, row=a.row or "ai", time_victory=a.time or "off")
+        except Refused as e:
+            print(f"refused: {e}", file=sys.stderr)
+            return 2
+        print(json.dumps(made))
+        return 0
     if not a.save or not a.out:
         ap.error("--save and --out are needed for a run")
     if command and not a.label or a.label == STOCK_AI:
@@ -625,13 +700,13 @@ def main(argv: list[str] | None = None) -> int:
                                   keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save)
             else:
                 row = run_once(g, a.save, a.turns, seat=a.seat, burn=burn, stall=a.stall, end_save=end_save, say=say,
-                               row=a.row, time_victory=a.time)
+                               row=a.row or "own", time_victory=a.time or "on")
             if a.continuations:
                 row["continuations"] = []
                 for m in range(a.continuations if row.get("end_save") else 0):
                     wait_main_menu(g)
-                    c = continuation(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row,
-                                     time_victory=a.time, stop_turn=a.last_turn)
+                    c = continuation(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row or "own",
+                                     time_victory=a.time or "on", stop_turn=a.last_turn)
                     row["continuations"].append(c)
                     print(f"  continuation {m}: {c['end_reason']}, {'won' if c['won'] else 'not won'}"
                           f"{' by ' + c['victory'] if c.get('victory') else ''}, turn {c.get('turn')}, {c.get('seconds')} s",

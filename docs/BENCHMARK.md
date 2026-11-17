@@ -510,6 +510,18 @@ thing.
   the seat's came after turn 270. A window that gets the seat through the first 180 turns alive is most of
   what there is to win on this board, which is worth knowing when a window's length is chosen.
 
+**The terms belong in the board, not in the hand-over.** With the row set only when the engine takes the seat,
+the stock AI plays its window on the AIs' row and an entrant plays the same window on the human's: the
+difference between the two values, which is the headline, would carry the difference between two difficulty
+rows. A save keeps both terms: `board-duel-prince-a-t0` loaded, the seat put on `HANDICAP_AI_DEFAULT`, Time
+switched off and the limit cleared, saved again, left and loaded read the seat's row as the AIs', the turn
+limit 0 and Time invalid, with the game still Prince and the seat still human. `board_run.py --save <hosted>
+--terms <board>` makes such a board. On it every window, an entrant's, the stock AI's and the scripted floor's,
+and every continuation are played on one row, the same as every other player's in the game, and nothing is set
+at any hand-over. The values the seat caches (base happiness 9, the first policy at 15 culture) are stale in a
+turn-0 board until the game works them out again, the same for everyone who plays it. The eight games above
+are that board's own value: the same two changes were made at turn 0 before the engine played.
+
 ## Not checked yet
 
 - A spaceship win under autoplay (Time, Domination, Culture and Diplomatic are seen).
