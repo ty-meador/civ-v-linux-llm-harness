@@ -84,10 +84,31 @@ From the call ledger and the usage rows, per turn and per game, comparable anywh
 These say how an agent plays, not how well. They are cheap, they exist as soon as token accounting does, and a
 benchmark report without them would hide what a rating costs.
 
+## Autoplay, checked live 2026-11-16
+
+`Game.SetAIAutoPlay(n, player)` (the call of the game's own debug panel, `steamassets/debug/game.ltp`) plays a
+human seat unattended in this build. Called from the InGame state through `harness.cli lua`, single player:
+
+- At the call the seat's slot becomes a computer slot (`PreGame.GetSlotStatus` 3 -> 1, `IsHuman` false) and the
+  active player moves to an unused slot as observer (player 12 of a 12-civ game, player 2 of a duel). When the
+  count runs out the seat is the active human player again and `turn(action="status")` reads an ordinary turn.
+  `Game.SetAIAutoPlay(1, player)` stops a run at the next turn (the panel's "Stop AutoPlay").
+- The Maya board (Huge, Quick, 12 civs, t243): 5 turns in 156 s, then 7 more at the same pace, no popup stalled it.
+- A new duel (Greece on the seat against Siam, 4 city-states, Quick, Emperor, `PreGame.SetMaxTurns(20)` with the
+  Time victory on, set on the single-player setup screen before `OnStart()`): autoplay from turn 0 founded the
+  capital and played on; between turn 18 and turn 22 the engine set `Game.GetWinner()` 1 (Siam) and
+  `Game.GetVictory()` VICTORY_TIME, 54 s after the call. Score at the end 93 to Siam's 174.
+- **A win does not stop the run and puts no screen in the way.** The game state went to 2 (GAMESTATE_EXTENDED) and
+  autoplay played the rest of its count (to turn 30); `EndGameMenu` was hidden when the seat came back and the
+  harness read `game_over: false`. A board's result is read from `Game.GetWinner()` / `Game.GetVictory()` and the
+  scores, and the run is stopped by the caller.
+
 ## Not checked yet
 
-- That this build autoplays a human seat unattended (`Game.SetAIAutoPlay`), at which handicap the AI then plays
-  it, and that it reaches a victory screen without a hand.
+- At which handicap the AI plays an autoplayed seat. `Player:GetHandicapType()` stays the human's (Emperor in
+  both games) while the seat is a computer slot; whether the seat then gets the AI's bonuses is not read. One
+  duel, 93 to 174, decides nothing.
+- A game that ends by another victory under autoplay (the capital lost, a spaceship), and a seat that dies.
 - How many AI-only games a win estimator needs on stock rules.
 - How much one board's result varies between two runs of the same agent. Everything above depends on it: it sets
   how many replicates a board needs, and so what the benchmark costs.

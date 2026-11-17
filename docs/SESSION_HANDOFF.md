@@ -426,10 +426,11 @@ game, the stage-by-stage record of seat binding and of the tool surface) is rele
 `docs/ROADMAP.md` and git hold it. The two sections above ("Where the game is", "Where the code is") are the
 2026-10-27 state, kept for the record.
 
-- **The benchmark is a sketch** (`docs/BENCHMARK.md`, not yet agreed). Not checked: that this build autoplays a
-  human seat unattended (`Game.SetAIAutoPlay`) to a victory screen and at which handicap, how many AI-only games
-  a win estimator needs, and how much one board's result varies between two runs of one agent (it sets the
-  replicates and so the cost). Of the pilot only the Maya t242 board has been played (`logs/bench188/`,
+- **The benchmark is a sketch** (`docs/BENCHMARK.md`, not yet agreed). Checked 2026-11-16: this build autoplays a
+  human seat unattended (`Game.SetAIAutoPlay`), hands it back, and sets a winner at a turn limit with no screen
+  in the way (the run plays on past the win; `docs/BENCHMARK.md` "Autoplay, checked live"). Not checked: at
+  which handicap the AI plays the seat, how many AI-only games a win estimator needs, and how much one board's
+  result varies between two runs of one agent (it sets the replicates and so the cost). Of the pilot only the Maya t242 board has been played (`logs/bench188/`,
   `logs/bench191/`); there is no turn-0 board and no stock-AI anchor.
 - **Tokens on the spectator page:** a running Codex cycle was counted request by request under play (2.17.0);
   the same for a Claude cycle read from its own directory is the fixture test only.
