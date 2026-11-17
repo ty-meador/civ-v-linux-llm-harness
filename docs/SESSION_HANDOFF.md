@@ -1,4 +1,67 @@
-# Resume here -- 2026-11-17 (small hours): main = 2.17.0 + the benchmark's referee through stage 2's chain (unreleased; runtime v341, 9 tools, 2325 tests).
+# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2342 tests).
+**The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
+went to bed with "run as many games as you need to"; the night played 36 games to their end and then a Tiny
+board. `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds
+every number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
+
+**What the night found, in the order it matters.**
+- **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
+  human's Prince row (base happiness 9 against 15, research 100% against 85%) and lost every whole game. The
+  setup screen cannot fix it (hosting the seat on that row gives a Chieftain game). `PreGame.SetHandicap(seat,
+  AI_DEFAULT)` in the running game does, and **a save keeps it**.
+- **Time**: `Game.SetVictoryValid(VICTORY_TIME, false)` alone still ends the game at turn 330; with
+  `PreGame.SetMaxTurns(0)` as well games run on to a real victory. A save keeps that too.
+- **So a board carries its terms**: `scripts/board_run.py --save <hosted> --terms <board>`. Made:
+  `board-duel-prince-a-t0-airow`, `board-tiny-prince-a-t0-terms`. Every window on such a board, an entrant's
+  too, and every continuation are on one row. `--row ai --time off` do the same at the hand-over for other
+  saves; `--last-turn 500` stops a continuation as not decided.
+- **The duel's own value by eight whole games: 0.57** (4 of 7 decided; three Diplomatic wins and a Culture win
+  for the seat, three conquests by the Aztecs before turn 180, one game open at turn 500).
+- **Rule 8's first test failed on that board.** 30-turn opening window, two deals, five continuations each: the
+  scripted loop 10 of 10, the stock AI 9 of 10. Not separated, and both outside the band. The scripted loop's
+  fixed lists are a sound opening (Worker, Monument, Shrine, Granary, Tradition), not a floor.
+- **The chain is not the whole game, unexplained.** Twenty games from a turn-30 save: no conquest. Eight whole
+  games: three. At turn 30 the two have not met, and a read of both players is the same before a save and after
+  the load (`logs/boards/scratch/e5_reload_diff.py`). Suspect: the seat is the human's again at the save and is
+  handed over a second time. Continuations now record `first_war_turn` and `most_cities`.
+- Minutes: a duel continuation from turn 30 is 12 to 14, a whole duel game 3.5 to 17, a whole Tiny game to
+  turn 330 24, a continuation from turn 325 2.2. Ten games give a standard error of 0.16 near 0.5.
+- **Tiny through the chain: being played when this was written** (`logs/boards/tiny-a/anchor-t30.jsonl`, the
+  stock AI's 30-turn window and four continuations on `board-tiny-prince-a-t0-terms`). Read it with `--summary`.
+
+**Next, in this order.**
+1. **A board that is in the band through the chain** (stock AI plays the window, save, continuations): the
+   Tiny result above says where that stands. Candidates if it is out: a middle-game board cut from an AI game
+   (continuations are short there, so twenty are cheap), a longer window, a seat under pressure.
+2. **Repeat floor against anchor on that board.** Until one board separates them no model's value means
+   anything (rule 8). A window in which sitting still has a price: 60 to 100 turns, or a middle game.
+3. **The chain against the whole game.** Eight whole games on `board-duel-prince-a-t0-airow`
+   (`--value-only --continue 8 --last-turn 500`) with the new war turns; then a game in two engine-played
+   segments with no save between (30 turns, the seat back, autoplay again) to tell the second hand-over from
+   the save. About 90 minutes each.
+4. #193's "Done when": 20 continuations on one run (the duel has 20 chain games over four runs; one run of 20
+   is not played) and a Science win under autoplay (not seen; Diplomatic 22, Culture 5, Domination 3).
+5. #194 the rest (hosting by one command from `logs/boards/scratch/host_board.py`, manifests, the fixed map
+   seed), #198's live turn (the scripted loop past t246 on the Maya t242 board), #196, #197.
+
+**The tool** is `scripts/board_run.py`; its docstring is the manual. New this night: `--terms`, `--row`,
+`--time`, `--last-turn`, `{until}` in a command, and in `--summary` the decided games as one pool with the
+standard error. `scripts/llm_seat_loop.py --until-turn N` tells the entrant the turn the window ends (#201);
+`scripts/play_loop.py` makes a World Congress proposal (#198, unit tests only).
+
+**The machine.** tunerd on the plain socket with no seat table, the session MCP server up; the game at the main menu unless
+the Tiny run is still playing (`ps` for `board_run`). Saves in the game's `Saves/single`: the two terms boards, the hosted
+`board-duel-prince-a-t0` and `board-tiny-prince-a-t0`, `board-tiny-chieftain-a-t0` (the failed hosting, can
+go), the `--...-deal N-end` saves of each run, `scratch-e5-reload`. Rows (gitignored) under `logs/boards/`:
+`duel-a/anchor-airow-notime.jsonl` (eight whole games), `duel-a/floor-t30.jsonl`, `duel-a/anchor-t30.jsonl`,
+`tiny-a/anchor-t30.jsonl`, `tiny-a/full.jsonl`. The user allowed Codex and Grok runs on 2026-11-16; ask again
+before new paid sessions.
+
+**Mind.** No `scripts/check.sh` while a run plays on the live game. Long Lua goes through `Game().q(code)` and
+returns a table. A killed run leaves the game in play: `board_run.leave(g)` then `wait_main_menu(g)` before
+the next load. GitLab's spam filter refuses long bodies with game-of-chance words: short notes.
+
+# Previous -- 2026-11-17 (small hours): main = 2.17.0 + the benchmark's referee through stage 2's chain (unreleased; runtime v341, 9 tools, 2325 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16: "I'll leave
 coming up with the most robust, useful benchmark rules to you"). `docs/BENCHMARK.md` opens with "Rules, version
 0" and then holds every measurement of the two nights. **The plan is on GitLab: tracking #210**; milestones
