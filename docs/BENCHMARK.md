@@ -694,6 +694,32 @@ several hosted, each screened through the chain by a handful of continuations, t
 and measured properly. A seat's start decides more than 30 turns of anyone's play, which is what rule 2's band
 was written to guard against and what the first two boards both show.
 
+### Three more duels screened (2026-11-17)
+
+Three duels hosted one after another as the setup screen deals them (random civilizations, random map), each
+made to carry its terms and screened through the chain: the stock AI's 30-turn window, the save, four
+continuations (`logs/boards/scratch/screen_boards.sh WORLDSIZE_DUEL 4 ...`, about 40 minutes a board with the
+hosting).
+
+| board | the seat against | at turn 30, score | won | ended by | the seat first at war |
+|---|---|---|---|---|---|
+| `board-duel-prince-b` | Poland against Mongolia | 141 to 109 | 4 of 4 | Culture three times, Diplomatic once, turns 253 to 329 | never, never, turn 250, turn 263 |
+| `board-duel-prince-c` | Morocco against Sweden | 126 to 116 | 4 of 4 | Culture twice, Diplomatic twice, turns 261 to 340 | never, never, turn 195, turn 261 |
+| `board-duel-prince-d` | the Celts against Austria | 103 to 106 | 2 of 4 | Austria by Culture (turn 295) and Diplomatic (361); the seat by Domination (411) and Diplomatic (378) | never, turn 284, turn 309, turn 373 |
+
+- **`board-duel-prince-d` is the first board near the middle** and is the one measured next: rule 8's first
+  test again, with a 100-turn window, so that the scripted loop's one city has a price if anything has.
+- Boards b and c go the way of the first duel: the seat wins by Culture or the vote and is never in danger.
+  They are dropped.
+- **The seat's side has won 30 of the 37 decided duel games the stock AI played on it**, on four boards,
+  against the same program on the other side (a 20 of 25, b and c 4 of 4, d 2 of 4). Four boards cannot say
+  whether that is these four starts or an edge the seat has of its own (it is player 0 and moves first, and
+  it is the start the game gave the human). It matters for how many hosted boards a kept one costs: one in
+  four so far.
+- Little ends early on a duel with both sides on one row. Of the 48 such games three ended by conquest
+  (turns 126 to 177, all among the first eight), and in the twenty with the war turn recorded the seat's
+  first war was never before turn 102.
+
 ## Not checked yet
 
 - A spaceship win under autoplay (Time, Domination, Culture and Diplomatic are seen).
