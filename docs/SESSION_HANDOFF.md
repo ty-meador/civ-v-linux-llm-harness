@@ -428,8 +428,14 @@ game, the stage-by-stage record of seat binding and of the tool surface) is rele
 
 - **The benchmark is a sketch** (`docs/BENCHMARK.md`, not yet agreed). Checked 2026-11-16: this build autoplays a
   human seat unattended (`Game.SetAIAutoPlay`), hands it back, and sets a winner at a turn limit with no screen
-  in the way (the run plays on past the win; `docs/BENCHMARK.md` "Autoplay, checked live"). Not checked: at
-  which handicap the AI plays the seat, how many AI-only games a win estimator needs, and how much one board's
+  in the way (the run plays on past the win; `docs/BENCHMARK.md` "Autoplay, checked live"). The same evening,
+  on scratch duels: **autoplay needs an observer slot** (status 4, what the single-player setup screen leaves in
+  unused slots); with the unused slots closed the call destroyed the seat's units and made the seat the observer,
+  no error. The autoplayed seat gets the game difficulty's `AI...` bonuses (Emperor: units 80%, buildings 75%,
+  growth 80%) and keeps the human's own row (happiness 9, research 100%); a Prince board gives a nearly even
+  anchor. A Domination win and a dead seat under autoplay crash nothing, but the game then runs turns by itself
+  and `status` reads `alive: false`, `game_over: false`. Not checked: how many AI-only games a win estimator
+  needs, and how much one board's
   result varies between two runs of one agent (it sets the replicates and so the cost). Of the pilot only the Maya t242 board has been played (`logs/bench188/`,
   `logs/bench191/`); there is no turn-0 board and no stock-AI anchor.
 - **Tokens on the spectator page:** a running Codex cycle was counted request by request under play (2.17.0);

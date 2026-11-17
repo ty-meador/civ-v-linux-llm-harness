@@ -24,7 +24,8 @@ map or civilization. The proposal is to never compare them.
 3. **The stock AI is the fixed point.** The game's own AI plays the same seat from the same board, many times,
    for no tokens. That gives each board a distribution to stand in, and gives the rating scale an anchor. If the
    AI can be run at several handicap levels on the seat, the anchors form a ladder and a rating reads as "plays
-   this seat like the AI at level X", which is a unit a player understands.
+   this seat like the AI at level X", which is a unit a player understands. (Checked 2026-11-16: one save gives
+   one anchor, at the save's difficulty; "What an autoplayed seat plays with" below.)
 4. **One currency for the ordering.** When a window stops before the game ends, something must order the
    entrants. Victory types differ, so the ordering signal has to be common to all of them: an estimate of the
    seat's chance to win by any route, fitted on stock AI-only games (CivBench's method, on our rules). Until that
@@ -103,12 +104,73 @@ human seat unattended in this build. Called from the InGame state through `harne
   harness read `game_over: false`. A board's result is read from `Game.GetWinner()` / `Game.GetVictory()` and the
   scores, and the run is stopped by the caller.
 
+### The game needs an observer slot, or the seat is destroyed
+
+The engine moves the human to a slot whose status is observer (`PreGame.GetSlotStatus` 4) and plays the seat as a
+computer. The single-player setup screen leaves every unused slot at 4, which is why both games above worked. A
+third duel, the same script with the unused slots set to closed (2) before the start, went the other way: at the
+call the seat itself became the observer (slot 0 read 4, `IsHuman` stayed true, the active player stayed 0), its
+Settler and Warrior were gone in the same call, the seat read dead and Siam was the winner a few turns on. No
+error and no screen. With no human alive the game then ran turns by itself (turn 80 a minute later) until it was
+left for the main menu.
+
+So a runner reads the slots first and refuses a board with no observer slot beside the seat. A hotseat board
+hosted with closed slots is such a board; whether a slot can be set to observer in a running game is not tried.
+
+### What an autoplayed seat plays with (the handicap)
+
+Read on a fourth duel (Emperor, Quick, no turn limit, observer slots as the setup screen leaves them): the seat as
+a human, then `Game.SetAIAutoPlay` and the same reads again in the same call, before the engine had played
+anything, with Siam (an AI from the start) beside them. Turn 0, and turn 12 with a capital of 3 citizens.
+
+| | seat, human | seat, autoplayed | Siam |
+|---|---|---|---|
+| Warrior, production | 26 | 20 | 20 |
+| Monument, production | 26 | 19 | 19 |
+| Warrior to Swordsman, gold | 55 | 20 | 20 |
+| food to grow, 3 citizens | 22 | 17 | |
+| unhappiness, 1 city of 3 | 6 | 5 | |
+| building maintenance | 1 | 0 | |
+| units supplied, turn 12 | 8 | 10 | 15 |
+| happiness before any city | 9 | 9 | 15 |
+| Writing, research cost | 36 | 36 | 30 |
+| first policy, culture | 15 | 15 | 10 |
+| Settler, production | 71 | 71 | 68 |
+| at turn 0: units, technologies | 2, 1 | 2, 1 | 4, 4 |
+
+The seat gets everything the engine gives a player that is not human, at the game's difficulty: the `AI...`
+columns of the Emperor row of `HandicapInfos` (train 80, construct 75, growth 80, unhappiness 90, upgrade 40,
+building cost 80). It keeps its own row for the rest, since `Player:GetHandicapType()` stays Emperor where a
+real AI has `HANDICAP_AI_DEFAULT` (base happiness 15, research 85, cheaper policies). And it never had the AI's
+start (two more units, three free technologies at Emperor). An autoplayed seat is neither a bare AI brain on
+the human's terms nor one of the game's AI opponents: it builds and grows like them and is as unhappy and as
+slow to research as the human.
+
+What follows for the anchor:
+
+- At Emperor the anchor builds a fifth to a quarter cheaper than any agent on the same seat. An agent that
+  equals it has done more with less; the gap is the difficulty's.
+- **A board made at Prince gives an anchor on nearly the human's terms**: Prince's `AI...` columns are 100 except
+  unit maintenance (85), unit supply (20) and upgrades (50).
+- **One save, one anchor.** The bonus is the save's game difficulty. Lua has `Game.GetHandicapType` and no
+  setter; `PreGame.SetHandicap` exists and was not tried in a running game. The ladder of point 3 would need the
+  same map started once per difficulty, and then the opponents change with it.
+
+### Another victory, and a seat that dies
+
+The same duel at turn 13: autoplay for 25 turns, then Siam declared war with six Swordsmen and two Catapults
+placed by Lua around the seat's capital (a staged position). By turn 17 the capital was taken, the seat was
+dead (`IsAlive` false, no city, no unit), `Game.GetWinner()` 1, `Game.GetVictory()` VICTORY_DOMINATION, game
+state 2. Nothing crashed and no screen came up. Autoplay played out its count and gave control back to the dead
+seat: player 0 active and human again, `EndGameMenu` hidden, and the game ran on by itself as above (turn 57,
+then 78). `turn(action="status")` read `alive: false`, `game_over: false`, the gate `turn_not_active`: a seat
+waiting there would wait for good. A runner checks the winner and `IsAlive` each turn and leaves the game itself.
+
 ## Not checked yet
 
-- At which handicap the AI plays an autoplayed seat. `Player:GetHandicapType()` stays the human's (Emperor in
-  both games) while the seat is a computer slot; whether the seat then gets the AI's bonuses is not read. One
-  duel, 93 to 174, decides nothing.
-- A game that ends by another victory under autoplay (the capital lost, a spaceship), and a seat that dies.
+- A spaceship, culture or diplomatic win under autoplay (Time and Domination are seen).
+- Whether a slot can be made an observer in a running game, and whether `PreGame.SetHandicap` in a running game
+  moves the seat's own row.
 - How many AI-only games a win estimator needs on stock rules.
 - How much one board's result varies between two runs of the same agent. Everything above depends on it: it sets
   how many replicates a board needs, and so what the benchmark costs.
