@@ -203,7 +203,7 @@ class Entrant(unittest.TestCase):
     def go(self, g, **kw):
         clock = Clock()
         kw.setdefault("run", self.command(g))
-        return board_run.run_entrant(g, "board", ["loop", "--turns", "10"], "codex/x", sleep=clock.sleep, clock=clock,
+        return board_run.run_entrant(g, "board", ["loop", "--turns", "10"], "codex/x", 10, sleep=clock.sleep, clock=clock,
                                      path_of=lambda _g, _seat: self.nb, **kw)
 
     def game(self, after=None, polls=None, **kw):
@@ -213,7 +213,7 @@ class Entrant(unittest.TestCase):
     def test_the_row_is_the_two_reads_around_the_command(self):
         g = self.game()
         row = self.go(g, keep_notebook=self.dir / "rows" / "kept.json")
-        self.assertEqual((row["entrant"], row["end_reason"], row["rc"], row["turns_played"]), ("codex/x", "command_done", 3, 10))
+        self.assertEqual((row["entrant"], row["end_reason"], row["rc"], row["turns_played"]), ("codex/x", "window_played", 3, 10))
         self.assertEqual((row["start"]["values"]["score"], row["end"]["values"]["score"]), (100, 150))
         self.assertTrue(row["end"]["turn_active"])
         self.assertEqual(self.seen[0][0], ["loop", "--turns", "10"])
@@ -285,7 +285,13 @@ class Entrant(unittest.TestCase):
         self.assertEqual(self.go(self.game(after=won))["end_reason"], "game_won")
 
     def test_a_command_needs_no_observer_slot(self):
-        self.assertEqual(self.go(self.game(slots=(3, 1, 2, 2)))["end_reason"], "command_done")
+        self.assertEqual(self.go(self.game(slots=(3, 1, 2, 2)))["end_reason"], "window_played")
+
+    def test_a_command_that_ends_before_the_window_is_out_did_not_play_it(self):
+        short = read(turn=246, players=[player(0, human=True, score=110, turn_active=True), player(1, score=310)])
+        row = self.go(self.game(after=short, polls=[poll(246, 0)]))
+        self.assertEqual((row["end_reason"], row["turns_asked"], row["turns_played"], row["rc"]), ("window_not_played", 10, 4, 3))
+        self.assertIn("codex/x: 1 runs, 0 played their window, 1 window_not_played", board_run.summarise([row]))
 
     def test_the_command_line_wants_a_label_with_a_command_and_a_command_with_a_label(self):
         for argv in (["--save", "b", "--out", "x.jsonl", "--", "loop"], ["--save", "b", "--out", "x.jsonl", "--label", "codex"],
@@ -334,7 +340,7 @@ class Summary(unittest.TestCase):
 
     def test_two_entrants_stand_side_by_side_on_runs_that_played_the_window(self):
         rows = [row(130, turns_played=10), row(150, turns_played=10),
-                row(180, reason="command_done", entrant="codex/x", turns_played=10),
+                row(180, entrant="codex/x", turns_played=10),
                 row(0, reason="timeout", entrant="codex/x", turns_played=4)]
         lines = board_run.summarise(rows)
         self.assertIn("codex/x: 2 runs, 1 played their window, 1 timeout", lines)
@@ -343,7 +349,7 @@ class Summary(unittest.TestCase):
         self.assertEqual(lines[head + 2].split(), ["score", "140.0", "(14.1)", "180.0", "(0.0)"])
 
     def test_runs_of_different_windows_do_not_stand_side_by_side(self):
-        lines = board_run.summarise([row(130, turns_played=10), row(180, reason="command_done", entrant="codex/x", turns_played=7)])
+        lines = board_run.summarise([row(130, turns_played=10), row(180, entrant="codex/x", turns_played=7)])
         self.assertEqual(lines[-1], "not side by side: the runs played 7, 10 turns")
         self.assertFalse(any(line.startswith("side by side") for line in lines))
 

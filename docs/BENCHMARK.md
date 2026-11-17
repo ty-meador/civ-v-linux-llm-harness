@@ -216,7 +216,7 @@ of the board at the end, so they cannot be set beside this table.
 
 ### Any entrant between the same two reads (2026-11-16)
 
-`scripts/board_run.py --save <save> --label <entrant> --out <rows> -- <command>` runs a command in place of the
+`scripts/board_run.py --save <save> --turns N --label <entrant> --out <rows> -- <command>` runs a command in place of the
 engine: load, read, the command plays the seat and ends, read (once the seat's turn is active again), leave. A
 seat loop is such a command, and so is `scripts/play_loop.py`, the scripted loop that asks no model anything.
 The row has the same shape as the AI's and `--summary` puts the entrants of one rows file side by side.
@@ -233,6 +233,14 @@ The row has the same shape as the AI's and `--summary` puts the entrants of one 
 Seen live with the scripted loop, 2 turns, no notebook, deal 0 (78 s): score 604 to 609 where the AI's two
 2-turn runs made 610; gold 305 against the AI's 15 (the loop buys nothing), science 482 against 546. The
 notebook on disk was the same bytes before and after. No model has been run through it yet.
+
+Three deals of the scripted loop at 10 turns all stopped at turn 246: the seat hosts the World Congress there,
+the loop has no hand for a call for proposals and gave up (exit 2, about 180 s, score 610 to 614). The runner
+had written those rows as played. **The window is the run's own now**: `--turns` is given for every entrant, a
+command's row says `window_played` only when the board is that many turns on and `window_not_played`
+otherwise, and only played windows are summarised and set side by side. So the scripted loop is no entrant on
+this board until it can make a proposal, which is a fair picture of a late board: it asks for things a script
+has no answer to.
 
 ## Not checked yet
 

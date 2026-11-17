@@ -31,7 +31,10 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   command between the same two reads in place of the engine: a seat loop, or `scripts/play_loop.py`. An
   entrant's nth run is deal n (17 n draws from the random stream before anyone plays, the same dice for every
   entrant); `--notebook FILE` or `none` is what the seat starts with, the entrant's notebook at the end is kept
-  beside the rows and the one on disk is put back; `--claim-wait`, `--timeout`, `{deal}` in the command.
+  beside the rows and the one on disk is put back; `--claim-wait`, `--timeout`, `{deal}` and `{turns}` in the
+  command. `--turns` is the window for every entrant: a command that ends with the board fewer turns on is a
+  row that says `window_not_played` (the scripted loop gave up at a World Congress proposal four turns into
+  ten, three deals alike, and the first version wrote those as played).
   `--summary` lists each entrant and puts those that played the same window side by side. Ten runs of the AI on
   the Maya t242 board, 10 turns: score 604 to 633.3 with sd 0.7. Live with the scripted loop, 2 turns: 604 to
   609, the notebook on disk the same bytes afterwards.

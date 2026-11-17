@@ -13,12 +13,12 @@ varies from run to run.
 
 An entrant other than the game's AI is a command after `--`: the same two reads, with the command between
 them in place of the engine. The command plays the seat (a seat loop, `scripts/play_loop.py`) and ends;
-`--label` names the entrant in the row.
+`--label` names the entrant in the row, and `--turns` is the window the board must have moved on.
 
-    scripts/board_run.py --save "Pacal_0242 maya-t242-before-185-check" --label codex/gpt-6.1-sol \
+    scripts/board_run.py --save "Pacal_0242 maya-t242-before-185-check" --turns 10 --label codex/gpt-6.1-sol \
         --notebook logs/bench191/notebook-before.json --claim-wait 200 --out logs/boards/maya-t242/rows.jsonl \
         -- scripts/llm_seat_loop.py --agent codex --seat 0 --dir ~/projects/grok-desk-seat --model gpt-6.1-sol \
-           --turns 10 --cycles 1 --log-dir logs/boards/maya-t242/codex-0
+           --turns {turns} --cycles 1 --log-dir logs/boards/maya-t242/codex-{deal}
 
 Deals, as in duplicate bridge: an entrant's nth run on a board is deal n and takes 17 n draws from the game's
 random stream before anyone plays, so deal n is the same dice for every entrant and two deals are not one game
@@ -199,13 +199,15 @@ def notebook_path(g, seat: int) -> Path:
     return g.notebook().path
 
 
-def run_entrant(g, save: str, command: list[str], label: str, seat: int | None = None, burn: int = 0,
+def run_entrant(g, save: str, command: list[str], label: str, turns: int, seat: int | None = None, burn: int = 0,
                 notebook: str | None = None, keep_notebook: Path | None = None, claim_wait: float = 0.0,
                 timeout: float = 4 * 3600.0, settle: float = 120.0, poll: float = 3.0, run=subprocess.run,
                 path_of=notebook_path, sleep=time.sleep, clock=time.monotonic) -> dict:
     """One run of the board by a command that plays the seat and ends. Loads `save`, reads, puts the entrant's
     notebook in place, runs the command, reads, and leaves for the main menu with the notebook that was on disk
-    before put back. The command's own exit code is in the row and decides nothing."""
+    before put back. The command's own exit code is in the row and decides nothing: the run played its window
+    when the board is `turns` turns on, whatever the command said (a scripted loop gave up at a World Congress
+    proposal four turns into ten and its row read like any other, live 2026-11-16)."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
         raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -219,7 +221,7 @@ def run_entrant(g, save: str, command: list[str], label: str, seat: int | None =
         raise
     nb = path_of(g, seat)
     standing = nb.read_bytes() if nb.exists() else None
-    row: dict = {"entrant": label, "command": command, "save": save, "seat": seat, "burn": burn,
+    row: dict = {"entrant": label, "command": command, "save": save, "seat": seat, "turns_asked": turns, "burn": burn,
                  "notebook": notebook or "standing", "handicap": before["handicap"], "speed": before["speed"],
                  "start": seat_view(before, seat), "end_reason": None, "rc": None}
     try:
@@ -234,7 +236,6 @@ def run_entrant(g, save: str, command: list[str], label: str, seat: int | None =
         t0 = clock()
         try:
             row["rc"] = run(command, timeout=timeout, check=False).returncode
-            row["end_reason"] = "command_done"
         except subprocess.TimeoutExpired:
             row["end_reason"] = "timeout"
         row["seconds"] = round(clock() - t0, 1)
@@ -252,6 +253,8 @@ def run_entrant(g, save: str, command: list[str], label: str, seat: int | None =
             row["end_reason"] = "seat_dead"
         elif after["winner"] >= 0:
             row["end_reason"] = "game_won"
+        elif row["end_reason"] is None:
+            row["end_reason"] = "window_played" if after["turn"] - before["turn"] == turns else "window_not_played"
         row.update(end=end, winner=after["winner"], victory=after["victory"], turns_played=after["turn"] - before["turn"],
                    players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]])
         if keep_notebook is not None and nb.exists():
@@ -272,9 +275,6 @@ def mean_sd(xs: list[float]) -> tuple[float, float]:
     return m, (math.sqrt(sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) if len(xs) > 1 else 0.0)
 
 
-PLAYED = ("window_played", "command_done")
-
-
 def entrant_of(row: dict) -> str:
     return row.get("entrant") or STOCK_AI
 
@@ -283,9 +283,10 @@ def summarise_entrant(name: str, rows: list[dict]) -> list[str]:
     """One entrant on one board. Per indicator: the seat's value at the start, and over the runs that played
     their window the value at the end as mean, standard deviation, least and most, then the spread as a share
     of the mean gain."""
-    done = [r for r in rows if r.get("end_reason") in PLAYED]
+    done = [r for r in rows if r.get("end_reason") == "window_played"]
     lines = [f"{name}: {len(rows)} runs, {len(done)} played their window"
-             + "".join(f", {n} {why}" for why in ("seat_dead", "game_won", "stalled", "timeout", "not_handed_over")
+             + "".join(f", {n} {why}" for why in ("window_not_played", "seat_dead", "game_won", "stalled", "timeout",
+                                                  "not_handed_over")
                        if (n := sum(1 for r in rows if r.get("end_reason") == why)))]
     if not done:
         return lines
@@ -318,7 +319,7 @@ def summarise(rows: list[dict]) -> list[str]:
     lines: list[str] = []
     for name in names:
         lines += ([""] if lines else []) + summarise_entrant(name, [r for r in rows if entrant_of(r) == name])
-    played = {name: [r for r in rows if entrant_of(r) == name and r.get("end_reason") in PLAYED] for name in names}
+    played = {name: [r for r in rows if entrant_of(r) == name and r.get("end_reason") == "window_played"] for name in names}
     played = {name: rs for name, rs in played.items() if rs}
     windows = {r.get("turns_played", r.get("turns_asked")) for rs in played.values() for r in rs}
     if len(played) < 2:
@@ -340,7 +341,9 @@ def read_rows(path: Path) -> list[dict]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--save", help="the save's bare name, no path and no .Civ5Save")
-    ap.add_argument("--turns", type=int, default=10, help="the window: turns the engine plays the seat (default 10)")
+    ap.add_argument("--turns", type=int, default=10,
+                    help="the window (default 10): turns the engine plays the seat, and the turns a command's run must "
+                         "have moved the board on to count as played")
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--seat", type=int, default=None, help="default: the board's one human seat")
     ap.add_argument("--out", type=Path, help="JSON lines, one row a run, appended")
@@ -355,7 +358,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--timeout", type=float, default=4 * 3600.0, help="seconds before the command is given up")
     ap.add_argument("--summary", type=Path, metavar="ROWS", help="print the summary of a rows file and do nothing else")
     ap.add_argument("command", nargs=argparse.REMAINDER,
-                    help="after `--`: the entrant, a command that plays the seat and ends; {deal} in it is the deal's number")
+                    help="after `--`: the entrant, a command that plays the seat and ends; {deal} and {turns} in it "
+                         "are the deal's number and the window")
     a = ap.parse_args(argv)
     if a.summary:
         print("\n".join(summarise(read_rows(a.summary))))
@@ -381,8 +385,8 @@ def main(argv: list[str] | None = None) -> int:
         try:
             if command:
                 keep = a.out.with_name(f"{a.out.stem}-{''.join(c if c.isalnum() else '-' for c in name)}-deal{n}-notebook.json")
-                row = run_entrant(g, a.save, [part.replace("{deal}", str(n)) for part in command], name, seat=a.seat,
-                                  burn=burn, notebook=a.notebook, keep_notebook=keep, claim_wait=a.claim_wait,
+                words = [part.replace("{deal}", str(n)).replace("{turns}", str(a.turns)) for part in command]
+                row = run_entrant(g, a.save, words, name, a.turns, seat=a.seat, burn=burn, notebook=a.notebook, keep_notebook=keep, claim_wait=a.claim_wait,
                                   timeout=a.timeout)
             else:
                 row = run_once(g, a.save, a.turns, seat=a.seat, burn=burn, stall=a.stall,
