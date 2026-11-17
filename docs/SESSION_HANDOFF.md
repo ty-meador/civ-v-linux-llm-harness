@@ -1,31 +1,74 @@
-# Resume here -- 2026-11-16 (night): main = 2.17.0 + the board runner (unreleased; runtime v341, 9 tools, 2309 tests).
-**The benchmark has its first tool and its first numbers** (`docs/BENCHMARK.md`, "Autoplay, checked live" and
-"The runner"). `scripts/board_run.py --save <save> --turns N --runs K --out <rows>` plays a board with the game's
-own AI on the seat and writes one row a run; `--summary <rows>` prints the spread. Found on the way, all on
-scratch duels: autoplay needs an observer slot or it destroys the seat (the runner refuses such a board); the
-autoplayed seat has the difficulty's AI bonuses on the human's own handicap row (a Prince board is nearly even;
-one save, one anchor); a win or a dead seat stops nothing and a dead seat leaves the game playing by itself
-(`turn status` then reads `alive: false`, `game_over: false`, not filed). A save replays the same game, so the
-runner takes draws from `Game.Rand` first. Ten runs of 10 turns on the Maya t242 board (49 minutes, rows in
-`logs/boards/maya-t242/anchor-t10.jsonl`, gitignored): score 604 to 633.3, sd 0.7; technologies, policies and
-cities the same ten times; military, gold and happiness spread widely. **Any entrant goes between the same two
-reads**: `board_run.py ... --label <entrant> --notebook none -- <command>` (a seat loop, or `play_loop.py`),
-deal n the same dice for every entrant, the notebook on disk put back; seen live with the scripted loop only
-(2 turns, 604 to 609; at 10 turns it gives up at t246, a World Congress call for proposals it has no hand for,
-and the rows say `window_not_played`). `logs/boards/maya-t242/t10.jsonl` holds the AI's ten rows for the clients'
-rows to join.
-**The rules are ours to write** (the user, 2026-11-16): `docs/BENCHMARK.md` opens with "Rules, version 0" (a run
-is worth the share of stock-AI continuations the seat wins after the entrant's window; Prince boards kept only
-if the anchor's value is 0.2 to 0.8; a window not played is 0; rule 8 lists the tests that could overturn it).
-**The plan is on GitLab: tracking #210**, milestones 2.18.0 the referee (#192 done, #193 continuations, #194
-boards made to rule, #195 the overturning tests, #196 diagnostics, #197 status after a dead seat, #198 the
-scripted floor and the Congress, #199 release), 2.19.0 the pilot (#200 to #204), 2.20.0 goal boards (#205 to
-#208), unscheduled #209 a fitted estimate. **Two models went through the runner** (deal 0, 10 turns, no notebook): Grok played the window (score
-631 against the AI's 633.3, science 519 a turn against 628); Codex stopped with a leader on screen after its
-tenth end of turn, the board nine turns on, and its row says `window_not_played`, so rule 5 now has the entrant
-told the turn at which the window is over. **Next: #193 and #194, then #195 before anything is built on the
-rules.** The diregoblin fork's fix was already `461c3ee` (2.14.0); the
-chayuto fork has no commit of its own. The game is at the main menu, tunerd on the plain socket, no seat table.
+# Resume here -- 2026-11-17 (small hours): main = 2.17.0 + the benchmark's referee through stage 2's chain (unreleased; runtime v341, 9 tools, 2325 tests).
+**The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16: "I'll leave
+coming up with the most robust, useful benchmark rules to you"). `docs/BENCHMARK.md` opens with "Rules, version
+0" and then holds every measurement of the two nights. **The plan is on GitLab: tracking #210**; milestones
+2.18.0 the referee (#192 closed, #193 to #199), 2.19.0 the pilot (#200 to #204), 2.20.0 goal boards (#205 to
+#208), unscheduled #209.
+
+**The rules in six lines.** A run is worth the share of continuations the seat wins: the entrant plays a window
+of turns, the game is saved, and the game's own AI plays every seat to the end R times. Boards are made at
+Prince from the single-player setup screen and kept only if the stock AI's own value is 0.2 to 0.8. An
+entrant's nth run is deal n, the same random stream for every entrant. A window not finished is a **DNF**, a
+result of its own (the user's suggestion): no value, counted beside the value, below every finished run in an
+ordering. Diagnostics (yields, score parts, diplomacy, cost) stand beside the value and never order anything.
+Rule 8 lists the tests that could overturn all this, to be run before any model is spent on a value.
+
+**The tool is `scripts/board_run.py`** (operator-side, plain tunerd, no seat table; its docstring is the manual):
+- `--save S --turns N --runs K --out rows.jsonl`: the stock AI plays the window (`Game.SetAIAutoPlay`).
+- `--label NAME --notebook none|FILE [--claim-wait 200] -- <command>`: any entrant as a command (a seat loop,
+  `play_loop.py`); `{deal}` and `{turns}` in the command. The notebook on disk is put back afterwards.
+- `--continue R`: save at the window's end, play the game out R times, `value` in the row. `--value-only`
+  values a save as it is. `--summary rows.jsonl` prints each entrant and sets them side by side.
+- Every row has `result`: `finished`, `dnf` or `void`. It refuses a board with no observer slot or two human
+  seats, and leaves a game the engine is still playing by `Events.ExitToMainMenu()` itself.
+
+**What the two nights found** (each with its numbers in `docs/BENCHMARK.md`):
+- Autoplay needs an observer slot (status 4, what the setup screen leaves in unused slots); with the slots
+  closed the call destroyed the seat, no error.
+- An autoplayed seat has the difficulty's AI bonuses on the human's own handicap row; at Prince nearly none.
+- A save replays the same game; draws from `Game.Rand` before play make deals differ.
+- Maya t242 board (Huge, Emperor), 10 turns, ten AI runs: score 604 to 633.3, sd 0.7; technologies, policies and
+  cities the same ten times. Grok finished the window (631; science 519 a turn against 628). Codex is a DNF: a
+  leader came on screen after its tenth end of turn and it stopped, the board nine turns on. The scripted loop
+  is a DNF three times (no hand for a World Congress proposal at t246, #198).
+- A win does not stop the engine, a dead seat leaves the game playing by itself, and the seat's exit is refused
+  while the engine plays ("this seat is not active"): the runner's first whole game played on to turn 400 with
+  its row written (the user saw it). Fixed and seen live through the runner.
+- **Stage 2's chain is seen live** on a Prince duel hosted to rule 2 (`board-duel-prince-a-t0`, Siam on the seat
+  against the Aztecs): a 20-turn window (57 s), the save, two continuations to the end (11.3 and 9.8 minutes),
+  back at the main menu each time. **The seat lost all three whole games on that board by Time** at the turn
+  limit (330), 1571 to 1865 in the one from turn 0: the board's value is 0 of 3, outside the band, and the
+  game's end was a comparison of score.
+
+**Next, in this order.**
+1. **#195 before anything else is built**: the duel says two rules may not hold. (a) *Do continuations end by a
+   real victory anywhere?* Host Tiny and Small boards (4 and 6 civilizations) at Prince, play one whole game
+   each with `--turns 400`, and read the victory type and the minutes. (b) *Is any board in the band?*
+   `--value-only --continue 5` on each. If the seat keeps losing, try the seat at Warlord or Chieftain (the
+   human's own row gets better, the AI columns worse) before changing the rule. (c) If Time stays the usual end,
+   decide: Time off, a longer limit, or accept that the game's own rule counts score at the limit and say so
+   in rule 1. (d) Floor against anchor on an opening window once a board is in the band.
+2. **#193's "Done when"** still wants 20 continuations on one run and a Science, Culture or Diplomatic win seen
+   under autoplay. At 10 to 15 minutes a game from an opening, twenty is three to five hours: run it overnight
+   or cut R, and write down which.
+3. **#194**: the board maker. The recipe is in `logs/boards/scratch/host_board.py` (gitignored, kept from the
+   session's scratch): `start_single_player(handicap=..., start=False)`, the PreGame calls on the shown
+   `GameSetupScreen`, `OnStart()`, `wait_ingame`, quick save, copy under a name. Never close a slot.
+4. **#201's note**: `scripts/llm_seat_loop.py` must tell the entrant the turn at which the window is over
+   ("the window is over when turn N is yours"), not "play N turns".
+5. #196 diagnostics in the row (score parts, yields, diplomacy), #197 status after a dead seat, #198.
+
+**The machine.** The game is at the main menu, tunerd on the plain socket with no seat table, the session MCP
+server up. Saves made: `board-duel-prince-a-t0` and `board-duel-prince-a-t0--stock-ai-deal0-end` in the game's
+`Saves/single`. Rows (gitignored): `logs/boards/maya-t242/t10.jsonl` (the AI's ten, Grok, Codex, the scripted
+loop), `logs/boards/duel-a/full.jsonl` and `chain.jsonl`. The Maya game's notebook on disk is as it was. The
+user allowed Codex and Grok runs on 2026-11-16; ask again before new paid sessions.
+
+**Mind.** No `scripts/check.sh` while a run plays on the live game. Long Lua goes through `Game().q(code)` and
+returns a table; `harness.cli lua` and `client.exec` print nothing for a long chunk. GitLab's spam filter
+refuses long bodies with game-of-chance words: short description, the rest as a note
+(`logs/boards/scratch/gitlab_plan.py`). The diregoblin fork's fix was already `461c3ee` (2.14.0); the chayuto
+fork has no commit of its own.
 
 # Previous -- 2026-11-16 (small hours): main = 2.17.0 (runtime v341, 9 tools, 2276 tests; tagged, released, on PyPI).
 **2.17.0 is #189 with the two things found after it** (a ledger turn is a game turn; the counts in a narrow
@@ -455,18 +498,10 @@ game, the stage-by-stage record of seat binding and of the tool surface) is rele
 `docs/ROADMAP.md` and git hold it. The two sections above ("Where the game is", "Where the code is") are the
 2026-10-27 state, kept for the record.
 
-- **The benchmark is a sketch** (`docs/BENCHMARK.md`, not yet agreed). Checked 2026-11-16: this build autoplays a
-  human seat unattended (`Game.SetAIAutoPlay`), hands it back, and sets a winner at a turn limit with no screen
-  in the way (the run plays on past the win; `docs/BENCHMARK.md` "Autoplay, checked live"). The same evening,
-  on scratch duels: **autoplay needs an observer slot** (status 4, what the single-player setup screen leaves in
-  unused slots); with the unused slots closed the call destroyed the seat's units and made the seat the observer,
-  no error. The autoplayed seat gets the game difficulty's `AI...` bonuses (Emperor: units 80%, buildings 75%,
-  growth 80%) and keeps the human's own row (happiness 9, research 100%); a Prince board gives a nearly even
-  anchor. A Domination win and a dead seat under autoplay crash nothing, but the game then runs turns by itself
-  and `status` reads `alive: false`, `game_over: false`. Not checked: how many AI-only games a win estimator
-  needs, and how much one board's
-  result varies between two runs of one agent (it sets the replicates and so the cost). Of the pilot only the Maya t242 board has been played (`logs/bench188/`,
-  `logs/bench191/`); there is no turn-0 board and no stock-AI anchor.
+- **The benchmark** has rules (version 0), a referee tool and a plan on GitLab (#210); the block at the top of
+  this file says where it stands. Open by its own account: whether continuations end by a real victory and
+  whether any Prince board is undecided (#195), the board maker (#194), diagnostics in the row (#196), the
+  first board set and the models on it (#200, #201), goal boards (#205 to #207).
 - **Tokens on the spectator page:** a running Codex cycle was counted request by request under play (2.17.0);
   the same for a Claude cycle read from its own directory is the fixture test only.
 - **Spectator page:** it holds every parsed row of a recording (fine since the cadence fix; the 72 MB pre-fix

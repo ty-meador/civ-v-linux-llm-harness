@@ -12,11 +12,13 @@ import importlib.util
 import contextlib
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -63,11 +65,25 @@ class FakeGame:
             return self.reads.pop(0)
         if "return {burn" in code:
             return {"burn": 0}
+        if "ExitToMainMenu" in code:
+            return {"ok": True}
         return self.polls.pop(0)
 
     def leave_to_main_menu(self):
         self.left += 1
-        return {"ok": True}
+        return self.leave_reply
+
+    leave_reply = {"ok": True}
+
+    def quick_save(self):
+        self.sent.append("quick_save")
+        if self.quick_file is not None:
+            self.quick_file.parent.mkdir(parents=True, exist_ok=True)
+            self.quick_file.write_text(f"save {len(self.sent)}")
+        return self.quick_reply
+
+    quick_file = None
+    quick_reply = {"ok": True, "turn": 252}
 
 
 class Clock:
@@ -81,9 +97,9 @@ class Clock:
         return self.t
 
 
-def poll(turn, auto, winner=-1, alive=True, turn_active=True):
+def poll(turn, auto, winner=-1, alive=True, turn_active=True, victory=""):
     return {"turn": turn, "auto": auto, "winner": winner, "state": 0 if winner < 0 else 2, "alive": alive, "active": 2,
-            "turn_active": turn_active}
+            "turn_active": turn_active, "team": 0, "victory": victory}
 
 
 def run(g, **kw):
@@ -295,9 +311,131 @@ class Entrant(unittest.TestCase):
 
     def test_the_command_line_wants_a_label_with_a_command_and_a_command_with_a_label(self):
         for argv in (["--save", "b", "--out", "x.jsonl", "--", "loop"], ["--save", "b", "--out", "x.jsonl", "--label", "codex"],
-                     ["--save", "b", "--out", "x.jsonl", "--label", "stock-ai", "--", "loop"]):
+                     ["--save", "b", "--out", "x.jsonl", "--label", "stock-ai", "--", "loop"],
+                     ["--save", "b", "--out", "x.jsonl", "--value-only"],
+                     ["--save", "b", "--out", "x.jsonl", "--value-only", "--continue", "3", "--label", "c", "--", "loop"]):
             with self.subTest(argv), self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
                 board_run.main(argv)
+
+
+class Continuations(unittest.TestCase):
+    """Rule 1: the game played out from the window's end by the engine, and the share of those games the seat won."""
+
+    def go(self, g, m=0, **kw):
+        clock = Clock()
+        return board_run.continuation(g, "board--end", m, sleep=clock.sleep, clock=clock, **kw)
+
+    def test_a_victory_of_the_seats_team_is_a_game_won(self):
+        g = FakeGame([read(turn=252)], polls=[poll(300, 950), poll(318, 932, winner=0, victory="VICTORY_SPACE_RACE"), poll(319, 0)])
+        c = self.go(g)
+        self.assertEqual((c["end_reason"], c["won"], c["victory"], c["turn"], c["from_turn"]),
+                         ("victory", True, "VICTORY_SPACE_RACE", 318, 252))
+        self.assertEqual((len(g.polls), g.left), (1, 1), "the engine plays on past a victory: the game is left")
+
+    def test_a_game_the_engine_still_plays_is_left_by_the_referee_itself(self):
+        """Live 2026-11-16: the seat's exit answered "this seat is not active" after a win under autoplay, and the
+        game played on to turn 380 with the row already written."""
+        g = FakeGame([read()], polls=[poll(331, 69, winner=1, victory="VICTORY_TIME")])
+        g.leave_reply = {"ok": False, "err": "this seat is not active"}
+        self.go(g)
+        self.assertEqual(g.left, 1)
+        self.assertIn("Events.ExitToMainMenu()", g.sent[-1])
+        quiet = FakeGame([read()], polls=[poll(331, 69, winner=1)])
+        self.go(quiet)
+        self.assertFalse(any("ExitToMainMenu" in s for s in quiet.sent), "a seat's exit that worked is not sent twice")
+
+    def test_another_teams_victory_is_a_game_not_won(self):
+        c = self.go(FakeGame([read()], polls=[poll(330, 900, winner=1, victory="VICTORY_TIME")]))
+        self.assertEqual((c["end_reason"], c["won"], c["winner"]), ("victory", False, 1))
+
+    def test_a_dead_seat_is_a_game_lost_without_waiting_for_the_winner(self):
+        g = FakeGame([read()], polls=[poll(260, 990), poll(270, 980, alive=False), poll(300, 950, winner=1)])
+        c = self.go(g)
+        self.assertEqual((c["end_reason"], c["won"], len(g.polls), g.left), ("seat_dead", False, 1, 1))
+
+    def test_a_stall_is_no_result(self):
+        c = self.go(FakeGame([read()], polls=[poll(260, 990)] * 6), poll=3.0, stall=10.0)
+        self.assertEqual((c["end_reason"], c["won"]), ("stalled", False))
+        self.assertIsNone(board_run.value_of({"end_reason": "window_played"}, [c]))
+
+    def test_every_continuation_takes_draws_and_asks_for_more_turns_than_a_game_has(self):
+        for m, draws in ((0, 29), (1, 58), (19, 580)):
+            g = FakeGame([read()], polls=[poll(330, 1, winner=1)])
+            self.assertEqual(self.go(g, m=m)["burn"], draws)
+            start = next(s for s in g.sent if "SetAIAutoPlay" in s)
+            self.assertIn(f"for _ = 1, {draws} do Game.Rand(", start)
+            self.assertIn("Game.SetAIAutoPlay(1000, 0)", start)
+
+    def test_a_save_with_no_observer_slot_is_refused_and_left(self):
+        g = FakeGame([read(slots=(3, 1, 2))])
+        with self.assertRaisesRegex(board_run.Refused, "observer slot"):
+            self.go(g)
+        self.assertEqual((g.left, any("SetAIAutoPlay" in s for s in g.sent)), (1, False))
+
+    def test_the_value_is_the_share_of_decided_games_won(self):
+        games = [{"end_reason": "victory", "won": True}, {"end_reason": "victory", "won": False},
+                 {"end_reason": "seat_dead", "won": False}, {"end_reason": "stalled", "won": False}]
+        self.assertEqual(board_run.value_of({"end_reason": "window_played"}, games), round(1 / 3, 4))
+        self.assertEqual(board_run.value_of({"end_reason": "value_only"}, games[:2]), 0.5)
+
+    def test_a_run_that_did_not_finish_has_no_value_and_is_a_result_of_its_own(self):
+        won = [{"end_reason": "victory", "won": True}]
+        for reason, result in (("window_not_played", "dnf"), ("timeout", "dnf"), ("stalled", "void"), ("not_handed_over", "void")):
+            self.assertIsNone(board_run.value_of({"end_reason": reason}, won), reason)
+            self.assertEqual(board_run.result_of({"end_reason": reason}), result)
+
+    def test_a_game_ended_inside_the_window_is_finished_and_all_or_nothing(self):
+        self.assertEqual(board_run.value_of({"end_reason": "game_won", "winner": 0, "end": {"team": 0}}, []), 1.0)
+        self.assertEqual(board_run.value_of({"end_reason": "game_won", "winner": 1, "end": {"team": 0}}, []), 0.0)
+        self.assertEqual(board_run.value_of({"end_reason": "seat_dead"}, []), 0.0)
+        for reason in ("window_played", "game_won", "seat_dead", "value_only"):
+            self.assertEqual(board_run.result_of({"end_reason": reason}), "finished")
+
+
+class EndSave(unittest.TestCase):
+    def setUp(self):
+        self.dir = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.enterContext(mock.patch.dict(os.environ, {"CIV5_SAVES_DIR": str(self.dir)}))
+
+    def game(self, **kw):
+        g = FakeGame([read(), read(turn=252)], polls=[poll(252, 0)], **kw)
+        g.quick_file = self.dir / "quick" / "QuickSave.Civ5Save"
+        return g
+
+    def test_a_played_window_is_saved_under_its_name_before_the_game_is_left(self):
+        g = self.game()
+        clock = Clock()
+        row = board_run.run_once(g, "board", 10, end_save="board--stock-ai-deal0-end", sleep=clock.sleep, clock=clock)
+        self.assertEqual(row["end_save"], "board--stock-ai-deal0-end")
+        self.assertTrue((self.dir / "board--stock-ai-deal0-end.Civ5Save").read_text().startswith("save "))
+        self.assertEqual(g.left, 1)
+
+    def test_an_old_quick_save_is_not_taken_for_the_new_one(self):
+        g = self.game()
+        g.quick_file.parent.mkdir()
+        g.quick_file.write_text("an older game")
+        clock = Clock()
+        board_run.save_as(g, "kept", sleep=clock.sleep, clock=clock)
+        self.assertNotEqual((self.dir / "kept.Civ5Save").read_text(), "an older game")
+
+    def test_a_quick_save_that_is_refused_or_never_written_is_said_in_the_row(self):
+        refused, unwritten = self.game(), self.game()
+        refused.quick_reply = {"ok": False, "err": "not your turn"}
+        unwritten.quick_file = None
+        for g, why in ((refused, "refused"), (unwritten, "not written")):
+            clock = Clock()
+            row = board_run.run_once(g, "board", 10, end_save="kept", sleep=clock.sleep, clock=clock)
+            self.assertEqual((row["end_reason"], row["end_save"]), ("window_played", None))
+            self.assertIn(why, row["end_save_error"])
+            self.assertEqual(g.left, 1)
+
+    def test_a_window_that_was_not_played_is_not_saved(self):
+        g = FakeGame([read(), read(turn=246, winner=1, players=[player(0, human=True, alive=False), player(1)])],
+                     polls=[poll(246, 6, winner=1, alive=False)])
+        clock = Clock()
+        row = board_run.run_once(g, "board", 10, end_save="kept", sleep=clock.sleep, clock=clock)
+        self.assertNotIn("end_save", row)
+        self.assertNotIn("quick_save", g.sent)
 
 
 class Views(unittest.TestCase):
@@ -353,6 +491,29 @@ class Summary(unittest.TestCase):
         self.assertEqual(lines[-1], "not side by side: the runs played 7, 10 turns")
         self.assertFalse(any(line.startswith("side by side") for line in lines))
 
+    def test_the_value_has_its_own_line_and_its_row_side_by_side(self):
+        games = [{"end_reason": "victory", "won": True, "victory": "VICTORY_TIME", "seconds": 600.0}] * 2
+        rows = [row(130, turns_played=10, value=0.5, continuations=games), row(150, turns_played=10, value=0.3, continuations=games),
+                row(180, entrant="codex/x", turns_played=10, value=0.7, continuations=games),
+                row(0, reason="window_not_played", entrant="codex/x", turns_played=4, value=None)]
+        lines = board_run.summarise(rows)
+        self.assertIn("value: 0.400 (sd 0.141) over 2 finished runs and 4 continuations, 10.0 min each; by run: 0.50, 0.30; "
+                      "ended by VICTORY_TIME", lines)
+        self.assertTrue(any(line.startswith("value: 0.700 (sd 0.000) over 1 finished runs") for line in lines),
+                        "a DNF is not averaged into the value")
+        self.assertIn("DNF: 1 of 2 runs (window_not_played), below every finished run in an ordering; "
+                      "with DNF as 0 the value is 0.350", lines)
+        self.assertEqual(lines[-2].split(), ["value", "0.400", "(0.141)", "0.700", "(0.000)"])
+        self.assertEqual(lines[-1].split(), ["DNF", "0", "of", "2", "1", "of", "2"])
+
+    def test_a_save_valued_as_it_is_has_one_line(self):
+        only = {"entrant": "board", "end_reason": "value_only", "value": 0.25,
+                "continuations": [{"end_reason": "seat_dead", "won": False, "seconds": 120.0}]}
+        lines = board_run.summarise([only])
+        self.assertEqual(lines[0], "board: 1 runs, 0 played their window")
+        self.assertTrue(lines[1].startswith("value: 0.250 (sd 0.000) over 1 finished runs and 1 continuations, 2.0 min each"))
+        self.assertTrue(lines[1].endswith("ended by seat_dead"))
+
     def test_no_run_that_played_its_window_is_one_line(self):
         self.assertEqual(len(board_run.summarise([row(0, reason="stalled")])), 1)
 
@@ -365,7 +526,7 @@ class Lua(unittest.TestCase):
             self.skipTest("lupa is not installed")
         lua = lupa.LuaRuntime()
         for name, body in (("READ", board_run.READ), ("POLL", board_run.POLL % {"seat": 0}),
-                           ("BURN", board_run.BURN % {"burn": 17}),
+                           ("BURN", board_run.BURN % {"burn": 17}), ("LEAVE", board_run.LEAVE),
                            ("START", board_run.START % {"burn": 3, "turns": 10, "seat": 0})):
             with self.subTest(name):
                 self.assertTrue(lua.eval("function(src) return loadstring and loadstring(src) or load(src) end")(body),

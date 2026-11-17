@@ -71,11 +71,17 @@ is not known.
 
 **5. A run counts whatever happened.**
 
-- The window is the referee's: the board must be that many turns on. A run that stopped short (gave up,
-  stalled, ran out of time or quota, the client died) is worth 0, as a player who leaves the table has lost.
-  Otherwise stopping would be worth the anchor's value, and a weak entrant would do best by not playing.
-- A run is void and played again only when the game process died or the harness answered with an internal
-  error; the ledger says which.
+- The window is the referee's: the board must be that many turns on.
+- **DNF is a result of its own** (the user, 2026-11-16). A run that stopped short (gave up, ran out of time or
+  quota, the client died) did not finish. It has no value and is not averaged in as a nought: a seat left
+  after nine good turns and a seat played into a lost position are different things and a mean would hide
+  which happened. A DNF is counted and shown beside the value, as in a race.
+- **A DNF stands below every finished run** wherever runs are ordered. Otherwise stopping would be worth the
+  anchor's value and a weak entrant would do best by not playing. Where one number is needed the value is also
+  given with every DNF as 0, and says so.
+- A seat that dies inside the window, or a game lost there, is finished: it was played, and it is worth 0.
+- A run is void and played again only when it was not the entrant's doing: the game process died, the engine
+  stalled or did not take the seat, the harness answered with an internal error. The ledger says which.
 - One wall-clock limit a window for every entrant. Tokens are counted, not capped.
 - **The entrant is told the turn at which the window is over**, in the same words for all: "the window is over
   when turn N is yours". Told "play 10 turns", Codex ended its tenth turn, got a leader on screen between the
@@ -84,10 +90,13 @@ is not known.
 
 **6. What is reported.**
 
-- Per board and entrant: the value, mean over deals, with the anchor's and the floor's beside it.
-- The headline: the mean over boards of the entrant's value less the anchor's, per kind of board, with an
-  interval from resampling boards. It reads "left the seat this much more (or less) likely to win than the
-  game's own AI did with the same turns".
+- Per board and entrant: the value, mean over the finished deals, with the anchor's and the floor's beside
+  it, and the number of deals not finished.
+- The headline has two parts and neither is given without the other: **the share of windows finished**, and
+  over those **the mean over boards of the entrant's value less the anchor's**, per kind of board, with an
+  interval from resampling boards. It reads "finished 8 of 9 windows, and left the seat this much more (or
+  less) likely to win than the game's own AI did with the same turns". The same difference with every DNF as
+  0 is printed under it.
 - A fitted rating over entrants (Bradley-Terry) only once there are entrants enough; the headline needs none.
 - Always beside it: the share of windows played, tokens and seconds a turn, orders refused ("What can be
   measured with no scale at all"). The indicators and the parts of the score are diagnosis, never the ordering.
@@ -118,8 +127,11 @@ ordering. They explain a value; they do not replace it.
 - *No board is undecided.* The real AIs keep their own handicap row at any difficulty (base happiness 15,
   research at 85%), so an AI on the seat at Prince may still win too rarely on boards of several
   civilizations. If so the difficulty or the map is changed until rule 2's band is met, or the rule is.
-- *The save in between.* Save at the window's end, load, autoplay to the end: each step is seen alone, not the
-  chain.
+- *The save in between.* Save at the window's end, load, autoplay to the end. Seen live as a chain 2026-11-17
+  ("A whole game on a Prince duel"); this one holds.
+- *Continuations end by score.* Added 2026-11-17: all three whole games on the first Prince duel ended by Time
+  at the turn limit, which is the higher score. If that is the usual end, rule 1 values a seat by score after
+  all, through the game's own rule. To be measured on boards of more civilizations before rule 1 is trusted.
 
 **Considered and left out** (suggestions weighed 2026-11-16):
 
@@ -384,7 +396,7 @@ of the seat loop, on the Maya t242 board; the stock AI's ten rows beside them.
 | gold | 167.7 (34.8) | 167 | |
 | happiness | 9.1 (3.7) | 2 | |
 
-- **Codex's run is the rule at work.** Its last `turn finish` at t251 came back `ended: true` with
+- **Codex's run is a DNF.** Its last `turn finish` at t251 came back `ended: true` with
   `discussion_pending: true`: a leader had come on screen between the turns. Codex reported "Ended exactly 10
   turns (242 to 251)" and stopped. The referee waited two minutes for the seat's turn and read a board nine
   turns on, the seat not active. The row says `window_not_played`. Grok's first `finish` at t251 ended the
@@ -395,6 +407,33 @@ of the seat loop, on the Maya t242 board; the stock AI's ten rows beside them.
   needs the other deals.
 - The seat loop's cycle took about as long as before the runner (538 and 563 s), and the notebook that stood
   on disk was the same bytes after both.
+
+### A whole game on a Prince duel, and leaving it (2026-11-16)
+
+A board hosted to rule 2 (`board-duel-prince-a-t0`: Duel, Quick, Prince, Siam on the seat against the Aztecs,
+four city-states, every victory on, the unused slots as the setup screen leaves them, saved at turn 0) and
+played from turn 0 to the end by the stock AI: `--turns 400`.
+
+- **14.6 minutes for 331 turns.** Twenty continuations from an opening would be about five hours, where rule 8
+  wants a run valued within the hour. From a middle game it is less, and a board need not be a duel, but an
+  opening board cannot have twenty.
+- **It ended by Time**, at the turn limit of the speed (330): the Aztecs 1865, Siam 1571. The seat had 51
+  technologies, three cities and 52 citizens. Neither AI was near any other victory. If continuations mostly
+  end this way, the value is a comparison of score at the limit, and score comes back in through the game's own
+  rule. One game; rule 8's tests have to say how often, on which sizes, and whether more civilizations or
+  another limit changes it.
+- **The game was not left.** The runner saw the win at turn 331, wrote its row and asked the harness to leave;
+  the game played on to turn 400 (the user saw it). The harness's exit is a seat's: while the engine plays the
+  seat the observer is the active player and `exit_to_main_menu` answers "this seat is not active". Runs that
+  ended with the count out had the seat back and left without trouble. The runner now asks the game itself
+  (`Events.ExitToMainMenu()`, seen to work under a running autoplay) when the seat's exit is refused, and stops
+  with an error if the main menu does not come back.
+
+- **The chain of rule 1, live.** `--turns 20 --continue 2` on the same board: the stock AI's window (57 s,
+  score 4 to 98, one city), the quick save copied under the run's name, the save loaded twice and played out,
+  the game left for the main menu after each. Both continuations ended by Time for the Aztecs at turn 330 and
+  331, in 11.3 and 9.8 minutes. The run's value is 0 of 2, and with the game from turn 0 the seat has lost
+  three of three on this board: outside rule 2's band, so this board would be dropped.
 
 ## Not checked yet
 

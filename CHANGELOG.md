@@ -35,6 +35,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   command. `--turns` is the window for every entrant: a command that ends with the board fewer turns on is a
   row that says `window_not_played` (the scripted loop gave up at a World Congress proposal four turns into
   ten, three deals alike, and the first version wrote those as played).
+- **A run's value, and DNF (2026-11-16; #193).** `--continue R` saves the game at the end of a played window
+  (the quick save, copied under the run's name) and lets the engine play it out R times, each on its own draws;
+  `value` is the share of those games the seat's team wins. `--value-only` values a save as it is. Every row
+  has a `result`: `finished`, `dnf` (the entrant did not bring the seat to the window's end: no value, counted
+  beside the value, below every finished run in an ordering; the user's suggestion) or `void` (the engine
+  stalled or did not take the seat). The runner leaves a game the engine is still playing by asking the game
+  itself: the seat's exit answers "this seat is not active" under autoplay, and a run that ended on a win left
+  its game playing to turn 400.
   `--summary` lists each entrant and puts those that played the same window side by side. Ten runs of the AI on
   the Maya t242 board, 10 turns: score 604 to 633.3 with sd 0.7. Live with the scripted loop, 2 turns: 604 to
   609, the notebook on disk the same bytes afterwards.
