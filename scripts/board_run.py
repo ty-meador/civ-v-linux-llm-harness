@@ -18,7 +18,10 @@ them in place of the engine. The command plays the seat (a seat loop, `scripts/p
     scripts/board_run.py --save "Pacal_0242 maya-t242-before-185-check" --turns 10 --label codex/gpt-6.1-sol \
         --notebook logs/bench191/notebook-before.json --claim-wait 200 --out logs/boards/maya-t242/rows.jsonl \
         -- scripts/llm_seat_loop.py --agent codex --seat 0 --dir ~/projects/grok-desk-seat --model gpt-6.1-sol \
-           --turns {turns} --cycles 1 --log-dir logs/boards/maya-t242/codex-{deal}
+           --turns {turns} --until-turn {until} --cycles 1 --log-dir logs/boards/maya-t242/codex-{deal}
+
+`{deal}`, `{turns}` and `{until}` in the command are the deal's number, the window, and the game turn that is the
+seat's when the window is over (the save's turn plus the window): the entrant is told that turn.
 
 Deals, as in duplicate bridge: an entrant's nth run on a board is deal n and takes 17 n draws from the game's
 random stream before anyone plays, so deal n is the same dice for every entrant and two deals are not one game
@@ -92,10 +95,27 @@ return out
 # The draws move the game's random stream before the engine plays, so two runs of one save need not be one run.
 START = """
 for _ = 1, %(burn)d do Game.Rand(100, "board_run") end
-Game.SetAIAutoPlay(%(turns)d, %(seat)d)
+%(terms)sGame.SetAIAutoPlay(%(turns)d, %(seat)d)
 return {auto = Game.GetAIAutoPlay(), active = Game.GetActivePlayer(), slot = PreGame.GetSlotStatus(%(seat)d),
-  human = Players[%(seat)d]:IsHuman(), units = Players[%(seat)d]:GetNumUnits(), cities = Players[%(seat)d]:GetNumCities()}
+  human = Players[%(seat)d]:IsHuman(), units = Players[%(seat)d]:GetNumUnits(), cities = Players[%(seat)d]:GetNumCities(),
+  seat_row = GameInfo.HandicapInfos[Players[%(seat)d]:GetHandicapType()].Type,
+  time_victory = Game.IsVictoryValid(GameInfoTypes.VICTORY_TIME)}
 """
+
+# The terms the engine plays on (docs/BENCHMARK.md, "The seat's row"). A real AI never plays on the human's difficulty
+# row: at any difficulty it has HANDICAP_AI_DEFAULT (base happiness 15 against Prince's 9, research at 85%, policies at
+# 75%). An engine-played seat keeps the human's row and lost every whole game on the first two Prince boards. With
+# `ai` the seat is put on the AIs' row in the call that hands it over; the values a player caches (happiness, policy
+# cost) follow within the first turns (live 2026-11-17: all equal to the AIs' by turn 12). The setup screen cannot do
+# it: a human hosted on HANDICAP_AI_DEFAULT starts on Chieftain, and so does the game.
+ROW_AI = "PreGame.SetHandicap(%(seat)d, GameInfo.HandicapInfos.HANDICAP_AI_DEFAULT.ID)\n"
+# With Time valid a game stops at the speed's last turn for the highest score. `off` plays on to a real victory.
+TIME_OFF = "Game.SetVictoryValid(GameInfoTypes.VICTORY_TIME, false)\n"
+
+
+def start_chunk(burn: int, turns: int, seat: int, row: str = "own", time: str = "on") -> str:
+    terms = (ROW_AI % {"seat": seat} if row == "ai" else "") + (TIME_OFF if time == "off" else "")
+    return START % {"burn": burn, "turns": turns, "seat": seat, "terms": terms}
 
 POLL = """
 return {turn = Game.GetGameTurn(), auto = Game.GetAIAutoPlay(), winner = Game.GetWinner(), state = Game.GetGameState(),
@@ -209,6 +229,7 @@ def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
 
 
 def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.0, stall: float = 900.0,
+                 row: str = "own", time_victory: str = "on", stop_turn: int | None = None,
                  sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
     """One game played on from `save` to its end by the game's own AI on every seat. Says whether the seat's team
     took the victory. It ends on a victory, on the seat's death (a game lost, whoever wins it later) or on a stall,
@@ -227,7 +248,8 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
     t0 = clock()
     out: dict = {"m": m, "burn": burn, "from_turn": before["turn"], "end_reason": None, "won": False}
     try:
-        started = g.q(START % {"burn": burn, "turns": TO_THE_END, "seat": seat})
+        started = g.q(start_chunk(burn, TO_THE_END, seat, row, time_victory))
+        out.update(seat_row=started.get("seat_row"), time_victory=started.get("time_victory"))
         if started["slot"] != SS_COMPUTER or started["active"] == seat:
             out["end_reason"] = "not_handed_over"
             return out
@@ -245,10 +267,16 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
                 out["end_reason"] = "seat_dead"
             elif now["auto"] == 0:
                 out["end_reason"] = "count_out"
+            elif stop_turn is not None and now["turn"] >= stop_turn:
+                out["end_reason"] = "turn_limit"      # no victory by the turn the referee stops at: not decided
             elif clock() - last_change > stall:
                 out["end_reason"] = "stalled"
             if out["end_reason"]:
                 out.update(turn=now["turn"], seconds=round(clock() - t0, 1))
+                if out["end_reason"] in DECIDED + ("turn_limit",):
+                    # how the game stood: a win by Time is the higher score, and by how much says how near the seat was
+                    out["players"] = [{k: p[k] for k in ("id", "civ", "alive", "score", "techs", "cities")}
+                                      for p in g.q(READ)["players"]]
                 return out
     finally:
         leave(g)
@@ -284,7 +312,7 @@ def value_of(row: dict, continuations: list[dict]) -> float | None:
 
 
 def run_once(g, save: str, turns: int, seat: int | None = None, burn: int = 0, poll: float = 3.0, stall: float = 900.0,
-             end_save: str | None = None, save_game=save_as,
+             end_save: str | None = None, save_game=save_as, row: str = "own", time_victory: str = "on",
              sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
     """One run of the board by the game's own AI. Loads `save` (the game must be at the main menu), hands the seat over, watches, reads,
     and leaves for the main menu whatever happened once the seat was handed over."""
@@ -299,9 +327,10 @@ def run_once(g, save: str, turns: int, seat: int | None = None, burn: int = 0, p
         leave(g)
         raise
     t0 = clock()
-    started = g.q(START % {"burn": burn, "turns": turns, "seat": seat})
+    started = g.q(start_chunk(burn, turns, seat, row, time_victory))
     row: dict = {"entrant": STOCK_AI, "save": save, "seat": seat, "turns_asked": turns, "burn": burn,
                  "handicap": before["handicap"], "speed": before["speed"], "start": seat_view(before, seat),
+                 "seat_row": started.get("seat_row"), "time_victory": started.get("time_victory"),
                  "end_reason": None, "win_turn": None}
     try:
         if started["slot"] != SS_COMPUTER or started["active"] == seat:
@@ -366,6 +395,8 @@ def run_entrant(g, save: str, command: list[str], label: str, turns: int, seat: 
         raise
     nb = path_of(g, seat)
     standing = nb.read_bytes() if nb.exists() else None
+    # the turn that is the seat's when the window is over (rule 5: the entrant is told the turn, not a count)
+    command = [part.replace("{until}", str(before["turn"] + turns)) for part in command]
     row: dict = {"entrant": label, "command": command, "save": save, "seat": seat, "turns_asked": turns, "burn": burn,
                  "notebook": notebook or "standing", "handicap": before["handicap"], "speed": before["speed"],
                  "start": seat_view(before, seat), "end_reason": None, "rc": None}
@@ -542,12 +573,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--continue", dest="continuations", type=int, default=0, metavar="R",
                     help="value the run (rule 1): save at the window's end and let the engine play the game out R times "
                          "from there; the value is the share the seat's team wins")
+    ap.add_argument("--row", choices=("own", "ai"), default="own",
+                    help="the difficulty row the seat has while the engine plays it: its own (the human's), or the "
+                         "AIs' (HANDICAP_AI_DEFAULT, what every real AI plays on); an entrant's own window is never touched")
+    ap.add_argument("--time", choices=("on", "off"), default="on",
+                    help="off: the Time victory is switched off while the engine plays, so a game runs to a real victory")
+    ap.add_argument("--last-turn", type=int, default=None, metavar="T",
+                    help="a continuation with no victory by game turn T is stopped there and counts as not decided")
     ap.add_argument("--value-only", action="store_true",
                     help="no window: value --save itself by --continue R continuations (a board's own worth)")
     ap.add_argument("--summary", type=Path, metavar="ROWS", help="print the summary of a rows file and do nothing else")
     ap.add_argument("command", nargs=argparse.REMAINDER,
-                    help="after `--`: the entrant, a command that plays the seat and ends; {deal} and {turns} in it "
-                         "are the deal's number and the window")
+                    help="after `--`: the entrant, a command that plays the seat and ends; {deal}, {turns} and {until} "
+                         "in it are the deal's number, the window and the game turn at which the window is over")
     a = ap.parse_args(argv)
     if a.summary:
         print("\n".join(summarise(read_rows(a.summary))))
@@ -584,12 +622,14 @@ def main(argv: list[str] | None = None) -> int:
                 row = run_entrant(g, a.save, words, name, a.turns, seat=a.seat, burn=burn, notebook=a.notebook,
                                   keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save)
             else:
-                row = run_once(g, a.save, a.turns, seat=a.seat, burn=burn, stall=a.stall, end_save=end_save, say=say)
+                row = run_once(g, a.save, a.turns, seat=a.seat, burn=burn, stall=a.stall, end_save=end_save, say=say,
+                               row=a.row, time_victory=a.time)
             if a.continuations:
                 row["continuations"] = []
                 for m in range(a.continuations if row.get("end_save") else 0):
                     wait_main_menu(g)
-                    c = continuation(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say)
+                    c = continuation(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row,
+                                     time_victory=a.time, stop_turn=a.last_turn)
                     row["continuations"].append(c)
                     print(f"  continuation {m}: {c['end_reason']}, {'won' if c['won'] else 'not won'}"
                           f"{' by ' + c['victory'] if c.get('victory') else ''}, turn {c.get('turn')}, {c.get('seconds')} s",

@@ -77,11 +77,24 @@ class CommandTests(unittest.TestCase):
             loop.build_cmd("other", "m", "low", "P", Path("/s"), Path("/l"))
 
     def test_the_prompt_speaks_the_nine_tools(self):
-        text = loop.PROMPT.format(turns=5, last_offset=4, stamp="c1-x")
+        text = loop.prompt_for(5, "c1-x")
         for old in ("finish_turn", "set_seat", "`lua`", "recall`", "skip_quiet_turns", "give_order"):
             self.assertNotIn(old, text)
         self.assertIn('turn(action="finish")', text)
-        self.assertIn("T0+4", text)
+        self.assertIn("reports/c1-x.md", text)
+
+    def test_the_instance_ends_on_a_turn_that_is_the_seats_not_on_a_count_of_finishes(self):
+        """Live 2026-11-16: Codex stopped after its tenth finish, a leader on screen and the board nine turns on."""
+        text = loop.prompt_for(5, "c1-x")
+        self.assertEqual(text.count("turn T0+5 is yours"), 2)
+        self.assertNotIn("T0+4", text)
+        self.assertIn("a finish that comes back\n   on the same turn", text)
+        self.assertNotIn("whichever", text)
+
+    def test_a_referees_window_names_its_turn_as_well(self):
+        text = loop.prompt_for(10, "c1-x", until=262)
+        self.assertEqual(text.count("turn T0+10 or turn 262 is yours, whichever comes first"), 2)
+        self.assertIn("with T0 at 262 or later there is nothing to play", text)
 
 
 class RunCycleTests(unittest.TestCase):

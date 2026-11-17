@@ -62,7 +62,7 @@ class FakeGame:
         if "SetAIAutoPlay" in code:
             return self.handed
         if "players = {}" in code:
-            return self.reads.pop(0)
+            return self.reads.pop(0) if len(self.reads) > 1 else self.reads[0]   # the last read stands for any later one
         if "return {burn" in code:
             return {"burn": 0}
         if "ExitToMainMenu" in code:
@@ -159,6 +159,13 @@ class Runs(unittest.TestCase):
         start = next(s for s in g.sent if "SetAIAutoPlay" in s)
         self.assertIn("for _ = 1, 34 do Game.Rand(", start)
         self.assertLess(start.index("Game.Rand("), start.index("Game.SetAIAutoPlay(10, 0)"))
+
+    def test_the_windows_own_terms_are_in_the_row(self):
+        g = FakeGame([read(), read(turn=252)], polls=[poll(252, 0)])
+        g.handed = dict(g.handed, seat_row="HANDICAP_AI_DEFAULT", time_victory=True)
+        row = run(g, row="ai")
+        self.assertEqual((row["seat_row"], row["time_victory"]), ("HANDICAP_AI_DEFAULT", True))
+        self.assertIn("PreGame.SetHandicap(0, ", next(s for s in g.sent if "SetAIAutoPlay" in s))
 
     def test_a_dead_seat_ends_the_run_though_the_count_is_not_out(self):
         after = read(turn=246, winner=1, victory="VICTORY_DOMINATION",
@@ -300,6 +307,15 @@ class Entrant(unittest.TestCase):
         won = read(turn=247, winner=0, victory="VICTORY_SPACE_RACE")
         self.assertEqual(self.go(self.game(after=won))["end_reason"], "game_won")
 
+    def test_the_command_is_told_the_turn_at_which_the_window_is_over(self):
+        """Rule 5. Live 2026-11-16: told to end ten turns, Codex stopped with the board nine turns on."""
+        g = self.game()
+        clock = Clock()
+        row = board_run.run_entrant(g, "board", ["loop", "--until-turn", "{until}"], "codex/x", 10, sleep=clock.sleep,
+                                    clock=clock, path_of=lambda _g, _seat: self.nb, run=self.command(g))
+        self.assertEqual(self.seen[0][0], ["loop", "--until-turn", "252"])
+        self.assertEqual(row["command"], ["loop", "--until-turn", "252"])
+
     def test_a_command_needs_no_observer_slot(self):
         self.assertEqual(self.go(self.game(slots=(3, 1, 2, 2)))["end_reason"], "window_played")
 
@@ -343,6 +359,40 @@ class Continuations(unittest.TestCase):
         quiet = FakeGame([read()], polls=[poll(331, 69, winner=1)])
         self.go(quiet)
         self.assertFalse(any("ExitToMainMenu" in s for s in quiet.sent), "a seat's exit that worked is not sent twice")
+
+    def test_a_decided_game_keeps_how_it_stood(self):
+        end = read(turn=330, winner=1, victory="VICTORY_TIME", players=[player(0, human=True, score=1571), player(1, score=1865)])
+        c = self.go(FakeGame([read(), end], polls=[poll(330, 900, winner=1, victory="VICTORY_TIME")]))
+        self.assertEqual([(p["id"], p["score"]) for p in c["players"]], [(0, 1571), (1, 1865)])
+        self.assertEqual(set(c["players"][0]), {"id", "civ", "alive", "score", "techs", "cities"})
+        stalled = self.go(FakeGame([read()], polls=[poll(260, 990)] * 6), poll=3.0, stall=10.0)
+        self.assertNotIn("players", stalled)
+
+    def test_the_seat_is_put_on_the_ais_row_and_time_switched_off_in_the_call_that_hands_it_over(self):
+        """Live 2026-11-17: the seat on the human's Prince row lost every whole game of two boards; set in play, the
+        AIs' row is the seat's own by turn 12."""
+        g = FakeGame([read()], polls=[poll(330, 1, winner=1)])
+        g.handed = dict(g.handed, seat_row="HANDICAP_AI_DEFAULT", time_victory=False)
+        c = self.go(g, row="ai", time_victory="off")
+        start = next(s for s in g.sent if "SetAIAutoPlay" in s)
+        setting = "PreGame.SetHandicap(0, GameInfo.HandicapInfos.HANDICAP_AI_DEFAULT.ID)"
+        off = "Game.SetVictoryValid(GameInfoTypes.VICTORY_TIME, false)"
+        self.assertLess(start.index("Game.Rand("), start.index(setting))
+        self.assertLess(start.index(setting), start.index(off))
+        self.assertLess(start.index(off), start.index("Game.SetAIAutoPlay("))
+        self.assertEqual((c["seat_row"], c["time_victory"]), ("HANDICAP_AI_DEFAULT", False))
+        plain = FakeGame([read()], polls=[poll(330, 1, winner=1)])
+        self.go(plain)
+        start = next(s for s in plain.sent if "SetAIAutoPlay" in s)
+        self.assertNotIn("SetHandicap", start)
+        self.assertNotIn("SetVictoryValid", start)
+
+    def test_a_game_with_no_victory_by_the_last_turn_is_stopped_and_not_decided(self):
+        g = FakeGame([read()], polls=[poll(599, 500), poll(600, 499), poll(601, 498)])
+        c = self.go(g, time_victory="off", stop_turn=600)
+        self.assertEqual((c["end_reason"], c["won"], c["turn"], len(g.polls), g.left), ("turn_limit", False, 600, 1, 1))
+        self.assertIn("players", c)
+        self.assertIsNone(board_run.value_of({"end_reason": "window_played"}, [c]))
 
     def test_another_teams_victory_is_a_game_not_won(self):
         c = self.go(FakeGame([read()], polls=[poll(330, 900, winner=1, victory="VICTORY_TIME")]))
@@ -527,7 +577,8 @@ class Lua(unittest.TestCase):
         lua = lupa.LuaRuntime()
         for name, body in (("READ", board_run.READ), ("POLL", board_run.POLL % {"seat": 0}),
                            ("BURN", board_run.BURN % {"burn": 17}), ("LEAVE", board_run.LEAVE),
-                           ("START", board_run.START % {"burn": 3, "turns": 10, "seat": 0})):
+                           ("START", board_run.start_chunk(3, 10, 0)),
+                           ("START with terms", board_run.start_chunk(3, 10, 0, row="ai", time="off"))):
             with self.subTest(name):
                 self.assertTrue(lua.eval("function(src) return loadstring and loadstring(src) or load(src) end")(body),
                                 f"{name} does not compile")

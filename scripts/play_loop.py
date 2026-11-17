@@ -101,7 +101,7 @@ HANDLED_BLOCKERS = {
     "ENDTURN_BLOCKING_UNIT_PROMOTION", "ENDTURN_BLOCKING_POLICY", "ENDTURN_BLOCKING_FOUND_PANTHEON",
     "ENDTURN_BLOCKING_STACKED_UNITS", "ENDTURN_BLOCKING_RESEARCH", "ENDTURN_BLOCKING_PRODUCTION",
     "ENDTURN_BLOCKING_UNITS", "ENDTURN_BLOCKING_UNIT_NEEDS_ORDERS",
-    "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_VOTES",
+    "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_VOTES", "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS",
 }
 
 
@@ -284,7 +284,7 @@ def abstain_league_votes(g: Game, seat: int) -> bool:
     every remaining vote as abstain, which clears the blocker and commits to nothing. Picking a side
     is a strategic decision and stays with whoever is driving.
 
-    CALL_FOR_PROPOSALS has no equivalent: it needs an actual proposal, so it is still a stall.
+    CALL_FOR_PROPOSALS has no equivalent: it needs an actual proposal (`make_league_proposal`).
     """
     try:
         r = g.league_cast_votes([])
@@ -295,6 +295,45 @@ def abstain_league_votes(g: Game, seat: int) -> bool:
         log(f"  abstain refused: {r.get('err')}")
         return False
     log(f"  abstained {r.get('abstained', '?')} vote(s) in the World Congress")
+    return True
+
+
+def first_proposal(status: dict) -> tuple[str, str | int, int] | None:
+    """The first proposal the league screen offers the seat: ("enact", resolution type, choice) for the first
+    resolution it may propose (with its first open choice, -1 where it takes none), else ("repeal", id, -1) for
+    the first it may repeal. The order is the screen's own, so the same board gives the same proposal."""
+    for row in status.get("proposable_enact") or []:
+        choices = row.get("choices") or []
+        if not choices:
+            return "enact", row["resolution_type"], -1
+        for c in choices:
+            if not c.get("disabled"):
+                return "enact", row["resolution_type"], c["id"]
+    for row in status.get("proposable_repeal") or []:
+        return "repeal", row["resolution_id"], -1
+    return None
+
+
+def make_league_proposal(g: Game, seat: int) -> bool:
+    """ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS is a hard block: nothing but a proposal clears it, and there
+    is no abstaining from it. Three runs of ten turns on the Maya t242 board all gave up at turn 246, where the
+    seat hosts the Congress (#198). The loop answers only what the game forces, so it takes the first proposal
+    the screen lists: a rule with no judgement in it. One proposal a call; a seat with two to make comes back."""
+    try:
+        pick = first_proposal(g.league_status(seat, detail="full"))
+        if pick is None:
+            log("  the Congress asks for a proposal and offers none")
+            return False
+        kind, what, choice = pick
+        r = g.league_propose_enact(what, choice, seat) if kind == "enact" else g.league_propose_repeal(what, seat)
+    except Exception as e:  # report as unresolved, let the stall counter decide
+        log(f"  could not propose: {e}")
+        return False
+    if not r.get("ok"):
+        log(f"  proposal refused ({kind} {what} choice {choice}): {r.get('err')}")
+        return False
+    log(f"  proposed to {kind} {what}" + (f" (choice {choice})" if choice != -1 else "")
+        + f"; {r.get('remaining_proposals', '?')} proposal(s) left")
     return True
 
 
@@ -484,6 +523,7 @@ BLOCKER_HANDLERS = {
     "ENDTURN_BLOCKING_UNIT_NEEDS_ORDERS": resolve_units_need_orders,
     "ENDTURN_BLOCKING_PRODUCTION": lambda g, seat: (ensure_production(g, seat) or True),
     "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_VOTES": abstain_league_votes,
+    "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS": make_league_proposal,
     "ENDTURN_BLOCKING_STEAL_TECH": resolve_steal_tech,
 }
 

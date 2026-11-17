@@ -185,3 +185,58 @@ class IdleWorkerTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LeagueProposalTest(unittest.TestCase):
+    """#198: three runs on the Maya t242 board gave up at t246, the seat hosting the Congress. The call for
+    proposals is a hard block, so the loop makes the first proposal the screen offers."""
+
+    class League:
+        def __init__(self, status, reply=None):
+            self.status, self.reply, self.sent = status, reply or {"ok": True, "remaining_proposals": 0}, []
+
+        def league_status(self, pid=None, detail="summary"):
+            self.sent.append(("status", pid, detail))
+            return self.status
+
+        def league_propose_enact(self, resolution_type, choice=-1, pid=None):
+            self.sent.append(("enact", resolution_type, choice, pid))
+            return self.reply
+
+        def league_propose_repeal(self, resolution_id, pid=None):
+            self.sent.append(("repeal", resolution_id, pid))
+            return self.reply
+
+    def test_the_first_resolution_with_its_first_open_choice(self):
+        g = self.League({"proposable_enact": [
+            {"resolution_type": "RESOLUTION_BAN_LUXURY_HAPPINESS", "choices": [{"id": 3, "disabled": True}, {"id": 7, "disabled": False}]},
+            {"resolution_type": "RESOLUTION_SCIENCES_FUNDING"}]})
+        self.assertTrue(play_loop.make_league_proposal(g, 0))
+        self.assertEqual(g.sent, [("status", 0, "full"), ("enact", "RESOLUTION_BAN_LUXURY_HAPPINESS", 7, 0)])
+
+    def test_a_resolution_that_takes_no_choice_and_one_whose_choices_are_all_closed(self):
+        closed = {"resolution_type": "RESOLUTION_EMBARGO", "choices": [{"id": 1, "disabled": True}]}
+        g = self.League({"proposable_enact": [closed, {"resolution_type": "RESOLUTION_SCIENCES_FUNDING", "choices": []}]})
+        self.assertTrue(play_loop.make_league_proposal(g, 2))
+        self.assertEqual(g.sent[-1], ("enact", "RESOLUTION_SCIENCES_FUNDING", -1, 2))
+
+    def test_with_nothing_to_enact_the_first_repeal(self):
+        g = self.League({"proposable_enact": [], "proposable_repeal": [{"resolution_id": 12}, {"resolution_id": 4}]})
+        self.assertTrue(play_loop.make_league_proposal(g, 0))
+        self.assertEqual(g.sent[-1], ("repeal", 12, 0))
+
+    def test_nothing_offered_or_a_refusal_is_left_to_the_stall_counter(self):
+        self.assertFalse(play_loop.make_league_proposal(self.League({"in_session": True}), 0))
+        refused = self.League({"proposable_enact": [{"resolution_type": "RESOLUTION_SCIENCES_FUNDING"}]},
+                              reply={"ok": False, "err": "cannot propose this resolution right now"})
+        self.assertFalse(play_loop.make_league_proposal(refused, 0))
+
+        class Down(self.League):
+            def league_status(self, pid=None, detail="summary"):
+                raise RuntimeError("tunerd is gone")
+        self.assertFalse(play_loop.make_league_proposal(Down({}), 0))
+
+    def test_the_blocker_is_one_the_loop_answers(self):
+        name = "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS"
+        self.assertIn(name, play_loop.HANDLED_BLOCKERS)
+        self.assertIs(play_loop.BLOCKER_HANDLERS[name], play_loop.make_league_proposal)

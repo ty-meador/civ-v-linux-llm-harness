@@ -52,8 +52,8 @@ CYCLE, CYCLE_END = "seat_loop.cycle", "seat_loop.cycle_end"
 
 PROMPT = """Read AGENTS.md in this directory first: it says who you are and how the civ5 tools work.
 
-This is one instance of a long game; your context will be reset after this instance. Play exactly
-{turns} game turns of your seat, then stop:
+This is one instance of a long game; your context will be reset after this instance. Play your
+seat until {window}, then stop:
 
 1. Call `turn(action="briefing", since="turn")` first. Your notes from earlier instances
    (`notebook(action="recall")`, and the `assignments` shown in the briefing) are the memory that
@@ -61,8 +61,10 @@ This is one instance of a long game; your context will be reset after this insta
 2. Each turn: act on the briefing's decisions and `status.todo`, give a unit a standing order where
    a plan spans turns, `notebook(action="remember")` what future-you must know, then
    `turn(action="finish")`. `reference(book="playbook")` says how to pass quiet turns cheaply.
-3. Stop after `turn(action="finish")` has ended turn T0+{last_offset} (that is {turns} turns ended
-   by you). Do not end more turns than that. If the game ends, or a tool reports the game or the
+3. The instance is over when {window}: the status that `turn(action="finish")` returns reads that
+   turn. Stop there and leave that turn unplayed. Until then keep going: a finish that comes back
+   on the same turn (a `gate`, a leader on screen, something still to answer) has not ended it, so
+   answer what is asked and finish again. If the game ends, or a tool reports the game or the
    bridge is down, stop at once instead.
 4. Then write `reports/{stamp}.md` in this directory (a plain file, nothing else on disk) with these
    headings: **Turns** (T0 to the last turn you ended, and what you did in one line per turn),
@@ -76,6 +78,20 @@ never use `session` to change the seat, load a save or leave the game, never wri
 directory. Any other human seat is another LLM; you see nothing of its turn, and you do not try to.
 Play to win.
 """
+
+
+def window_words(turns: int, until: int | None = None) -> str:
+    """The end of an instance, as the turn that is the seat's when it is over. A count of turns ended is not
+    the same thing: Codex stopped after its tenth `finish` with a leader on screen and the board nine turns on
+    (live 2026-11-16), so the entrant is told the turn and that a finish on the same turn has not ended it."""
+    if until is None:
+        return f"turn T0+{turns} is yours"
+    return (f"turn T0+{turns} or turn {until} is yours, whichever comes first (with T0 at {until} or later there "
+            "is nothing to play)")
+
+
+def prompt_for(turns: int, stamp: str, until: int | None = None) -> str:
+    return PROMPT.format(window=window_words(turns, until), stamp=stamp)
 
 
 def build_cmd(agent: str, model: str, effort: str, prompt: str, seat_dir: Path, last_msg: Path,
@@ -244,6 +260,8 @@ def main() -> int:
     ap.add_argument("--model", required=True)
     ap.add_argument("--effort", default="low")
     ap.add_argument("--turns", type=int, default=20)
+    ap.add_argument("--until-turn", type=int, default=None, metavar="N",
+                    help="a referee's window: every instance is also told to stop when game turn N is the seat's")
     ap.add_argument("--cycles", type=int, default=0, help="0 = until STOP")
     ap.add_argument("--cycle-timeout", type=int, default=4 * 3600, help="seconds before a cycle is killed")
     ap.add_argument("--log-dir", default=str(Path(__file__).resolve().parent.parent / "logs" / "night"))
@@ -276,7 +294,7 @@ def main() -> int:
             log("cycle budget spent, loop ends")
             return 0
         stamp_ = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-        prompt = PROMPT.format(turns=args.turns, last_offset=args.turns - 1, stamp=f"c{cycle}-{stamp_}")
+        prompt = prompt_for(args.turns, f"c{cycle}-{stamp_}", args.until_turn)
         last_msg = log_dir / f"{args.agent}-c{cycle}.last.md"
         session = str(uuid.uuid4()) if args.agent == "claude" else None
         cmd = build_cmd(args.agent, args.model, args.effort, prompt, seat_dir, last_msg, session)
