@@ -522,6 +522,36 @@ at any hand-over. The values the seat caches (base happiness 9, the first policy
 turn-0 board until the game works them out again, the same for everyone who plays it. The eight games above
 are that board's own value: the same two changes were made at turn 0 before the engine played.
 
+### The floor against the anchor (2026-11-17, rule 8's first test)
+
+The scripted loop (`scripts/play_loop.py`: it founds the capital where the Settler stands, automates Workers,
+skips every other unit, and for production, research and policy takes the first thing it can from a fixed
+list) played the first 30 turns of `board-duel-prince-a-t0-airow`, two deals, and each end save was played out five times
+(`--label play-loop --notebook none --turns 30 --runs 2 --continue 5 --last-turn 500`).
+
+| | deal 0 | deal 1 |
+|---|---|---|
+| the window | 30 turns in 216 s | 30 turns in 218 s |
+| the seat at turn 30 | one city of 3, 7 technologies, 4 policies, score 112 | one city of 4, 7 technologies, 4 policies, score 120 |
+| built, in order | Worker, Monument, Shrine, Granary | the same |
+| policies | Tradition, Aristocracy, Oligarchy, Legalism | the same |
+| place by score | 2 of 2 | 2 of 2 |
+| continuations won | 5 of 5 | 5 of 5 |
+| ended by | Diplomatic five times, turns 360 to 386 | Diplomatic three times, Culture twice, turns 346 to 425 |
+
+**The seat won all ten games**, 12.2 minutes each; in one it won the World Leader vote with the lower score
+(1808 to 2133). The stock AI playing the whole game from turn 0 won 4 of 7 on the same board, and its three
+losses were all conquests before turn 180; after the scripted window the Aztecs took no capital in ten games.
+Three losses among seventeen games all falling to the stock AI's side has a chance of 35 in 680, about 0.05,
+if the two were the same.
+
+So the value does separate the two, and **the "floor" stands above the anchor**: what the stock AI makes of a
+capital that sat still for 30 turns with its Warrior at home and four policies taken is more than what it makes
+of its own opening. Before that is read as a fact about play, the chain has to be ruled out: the scripted run's
+continuations start from a save made at turn 30 and loaded again, the whole games never pass through a save.
+The control is the anchor as rule 3 defines it, the stock AI for the same 30 turns, the same save and the same
+five continuations a deal.
+
 ## Not checked yet
 
 - A spaceship win under autoplay (Time, Domination, Culture and Diplomatic are seen).
