@@ -360,6 +360,14 @@ class Continuations(unittest.TestCase):
         self.go(quiet)
         self.assertFalse(any("ExitToMainMenu" in s for s in quiet.sent), "a seat's exit that worked is not sent twice")
 
+    def test_the_first_war_and_the_most_cities_stand_beside_the_result(self):
+        polls = [dict(poll(260, 900), wars=0, cities=2), dict(poll(271, 889), wars=1, cities=3),
+                 dict(poll(290, 870), wars=0, cities=1), dict(poll(300, 860, winner=1, victory="VICTORY_DOMINATION"), wars=1, cities=1)]
+        c = self.go(FakeGame([read(turn=252)], polls=polls))
+        self.assertEqual((c["first_war_turn"], c["most_cities"], c["won"]), (271, 3, False))
+        quiet = self.go(FakeGame([read(turn=252)], polls=[poll(300, 860, winner=0, victory="VICTORY_CULTURAL")]))
+        self.assertNotIn("first_war_turn", quiet)
+
     def test_a_decided_game_keeps_how_it_stood(self):
         end = read(turn=330, winner=1, victory="VICTORY_TIME", players=[player(0, human=True, score=1571), player(1, score=1865)])
         c = self.go(FakeGame([read(), end], polls=[poll(330, 900, winner=1, victory="VICTORY_TIME")]))

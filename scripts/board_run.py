@@ -129,7 +129,15 @@ def start_chunk(burn: int, turns: int, seat: int, row: str = "own", time: str = 
 POLL = """
 return {turn = Game.GetGameTurn(), auto = Game.GetAIAutoPlay(), winner = Game.GetWinner(), state = Game.GetGameState(),
   alive = Players[%(seat)d]:IsAlive(), active = Game.GetActivePlayer(), turn_active = Players[%(seat)d]:IsTurnActive(),
-  team = Players[%(seat)d]:GetTeam(), victory = (Game.GetVictory() or -1) >= 0 and GameInfo.Victories[Game.GetVictory()].Type or ""}
+  team = Players[%(seat)d]:GetTeam(), victory = (Game.GetVictory() or -1) >= 0 and GameInfo.Victories[Game.GetVictory()].Type or "",
+  cities = Players[%(seat)d]:GetNumCities(), wars = (function()
+    local n, mine = 0, Teams[Players[%(seat)d]:GetTeam()]
+    for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
+      local p = Players[i]
+      if i ~= %(seat)d and p:IsAlive() and mine:IsAtWar(p:GetTeam()) then n = n + 1 end
+    end
+    return n
+  end)()}
 """
 
 BURN = """
@@ -298,6 +306,10 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
                 last_turn, last_change = now["turn"], clock()
                 if now["turn"] % 25 == 0:
                     say(f"    continuation {m}: turn {now['turn']}  +{clock() - t0:.0f}s")
+            # beside the result, never in it: when the seat was first at war with a major, and the most cities it held
+            if now.get("wars") and "first_war_turn" not in out:
+                out["first_war_turn"] = now["turn"]
+            out["most_cities"] = max(out.get("most_cities", 0), now.get("cities", 0))
             if now["winner"] >= 0:
                 out.update(end_reason="victory", won=now["winner"] == now["team"], winner=now["winner"], victory=now["victory"])
             elif not now["alive"]:
