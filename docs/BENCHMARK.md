@@ -485,6 +485,31 @@ the old limit, and the first World Leader vote is one of the ways. A board hoste
 setup screen has no limit from the start and needs no lever; for the boards already made the lever is the same
 thing.
 
+**The duel's own value: eight whole games** (`--value-only --continue 8 --row ai --time off --last-turn 500` on
+`board-duel-prince-a-t0`, Siam on the seat against the Aztecs, 87 minutes in all):
+
+| game | ended by | winner | turn | minutes | score, seat to Aztecs |
+|---|---|---|---|---|---|
+| 0 | Diplomatic | seat | 342 | 12.9 | 1882 to 1943 |
+| 1 | Culture | seat | 272 | 9.0 | 1873 to 1396 |
+| 2 | the stop at turn 500 | none | 500 | 20.2 | 2879 to 1787 |
+| 3 | Domination | Aztecs | 126 | 3.5 | 385 to 650 |
+| 4 | Diplomatic | seat | 369 | 14.2 | 2237 to 2147 |
+| 5 | Diplomatic | seat | 395 | 16.8 | 2098 to 2012 |
+| 6 | Domination | Aztecs | 156 | 4.3 | 496 to 1130 |
+| 7 | Domination | Aztecs | 177 | 6.3 | 598 to 1222 |
+
+- **The board is in rule 2's band**: the seat won 4 of the 7 games that were decided, 0.57. With the seat on
+  the human's row it had lost 3 of 3.
+- **Every decided game ended by a real victory, of three types**, and game 0 went to the side with the lower
+  score. With Time off the value is not score by another name, which was the fifth worry of rule 8.
+- A decided game took 9.6 minutes on average and between 3.5 and 16.8.
+- One game in eight was not decided by turn 500, with the seat far ahead (nine cities to four). Such a game
+  has no winner and is left out of the share, counted beside it like a DNF; it cost twice a decided game.
+- The Aztecs win early or not at all: all three of their wins were Domination before turn 180, all four of
+  the seat's came after turn 270. A window that gets the seat through the first 180 turns alive is most of
+  what there is to win on this board, which is worth knowing when a window's length is chosen.
+
 ## Not checked yet
 
 - A spaceship win under autoplay (Time, Domination, Culture and Diplomatic are seen).
