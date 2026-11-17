@@ -166,6 +166,19 @@ seat: player 0 active and human again, `EndGameMenu` hidden, and the game ran on
 then 78). `turn(action="status")` read `alive: false`, `game_over: false`, the gate `turn_not_active`: a seat
 waiting there would wait for good. A runner checks the winner and `IsAlive` each turn and leaves the game itself.
 
+## The runner, and a save replays the same game
+
+`scripts/board_run.py` is the anchor's tool: load a save, read every major civilization, hand the seat over for
+a window, read again, one JSON row a run, leave for the main menu (its docstring has the refusals). On the Maya
+t242 board (Huge, Quick, Emperor, 12 civilizations) a window of 2 turns took 76 s and moved the seat's score
+from 604 to 610, tenth of twelve.
+
+**The same run a second time ended on the same ten values**, military might to the unit (3366) and gold to the
+coin (15). The save holds the random stream, so the stock AI on a board is one line and not a distribution until
+something moves the stream. `--burn run` takes 17 draws per run number from `Game.Rand` before the engine plays.
+The same holds for an agent: every entrant on a board meets the same dice until its own orders change what is
+rolled. Two turns are a short proof; the ten-run window says whether the draws spread the runs.
+
 ## Not checked yet
 
 - A spaceship, culture or diplomatic win under autoplay (Time and Domination are seen).

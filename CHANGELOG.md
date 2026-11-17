@@ -14,6 +14,20 @@ Two counters, on purpose (GitLab #26):
 
 Dates are the day the change was committed; "live tNNN" is the game turn it was checked on.
 
+## Unreleased
+
+- **A board played by the game's own AI (2026-11-16; the benchmark's first tool).** `scripts/board_run.py --save
+  <save> --turns N --runs K --out <rows.jsonl>` loads a save, reads every major civilization's indicators (score,
+  technologies, policies, cities, population, military, land, gold, science, happiness), hands the one human
+  seat to the engine for N turns (`Game.SetAIAutoPlay`), reads again, writes one row and leaves for the main
+  menu; `--summary <rows>` prints per indicator the mean, the spread and the spread against the gain. No tokens.
+  Operator-side: it sends Lua text and reads every player, so it runs on the plain tunerd only and is no part of
+  the nine tools. It refuses a board with no observer slot beside the seat (the engine would destroy the seat,
+  seen live) and a board with two human seats, and it ends a run itself on a win, a dead seat or 15 minutes
+  without a new turn. Live on the Maya t242 board: 2 turns in 76 s, score 604 to 610; the same run again ended
+  on the same ten values, so a save replays the same game and `--burn run` (the default) takes draws from the
+  game's random stream first. `docs/BENCHMARK.md`, "Autoplay, checked live" and "The runner".
+
 ## 2.17.0 -- Tokens per seat on the spectator page (2026-11-16)
 
 Runtime v341 (unchanged), 9 tools, 2276 tests. #189, closed: the last stage of the token-accounting plan. The
