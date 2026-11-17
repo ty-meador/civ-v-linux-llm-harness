@@ -212,8 +212,27 @@ What it says, for this board and this window only:
   wider and the window worth more.
 
 The clients' runs on this board (`logs/bench188/`, `logs/bench191/`) kept ledgers and token counts but no read
-of the board at the end, so they cannot be set beside this table. The next piece is the same two reads around a
-seat-loop run.
+of the board at the end, so they cannot be set beside this table.
+
+### Any entrant between the same two reads (2026-11-16)
+
+`scripts/board_run.py --save <save> --label <entrant> --out <rows> -- <command>` runs a command in place of the
+engine: load, read, the command plays the seat and ends, read (once the seat's turn is active again), leave. A
+seat loop is such a command, and so is `scripts/play_loop.py`, the scripted loop that asks no model anything.
+The row has the same shape as the AI's and `--summary` puts the entrants of one rows file side by side.
+
+- **Deals.** An entrant's nth run on a board is deal n and takes 17 n draws before anyone plays, the AI's runs
+  included. Deal n is then the same dice for every entrant until their orders part, and results can be paired
+  by deal as well as pooled.
+- **The notebook is part of the board.** `--notebook FILE` is what the seat starts with, `--notebook none` a seat
+  that takes the position over cold (what the AI does), no word the notebook on disk. The entrant's notebook at
+  the end is kept beside the rows and the one that was on disk is put back, whatever happened.
+- **`--claim-wait 200`** when another client played the seat just before: its turn claim lapses 180 s after its
+  last order.
+
+Seen live with the scripted loop, 2 turns, no notebook, deal 0 (78 s): score 604 to 609 where the AI's two
+2-turn runs made 610; gold 305 against the AI's 15 (the loop buys nothing), science 482 against 546. The
+notebook on disk was the same bytes before and after. No model has been run through it yet.
 
 ## Not checked yet
 
@@ -224,7 +243,8 @@ seat-loop run.
 - How much one board's result varies between two runs of the same *agent* (the stock AI's spread on one late
   board is above), and the stock AI's spread on an opening board. They set how many replicates a board needs,
   and so what the benchmark costs.
-- An agent's result on a board read by the referee: the runner's two reads around a seat-loop run.
+- A model's row. The runner is checked with the scripted loop only; a Codex, Grok or Claude cycle through it is
+  the user's session to start.
 
 ## A pilot that also serves token accounting
 

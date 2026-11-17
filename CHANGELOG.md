@@ -27,6 +27,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   without a new turn. Live on the Maya t242 board: 2 turns in 76 s, score 604 to 610; the same run again ended
   on the same ten values, so a save replays the same game and `--burn run` (the default) takes draws from the
   game's random stream first. `docs/BENCHMARK.md`, "Autoplay, checked live" and "The runner".
+- **Any entrant on a board (2026-11-16).** `scripts/board_run.py ... --label <entrant> -- <command>` runs a
+  command between the same two reads in place of the engine: a seat loop, or `scripts/play_loop.py`. An
+  entrant's nth run is deal n (17 n draws from the random stream before anyone plays, the same dice for every
+  entrant); `--notebook FILE` or `none` is what the seat starts with, the entrant's notebook at the end is kept
+  beside the rows and the one on disk is put back; `--claim-wait`, `--timeout`, `{deal}` in the command.
+  `--summary` lists each entrant and puts those that played the same window side by side. Ten runs of the AI on
+  the Maya t242 board, 10 turns: score 604 to 633.3 with sd 0.7. Live with the scripted loop, 2 turns: 604 to
+  609, the notebook on disk the same bytes afterwards.
 
 ## 2.17.0 -- Tokens per seat on the spectator page (2026-11-16)
 

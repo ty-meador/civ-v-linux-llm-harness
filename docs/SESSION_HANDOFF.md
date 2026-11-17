@@ -1,4 +1,4 @@
-# Resume here -- 2026-11-16 (night): main = 2.17.0 + the board runner (unreleased; runtime v341, 9 tools, 2293 tests).
+# Resume here -- 2026-11-16 (night): main = 2.17.0 + the board runner (unreleased; runtime v341, 9 tools, 2308 tests).
 **The benchmark has its first tool and its first numbers** (`docs/BENCHMARK.md`, "Autoplay, checked live" and
 "The runner"). `scripts/board_run.py --save <save> --turns N --runs K --out <rows>` plays a board with the game's
 own AI on the seat and writes one row a run; `--summary <rows>` prints the spread. Found on the way, all on
@@ -8,9 +8,12 @@ one save, one anchor); a win or a dead seat stops nothing and a dead seat leaves
 (`turn status` then reads `alive: false`, `game_over: false`, not filed). A save replays the same game, so the
 runner takes draws from `Game.Rand` first. Ten runs of 10 turns on the Maya t242 board (49 minutes, rows in
 `logs/boards/maya-t242/anchor-t10.jsonl`, gitignored): score 604 to 633.3, sd 0.7; technologies, policies and
-cities the same ten times; military, gold and happiness spread widely. **Next: the same two reads around a
-seat-loop run** (an agent's row beside the AI's), and an opening board made at Prince from the single-player
-setup screen (observer slots as it leaves them). The diregoblin fork's fix was already `461c3ee` (2.14.0); the
+cities the same ten times; military, gold and happiness spread widely. **Any entrant goes between the same two
+reads**: `board_run.py ... --label <entrant> --notebook none -- <command>` (a seat loop, or `play_loop.py`),
+deal n the same dice for every entrant, the notebook on disk put back; seen live with the scripted loop only
+(2 turns, 604 to 609). `logs/boards/maya-t242/t10.jsonl` holds the AI's ten rows for the clients' rows to join.
+**Next: a model's row** (a 10-turn Codex, Grok or Claude cycle through the runner; the user starts those), and
+an opening board made at Prince from the single-player setup screen (observer slots as it leaves them). The diregoblin fork's fix was already `461c3ee` (2.14.0); the
 chayuto fork has no commit of its own. The game is at the main menu, tunerd on the plain socket, no seat table.
 
 # Previous -- 2026-11-16 (small hours): main = 2.17.0 (runtime v341, 9 tools, 2276 tests; tagged, released, on PyPI).
