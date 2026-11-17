@@ -46,6 +46,23 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   `--summary` lists each entrant and puts those that played the same window side by side. Ten runs of the AI on
   the Maya t242 board, 10 turns: score 604 to 633.3 with sd 0.7. Live with the scripted loop, 2 turns: 604 to
   609, the notebook on disk the same bytes afterwards.
+- **The terms the engine plays a seat on (2026-11-17; #195).** Every real AI plays on `HANDICAP_AI_DEFAULT` at
+  any difficulty; a human seat handed to the engine keeps the human's Prince row and lost every whole game on
+  two Prince boards. `scripts/board_run.py --row ai` puts the seat on the AIs' row in the call that hands it to
+  the engine (the stock AI's window and every continuation; an entrant's own window is untouched), `--time off`
+  switches the Time victory off and clears the turn limit (the victory flag alone still ended the game at turn
+  330), `--last-turn T` stops a continuation at turn T as undecided, with no value. Decided and stopped
+  continuations keep every player's final score, technologies and cities. Live on the Prince duel: eight whole
+  games, the seat won 4 of the 7 decided (Diplomatic three times, Culture once), lost 3 by Domination, one
+  undecided at turn 500. `docs/BENCHMARK.md`, "The seat's row, and the Time victory".
+- **The window's last turn, in the command and in the prompt (2026-11-17; #201).** `{until}` in a board_run
+  command is the turn at which the window is over; `scripts/llm_seat_loop.py --until-turn N` puts it in the
+  prompt, which now ends an instance on a turn ("turn T0+N is yours") and not on a count of turn ends, and says
+  that a finish coming back on the same turn has not ended it.
+- **The scripted loop makes a World Congress proposal (2026-11-17; #198).** `scripts/play_loop.py` answered
+  every blocker but `ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS` and gave up at turn 246 of the Maya t242 board
+  three times. It now proposes the first thing the league read offers (an enactment, else a repeal). Unit
+  tests only so far; the live turn is still to be played.
 
 ## 2.17.0 -- Tokens per seat on the spectator page (2026-11-16)
 
