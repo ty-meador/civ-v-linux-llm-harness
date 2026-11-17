@@ -1,6 +1,7 @@
 # A benchmark of our own (design sketch)
 
-Written 2026-11-13. A sketch to argue with, not a plan. Background: `docs/CIVBENCH.md`.
+Written 2026-11-13 as a sketch to argue with. Since 2026-11-16 it opens with rules (version 0) and a list of the
+tests that would overturn them; the rest is the argument and what was measured. Background: `docs/CIVBENCH.md`.
 
 ## The premise
 
@@ -8,6 +9,131 @@ The agent is put in a human seat of stock Civilization V. It can do only what a 
 human sees, and it has to play anyway: every unit, city, deal and vote, for as long as the test runs. The harness
 enforces the boundary; the benchmark measures the play. The benchmark is a definition (boards, windows, scoring)
 that this harness can run and that another harness holding the same boundary could run too.
+
+## Rules, version 0 (2026-11-16)
+
+The user left the rules to be worked out (2026-11-16). These are the rules the measurements so far support. Each
+says what is seen and what is not, and rule 8 lists the tests that would overturn them. The sections after this
+one are the argument and the measurements; where they differ from a rule, the rule is the later thought.
+
+**1. A run is worth what the game was worth when the entrant's turns were over.** An entrant plays a seat for a
+window of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
+(continuations). The run's value is the share of the continuations the seat wins. Nothing else orders entrants.
+
+- A win is the one thing every victory type has in common. Score is not: it counts size. The Maya seat of the
+  t242 board holds 6.4% of the living civilizations' score and is tenth of twelve with 8.6% of their
+  technologies, and a fast four-city science win scores below a slow conquest.
+- It is the estimate of point 4 below without a fitted model: the position is valued by what one fixed player
+  makes of it, the same player for every entrant. It does not measure whether the entrant could have finished
+  the game itself. Every continuation is also a row for the fitted estimator, should one be wanted later.
+- A seat dead or a game lost inside the window is 0, a game won inside it is 1, with no continuation.
+- It is a probability, not one game's result: one continuation is a coin, twenty are an estimate. Where that is
+  still too coarse the fitted estimator is the finer instrument, and the continuations are what it is fitted on.
+- **The path, on a long window.** The referee can save at fixed turns inside the window and value each save the
+  same way. The path says whether a lead was built early and kept, thrown away, or won back from behind. The
+  headline stays the value at the window's end: an average over the path would pay for a lead that was then
+  lost.
+- Seen: autoplay to a Time and to a Domination win with no screen in the way, the winner read from
+  `Game.GetWinner()`. Not seen: a continuation from a save made at the window's end, the other three victory
+  types under autoplay, how long a continuation takes.
+
+**2. Boards.** A board is a save, a seat, a window and a number of deals.
+
+- Made from the single-player setup screen: Prince (the AI on the seat then has nearly no bonus, measured
+  below), the unused slots as the screen leaves them (the observer slot autoplay needs), every victory type on,
+  stock rules, no mod. Small maps (Duel to Small) at Quick speed, so that a continuation is minutes.
+- Three kinds by where the window sits: an opening (from turn 0), a middle game, a late game. They are reported
+  apart. A middle or late board is cut from a game the stock AI played alone to that turn: an honest origin, no
+  one's notebook, and as many boards as wanted for no tokens.
+- **A board is kept only if the stock AI's own value on it is between 0.2 and 0.8.** On a board the seat always
+  or never wins, no window can show anything.
+- **The seats of one map.** Where the same map can be started from each of its seats (a fixed map seed on the
+  setup screen, not yet tried), every seat is a board, and an entrant's spread over the seats of one map is
+  reported beside its mean: the same world from the river valley and from the tundra. Seats outside the band
+  above are still dropped.
+- Goal boards (below) are the second kind of test, pass or fail against a referee, and are reported apart.
+  One family of them comes in pairs: **the same save with and without one staged event** the seat can see (an
+  army gathering at the border, a neighbour two parts from a spaceship, a city-state ally under siege). What
+  the entrant builds, moves and signs in the turns after is counted from the ledger on both boards. The
+  difference between the two is its reaction, measured without anyone judging what its strategy was, and the
+  referee's predicate (the city still held at the end) says whether the reaction was enough.
+
+**3. Entrants.** An entrant is a client, a model, an effort setting, a harness version and a prompt file. It has
+the nine tools and one seat: no shell on the game's machine, no save file, no Lua. It starts with no notebook;
+what it writes during the window is its own. Two entrants are always on a board beside the models: the stock AI
+playing the window (`stock-ai`, the anchor) and a scripted floor that answers only what the game forces
+(`scripts/play_loop.py`).
+
+**4. Deals.** An entrant's nth run on a board is deal n: 17 n draws from the game's random stream before the
+window, the same for every entrant, since a save otherwise replays the same game. A continuation takes its own
+draws when it starts. At least three deals an entrant and board; whether a model's own variation asks for more
+is not known.
+
+**5. A run counts whatever happened.**
+
+- The window is the referee's: the board must be that many turns on. A run that stopped short (gave up,
+  stalled, ran out of time or quota, the client died) is worth 0, as a player who leaves the table has lost.
+  Otherwise stopping would be worth the anchor's value, and a weak entrant would do best by not playing.
+- A run is void and played again only when the game process died or the harness answered with an internal
+  error; the ledger says which.
+- One wall-clock limit a window for every entrant. Tokens are counted, not capped.
+- **The entrant is told the turn at which the window is over**, in the same words for all: "the window is over
+  when turn N is yours". Told "play 10 turns", Codex ended its tenth turn, got a leader on screen between the
+  turns, and stopped there with the board nine turns on; Grok answered the leader and reached the turn (both
+  2026-11-16, below). What the turns between ask is part of the window.
+
+**6. What is reported.**
+
+- Per board and entrant: the value, mean over deals, with the anchor's and the floor's beside it.
+- The headline: the mean over boards of the entrant's value less the anchor's, per kind of board, with an
+  interval from resampling boards. It reads "left the seat this much more (or less) likely to win than the
+  game's own AI did with the same turns".
+- A fitted rating over entrants (Bradley-Terry) only once there are entrants enough; the headline needs none.
+- Always beside it: the share of windows played, tokens and seconds a turn, orders refused ("What can be
+  measured with no scale at all"). The indicators and the parts of the score are diagnosis, never the ordering.
+- Every row carries the harness version, the runtime version, the board and the deal.
+
+**7. Beside the value: how the seat was played.** Read by the referee at the two ends of the window and counted
+from the ledger, reported per entrant next to the anchor's figure on the same board, and never part of the
+ordering. They explain a value; they do not replace it.
+
+- *What the empire turns its yields into.* Food, production, gold, science, culture and faith a turn at both
+  ends; gold on hand at the end against income (on the t242 board the scripted loop ended two turns with 305
+  gold where the AI had spent down to 15); turns a city built nothing and turns a unit stood with no order; the
+  parts of the score (cities, population, land, wonders, technologies, policies), so that "grew wider" and
+  "advanced" can be told apart.
+- *Where the seat stands with the others.* Wars it is in and who declared them, declarations of friendship,
+  denouncements given and received, city-state allies, at both ends; cities and units lost; what it gave and
+  got in each deal and peace treaty, listed, not scored.
+- *What the play cost.* Tokens and seconds a turn, calls a turn, orders refused by reason, the share of windows
+  played.
+
+**8. What would overturn this, to be tested before any model's tokens are spent on it.**
+
+- *The value cannot tell a floor from the anchor.* On an opening board, the scripted floor for 30 turns
+  against the stock AI for 30 turns. If the continuations do not separate those two, the window or the
+  valuation is wrong.
+- *Continuations are too slow or too noisy.* Minutes a continuation on each map size, and the spread of the
+  value over 20 of them. A run should be valued within the hour.
+- *No board is undecided.* The real AIs keep their own handicap row at any difficulty (base happiness 15,
+  research at 85%), so an AI on the seat at Prince may still win too rarely on boards of several
+  civilizations. If so the difficulty or the map is changed until rule 2's band is met, or the rule is.
+- *The save in between.* Save at the window's end, load, autoplay to the end: each step is seen alone, not the
+  chain.
+
+**Considered and left out** (suggestions weighed 2026-11-16):
+
+- *A progress-weighted average of standing over the whole game as the result.* The path of rule 1 is taken from
+  it; the average is not, and neither is standing measured as a share of score or against the leader of the
+  moment, since score counts size.
+- *A count of strategic pivots, with a healthy range.* Nothing operator-side can say what a strategy was or
+  when it changed without interpreting the play, and no range is known to be healthy. The paired boards of
+  rule 2 measure the part of it that can be measured: whether the play changes when the world does.
+- *A friendship-to-denouncement ratio, or a mark for unequal treaties.* A ratio rewards having no relations
+  at all, and what a treaty was worth depends on the war it ended. The facts are listed (rule 7); a deal that
+  must be refused is a goal board.
+- *Yields set against a modded AI's.* The anchor is the stock AI on the same seat, and stock rules are the
+  premise.
 
 ## The hard problem: one scale across maps, civilizations and victory types
 
@@ -242,6 +368,34 @@ otherwise, and only played windows are summarised and set side by side. So the s
 this board until it can make a proposal, which is a fair picture of a late board: it asks for things a script
 has no answer to.
 
+### Two models through the runner (2026-11-16)
+
+One deal each (deal 0) of Codex (`gpt-6.1-sol`) and Grok (`grok-4.6`), effort low, no notebook, 10 turns asked
+of the seat loop, on the Maya t242 board; the stock AI's ten rows beside them.
+
+| | stock AI, 10 runs | Grok, 1 run | Codex, 1 run (9 turns) |
+|---|---|---|---|
+| window | played | played, 569 s | not played, 544 s |
+| score | 633.3 (sd 0.7) | 631 | 631 |
+| technologies | 60 | 60 | |
+| population | 74.1 (0.3) | 73 | |
+| science a turn | 628.1 (21.2) | 519 | |
+| military might | 4594.9 (680.8) | 3483 | |
+| gold | 167.7 (34.8) | 167 | |
+| happiness | 9.1 (3.7) | 2 | |
+
+- **Codex's run is the rule at work.** Its last `turn finish` at t251 came back `ended: true` with
+  `discussion_pending: true`: a leader had come on screen between the turns. Codex reported "Ended exactly 10
+  turns (242 to 251)" and stopped. The referee waited two minutes for the seat's turn and read a board nine
+  turns on, the seat not active. The row says `window_not_played`. Grok's first `finish` at t251 ended the
+  same way; it answered and its second reached t252. Hence the wording now in rule 5.
+- **One run each says little**, and on this board the slow indicators cannot tell an entrant from the AI in
+  ten turns anyway (above). What stands out in Grok's row is outside the AI's ten runs: science a turn five
+  standard deviations below, happiness at 2 where the AI's least was 4. Whether that is the model or the deal
+  needs the other deals.
+- The seat loop's cycle took about as long as before the runner (538 and 563 s), and the notebook that stood
+  on disk was the same bytes after both.
+
 ## Not checked yet
 
 - A spaceship, culture or diplomatic win under autoplay (Time and Domination are seen).
@@ -251,8 +405,6 @@ has no answer to.
 - How much one board's result varies between two runs of the same *agent* (the stock AI's spread on one late
   board is above), and the stock AI's spread on an opening board. They set how many replicates a board needs,
   and so what the benchmark costs.
-- A model's row. The runner is checked with the scripted loop only; a Codex, Grok or Claude cycle through it is
-  the user's session to start.
 
 ## A pilot that also serves token accounting
 

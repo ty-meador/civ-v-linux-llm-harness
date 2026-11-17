@@ -14,8 +14,17 @@ deal n the same dice for every entrant, the notebook on disk put back; seen live
 (2 turns, 604 to 609; at 10 turns it gives up at t246, a World Congress call for proposals it has no hand for,
 and the rows say `window_not_played`). `logs/boards/maya-t242/t10.jsonl` holds the AI's ten rows for the clients'
 rows to join.
-**Next: a model's row** (a 10-turn Codex, Grok or Claude cycle through the runner; the user starts those), and
-an opening board made at Prince from the single-player setup screen (observer slots as it leaves them). The diregoblin fork's fix was already `461c3ee` (2.14.0); the
+**The rules are ours to write** (the user, 2026-11-16): `docs/BENCHMARK.md` opens with "Rules, version 0" (a run
+is worth the share of stock-AI continuations the seat wins after the entrant's window; Prince boards kept only
+if the anchor's value is 0.2 to 0.8; a window not played is 0; rule 8 lists the tests that could overturn it).
+**The plan is on GitLab: tracking #210**, milestones 2.18.0 the referee (#192 done, #193 continuations, #194
+boards made to rule, #195 the overturning tests, #196 diagnostics, #197 status after a dead seat, #198 the
+scripted floor and the Congress, #199 release), 2.19.0 the pilot (#200 to #204), 2.20.0 goal boards (#205 to
+#208), unscheduled #209 a fitted estimate. **Two models went through the runner** (deal 0, 10 turns, no notebook): Grok played the window (score
+631 against the AI's 633.3, science 519 a turn against 628); Codex stopped with a leader on screen after its
+tenth end of turn, the board nine turns on, and its row says `window_not_played`, so rule 5 now has the entrant
+told the turn at which the window is over. **Next: #193 and #194, then #195 before anything is built on the
+rules.** The diregoblin fork's fix was already `461c3ee` (2.14.0); the
 chayuto fork has no commit of its own. The game is at the main menu, tunerd on the plain socket, no seat table.
 
 # Previous -- 2026-11-16 (small hours): main = 2.17.0 (runtime v341, 9 tools, 2276 tests; tagged, released, on PyPI).
