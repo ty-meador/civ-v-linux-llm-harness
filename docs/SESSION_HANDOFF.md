@@ -1,8 +1,8 @@
-# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2342 tests).
+# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2343 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
-went to bed with "run as many games as you need to"; the night played 36 games to their end and then a Tiny
-board. `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds
-every number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
+went to bed with "run as many games as you need to"; the night played 40 games to their end.
+`docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
+number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -26,13 +26,16 @@ every number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #1
   handed over a second time. Continuations now record `first_war_turn` and `most_cities`.
 - Minutes: a duel continuation from turn 30 is 12 to 14, a whole duel game 3.5 to 17, a whole Tiny game to
   turn 330 24, a continuation from turn 325 2.2. Ten games give a standard error of 0.16 near 0.5.
-- **Tiny through the chain: being played when this was written** (`logs/boards/tiny-a/anchor-t30.jsonl`, the
-  stock AI's 30-turn window and four continuations on `board-tiny-prince-a-t0-terms`). Read it with `--summary`.
+- **Tiny through the chain: 0 of 4** (`board-tiny-prince-a-t0-terms`, Indonesia; at war by turn 93 every game,
+  conquered in three, Brazil's Diplomatic victory in the fourth; a full game 27.5 minutes). **No board is in
+  the band yet**: the duel is above it, this one very likely below.
 
 **Next, in this order.**
-1. **A board that is in the band through the chain** (stock AI plays the window, save, continuations): the
-   Tiny result above says where that stands. Candidates if it is out: a middle-game board cut from an AI game
-   (continuations are short there, so twenty are cheap), a longer window, a seat under pressure.
+1. **Find a board that is in the band through the chain** (stock AI plays the window, save, continuations).
+   Host several (duel and Tiny, other civilizations and maps; `logs/boards/scratch/host_board.py`), make each
+   carry its terms, screen each with `--turns 30 --continue 4 --last-turn 500`, keep the ones near the middle
+   and measure them with more games. A middle-game board cut from an AI game is the other candidate
+   (continuations are short there, so twenty are cheap).
 2. **Repeat floor against anchor on that board.** Until one board separates them no model's value means
    anything (rule 8). A window in which sitting still has a price: 60 to 100 turns, or a middle game.
 3. **The chain against the whole game.** Eight whole games on `board-duel-prince-a-t0-airow`
@@ -50,7 +53,8 @@ standard error. `scripts/llm_seat_loop.py --until-turn N` tells the entrant the 
 `scripts/play_loop.py` makes a World Congress proposal (#198, unit tests only).
 
 **The machine.** tunerd on the plain socket with no seat table, the session MCP server up; the game at the main menu unless
-the Tiny run is still playing (`ps` for `board_run`). Saves in the game's `Saves/single`: the two terms boards, the hosted
+a run is still playing (`ps` for `board_run`; eight whole duel games for step 3 were started at 08:42,
+`logs/boards/duel-a/whole-terms.jsonl`). Saves in the game's `Saves/single`: the two terms boards, the hosted
 `board-duel-prince-a-t0` and `board-tiny-prince-a-t0`, `board-tiny-chieftain-a-t0` (the failed hosting, can
 go), the `--...-deal N-end` saves of each run, `scratch-e5-reload`. Rows (gitignored) under `logs/boards/`:
 `duel-a/anchor-airow-notime.jsonl` (eight whole games), `duel-a/floor-t30.jsonl`, `duel-a/anchor-t30.jsonl`,

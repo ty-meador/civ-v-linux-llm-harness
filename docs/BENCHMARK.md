@@ -25,7 +25,8 @@ one are the argument and the measurements; where they differ from a rule, the ru
   (rule 2). The first duel is 0.57 by whole games and 0.90 through the chain.
 - A continuation with no victory by a stop turn is not decided and is in no share (rule 1).
 - A value is given with its standard error and over all of an entrant's games on the board (rule 6).
-- Rule 8's first test failed on the first board and is open: see there.
+- Rule 8's first test failed on the first board and is open: see there. Neither of the first two boards is
+  in the band (the duel 0.90, a Tiny board 0 of 4), so the next work is finding one.
 
 **1. A run is worth what the game was worth when the entrant's turns were over.** An entrant plays a seat for a
 window of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
@@ -167,8 +168,8 @@ stands after the night of 2026-11-17:
   minutes). Rule 6 now gives the standard error and says what a difference costs.
 - *No board is undecided.* **Answered for the row, open for the band.** The seat on the human's Prince row
   lost every whole game; on the AIs' row the duel is 0.57 by whole games. Through the chain the same board is
-  0.90, out of the band from the other side. A board of more civilizations is the next candidate (Tiny, being
-  played).
+  0.90, out of the band from the other side, and the first Tiny board is 0 of 4 through the chain, the seat
+  conquered in three. No board is in the band yet; boards have to be hosted in number and screened.
 - *The save in between.* **Holds as a mechanism, and changes the result.** Twenty games played out from a
   turn-30 save had no conquest; eight whole games on the same board had three, all by the Aztecs before turn
   180. At turn 30 the two have not met, and what can be read of both players is the same before the save and
@@ -621,6 +622,29 @@ minutes a game. Three things follow.
 - *The scripted loop is no floor.* Its fixed lists are an opening a person would recognise, and at turn 30 it
   stood where the stock AI stood (score 112 and 120 against 106 and 102, a policy more, 110 gold less). Thirty
   turns are too few for "answers only what is forced" to cost anything.
+
+### A Tiny board through the chain (2026-11-17)
+
+`board-tiny-prince-a-t0-terms`: Indonesia on the seat against Assyria, Brazil and America, the stock AI for the
+30-turn window (108 s; at turn 30 one city of 5, 9 technologies, third of four by score), then four
+continuations (`--turns 30 --continue 4 --last-turn 500`).
+
+| game | how it ended | turn | minutes | the seat first at war | most cities it held |
+|---|---|---|---|---|---|
+| 0 | the seat conquered | 178 | 8.7 | turn 81 | 3 |
+| 1 | the seat conquered | 160 | 6.0 | turn 75 | 2 |
+| 2 | the seat conquered | 280 | 16.9 | turn 78 | 3 |
+| 3 | Brazil's Diplomatic victory | 421 | 27.5 | turn 93 | 3 |
+
+**0 of 4.** The seat is at war by turn 93 in every game and gone by turn 280 in three. Four games do not put
+the value under 0.2 (none in four happens four times in ten at 0.2), but the board is no candidate: where the
+first duel is nearly always won, this seat is nearly always lost. A game here that runs its length is 27.5
+minutes, and the one that did went to Brazil's vote with America 800 points ahead.
+
+Two boards, one above the band and one very likely below it. **A board in the band has to be looked for**:
+several hosted, each screened through the chain by a handful of continuations, the ones near the middle kept
+and measured properly. A seat's start decides more than 30 turns of anyone's play, which is what rule 2's band
+was written to guard against and what the first two boards both show.
 
 ## Not checked yet
 
