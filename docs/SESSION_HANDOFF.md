@@ -1,4 +1,19 @@
-# Resume here -- 2026-11-16 (small hours): main = 2.17.0 (runtime v341, 9 tools, 2276 tests; tagged, released, on PyPI).
+# Resume here -- 2026-11-16 (night): main = 2.17.0 + the board runner (unreleased; runtime v341, 9 tools, 2293 tests).
+**The benchmark has its first tool and its first numbers** (`docs/BENCHMARK.md`, "Autoplay, checked live" and
+"The runner"). `scripts/board_run.py --save <save> --turns N --runs K --out <rows>` plays a board with the game's
+own AI on the seat and writes one row a run; `--summary <rows>` prints the spread. Found on the way, all on
+scratch duels: autoplay needs an observer slot or it destroys the seat (the runner refuses such a board); the
+autoplayed seat has the difficulty's AI bonuses on the human's own handicap row (a Prince board is nearly even;
+one save, one anchor); a win or a dead seat stops nothing and a dead seat leaves the game playing by itself
+(`turn status` then reads `alive: false`, `game_over: false`, not filed). A save replays the same game, so the
+runner takes draws from `Game.Rand` first. Ten runs of 10 turns on the Maya t242 board (49 minutes, rows in
+`logs/boards/maya-t242/anchor-t10.jsonl`, gitignored): score 604 to 633.3, sd 0.7; technologies, policies and
+cities the same ten times; military, gold and happiness spread widely. **Next: the same two reads around a
+seat-loop run** (an agent's row beside the AI's), and an opening board made at Prince from the single-player
+setup screen (observer slots as it leaves them). The diregoblin fork's fix was already `461c3ee` (2.14.0); the
+chayuto fork has no commit of its own. The game is at the main menu, tunerd on the plain socket, no seat table.
+
+# Previous -- 2026-11-16 (small hours): main = 2.17.0 (runtime v341, 9 tools, 2276 tests; tagged, released, on PyPI).
 **2.17.0 is #189 with the two things found after it** (a ledger turn is a game turn; the counts in a narrow
 window). **The one thing that was left is done: a seat-loop cycle under a live spectator with `--usage`.** One
 Codex cycle of 2 turns (`gpt-6.1-sol`, effort low, 105 s) on the t242 board, the spectator on :8765 with

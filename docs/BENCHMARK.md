@@ -177,7 +177,43 @@ from 604 to 610, tenth of twelve.
 coin (15). The save holds the random stream, so the stock AI on a board is one line and not a distribution until
 something moves the stream. `--burn run` takes 17 draws per run number from `Game.Rand` before the engine plays.
 The same holds for an agent: every entrant on a board meets the same dice until its own orders change what is
-rolled. Two turns are a short proof; the ten-run window says whether the draws spread the runs.
+rolled.
+
+### Ten runs of a 10-turn window (2026-11-16)
+
+The same board, `--turns 10 --runs 10`, run n after 17 n draws; 293 s a run, 49 minutes in all, no run stalled.
+The seat (Maya, t242 to t252), value at the start, then over the ten runs:
+
+| | start | mean | sd | least | most | sd / gain |
+|---|---|---|---|---|---|---|
+| score | 604 | 633.3 | 0.7 | 633 | 635 | 0.02 |
+| technologies | 57 | 60.0 | 0 | 60 | 60 | 0 |
+| policies | 14 | 15.0 | 0 | 15 | 15 | 0 |
+| cities | 5 | 5.0 | 0 | 5 | 5 | |
+| population | 70 | 74.1 | 0.3 | 74 | 75 | 0.08 |
+| land (plots) | 150 | 158.9 | 0.6 | 158 | 160 | 0.06 |
+| science a turn | 479 | 628.1 | 21.2 | 605 | 654 | 0.14 |
+| military might | 3274 | 4594.9 | 680.8 | 3721 | 5562 | 0.52 |
+| gold | 211 | 167.7 | 34.8 | 135 | 258 | 0.80 |
+| happiness | 1 | 9.1 | 3.7 | 4 | 12 | 0.46 |
+
+Place by score: tenth of twelve in nine runs, ninth in one.
+
+What it says, for this board and this window only:
+
+- **The draws do spread the runs**, and the spread is where one expects dice: what was built and bought
+  (military, gold, happiness). No two runs ended alike.
+- **The slow indicators hardly move between runs.** Score ends within 2 points on a gain of 29; technologies,
+  policies and cities are the same number ten times. Three runs would have said as much as ten.
+- So on a late board the anchor is nearly a point, and noise is not what makes a short window weak. What makes
+  it weak is that ten turns of a 250-turn game move little: an entrant has to be 2 points of score away from
+  633 to be told from the AI, and whether agents differ by that much in ten turns is not known.
+- An opening board is the opposite case and is not measured: early choices compound, so the spread should be
+  wider and the window worth more.
+
+The clients' runs on this board (`logs/bench188/`, `logs/bench191/`) kept ledgers and token counts but no read
+of the board at the end, so they cannot be set beside this table. The next piece is the same two reads around a
+seat-loop run.
 
 ## Not checked yet
 
@@ -185,8 +221,10 @@ rolled. Two turns are a short proof; the ten-run window says whether the draws s
 - Whether a slot can be made an observer in a running game, and whether `PreGame.SetHandicap` in a running game
   moves the seat's own row.
 - How many AI-only games a win estimator needs on stock rules.
-- How much one board's result varies between two runs of the same agent. Everything above depends on it: it sets
-  how many replicates a board needs, and so what the benchmark costs.
+- How much one board's result varies between two runs of the same *agent* (the stock AI's spread on one late
+  board is above), and the stock AI's spread on an opening board. They set how many replicates a board needs,
+  and so what the benchmark costs.
+- An agent's result on a board read by the referee: the runner's two reads around a seat-loop run.
 
 ## A pilot that also serves token accounting
 
