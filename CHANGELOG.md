@@ -61,6 +61,11 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   an entrant's included, and every continuation are then played on the same terms with no lever at the
   hand-over. `--summary` also prints the decided games as one pool (won W of N, with the standard error) and
   the continuations the stop turn left undecided.
+- **New games of one save, and none lost to a crash (2026-11-17).** A continuation is its number's draws: a
+  second run of eight whole games replayed the first run's games turn for turn. `board_run.py
+  --first-continuation M` numbers them from M. Each finished continuation is written to `<rows>.partial` as it
+  comes in (the game process died about 45 loads into one process and took two finished games with it), and a
+  continuation records the turn the seat is first at war and the most cities it held.
 - **The window's last turn, in the command and in the prompt (2026-11-17; #201).** `{until}` in a board_run
   command is the turn at which the window is over; `scripts/llm_seat_loop.py --until-turn N` puts it in the
   prompt, which now ends an instance on a turn ("turn T0+N is yours") and not on a count of turn ends, and says

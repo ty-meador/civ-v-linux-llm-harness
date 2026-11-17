@@ -649,6 +649,9 @@ def main(argv: list[str] | None = None) -> int:
                          "victory (default on: nothing is changed)")
     ap.add_argument("--last-turn", type=int, default=None, metavar="T",
                     help="a continuation with no victory by game turn T is stopped there and counts as not decided")
+    ap.add_argument("--first-continuation", type=int, default=0, metavar="M",
+                    help="number the continuations from M. Continuation m takes 29 (m + 1) draws and a save replays the "
+                         "same game on the same draws, so M past the ones already played gives new games of one save")
     ap.add_argument("--value-only", action="store_true",
                     help="no window: value --save itself by --continue R continuations (a board's own worth)")
     ap.add_argument("--terms", metavar="NEW",
@@ -715,11 +718,13 @@ def main(argv: list[str] | None = None) -> int:
                                row=a.row or "own", time_victory=a.time or "on")
             if a.continuations:
                 row["continuations"] = []
-                for m in range(a.continuations if row.get("end_save") else 0):
+                partial = a.out.with_name(a.out.name + ".partial")
+                for m in range(a.first_continuation, a.first_continuation + a.continuations) if row.get("end_save") else ():
                     wait_main_menu(g)
                     c = continuation(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row or "own",
                                      time_victory=a.time or "on", stop_turn=a.last_turn)
                     row["continuations"].append(c)
+                    partial.write_text(json.dumps(row) + "\n")   # a game that dies under a later one loses none of these
                     print(f"  continuation {m}: {c['end_reason']}, {'won' if c['won'] else 'not won'}"
                           f"{' by ' + c['victory'] if c.get('victory') else ''}, turn {c.get('turn')}, {c.get('seconds')} s",
                           flush=True)
@@ -731,6 +736,7 @@ def main(argv: list[str] | None = None) -> int:
         row.update(run=n, at=time.strftime("%Y-%m-%dT%H:%M:%S"))
         with a.out.open("a") as f:
             f.write(json.dumps(row) + "\n")
+        a.out.with_name(a.out.name + ".partial").unlink(missing_ok=True)
         print(f"{name} deal {n}: {row['end_reason']}, {row.get('turns_played')} turns in {row.get('seconds')} s, score "
               f"{row.get('start', {}).get('values', {}).get('score')} -> {row.get('end', {}).get('values', {}).get('score')}"
               + (f", value {row['value']}" if row.get("value") is not None else ""), flush=True)

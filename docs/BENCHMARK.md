@@ -22,11 +22,14 @@ one are the argument and the measurements; where they differ from a rule, the ru
 - A board carries its terms: the seat is on the row every AI plays on, and there is no Time victory (rule 2).
   At Prince as hosted the engine-played seat lost every whole game, all by Time.
 - A board's band is measured the way a run is valued, through the window, the save and the continuations
-  (rule 2). The first duel is 0.57 by whole games and 0.90 through the chain.
+  (rule 2). The first duel is 0.90 through the chain and 0.73 by sixteen whole games; the first eight whole
+  games alone said 0.57, and the gap they seemed to show did not last the second eight.
 - A continuation with no victory by a stop turn is not decided and is in no share (rule 1).
 - A value is given with its standard error and over all of an entrant's games on the board (rule 6).
 - Rule 8's first test failed on the first board and is open: see there. Neither of the first two boards is
-  in the band (the duel 0.90, a Tiny board 0 of 4), so the next work is finding one.
+  inside the band (the duel 0.80 to 0.90, a Tiny board 0 of 4), so the next work is finding one.
+- The same save and the same continuation number are the same game to its last turn, so a value can be
+  recomputed by anyone, and new games of a save need new numbers.
 
 **1. A run is worth what the game was worth when the entrant's turns were over.** An entrant plays a seat for a
 window of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
@@ -48,10 +51,10 @@ window of turns. Then the game's own AI plays that seat and every other to the e
 - **A continuation is stopped at a turn the board names** (500 at Quick speed so far). With no victory by
   then it is not decided: it is in no share and is counted beside the value. One whole game in eight on the
   first duel ended that way, the seat far ahead.
-- Seen: 36 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
-  Diplomatic (22), Culture (5), Domination (3) and Time (5, before it was switched off), one stopped at turn
-  500; the chain of window, save, load and continuation; a continuation from turn 30 of a duel in 12 to 14
-  minutes. Not seen: a Science victory.
+- Seen: 48 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
+  Diplomatic (29), Culture (7), Domination (3) and Time (5, before it was switched off), three at the seat's
+  death and one stopped at turn 500; the chain of window, save, load and continuation; a continuation from
+  turn 30 of a duel in 12 to 14 minutes. Not seen: a Science victory.
 
 **2. Boards.** A board is a save, a seat, a window and a number of deals.
 
@@ -71,10 +74,11 @@ window of turns. Then the game's own AI plays that seat and every other to the e
   one's notebook, and as many boards as wanted for no tokens.
 - **A board is kept only if the anchor's value on it is between 0.2 and 0.8**, the anchor's value being
   measured as any run's is: the stock AI plays the window, the game is saved, and the save is played out. On a
-  board the seat always or never wins, no window can show anything. Whole games from the board's first turn
-  are not the measure: the first duel is 0.57 by eight whole games and 0.90 through the chain (below), and so
-  it is out. With ten decided games a value near 0.5 is known to 0.16 either way; a board near an edge of the
-  band needs more before it is kept or dropped.
+  board the seat always or never wins, no window can show anything. The first duel is 0.90 through the chain
+  (9 of 10) and 0.73 by sixteen whole games (11 of 15 decided), 0.80 over both: on the top edge, and not a
+  board to spend an entrant on. With ten decided games a value near 0.5 is known to 0.16 either way; a board
+  near an edge of the band needs more before it is kept or dropped, and a board in its middle is the better
+  use of the games.
 - **The seats of one map.** Where the same map can be started from each of its seats (a fixed map seed on the
   setup screen, not yet tried), every seat is a board, and an entrant's spread over the seats of one map is
   reported beside its mean: the same world from the river valley and from the tundra. Seats outside the band
@@ -167,16 +171,17 @@ stands after the night of 2026-11-17:
   to about 0.2. "Valued within the hour" holds only for late boards (a continuation from turn 325 took 2.2
   minutes). Rule 6 now gives the standard error and says what a difference costs.
 - *No board is undecided.* **Answered for the row, open for the band.** The seat on the human's Prince row
-  lost every whole game; on the AIs' row the duel is 0.57 by whole games. Through the chain the same board is
-  0.90, out of the band from the other side, and the first Tiny board is 0 of 4 through the chain, the seat
-  conquered in three. No board is in the band yet; boards have to be hosted in number and screened.
-- *The save in between.* **Holds as a mechanism, and changes the result.** Twenty games played out from a
-  turn-30 save had no conquest; eight whole games on the same board had three, all by the Aztecs before turn
-  180. At turn 30 the two have not met, and what can be read of both players is the same before the save and
-  after the load. Either it is chance (three conquests in 28 games all falling among those eight: 0.017) or
-  the second hand-over matters: at the save the seat is the human's again, and a continuation hands it to the
-  engine anew. It does not make the comparison between entrants unfair, since every run goes through the same
-  chain, but it is why the band is measured through the chain, and it is not explained.
+  lost every whole game; on the AIs' row the duel is 0.80 over all 25 decided games of the stock AI (0.73 by
+  whole games, 0.90 through the chain), on the band's top edge, and the first Tiny board is 0 of 4 through
+  the chain, the seat conquered in three. No board is well inside the band yet; boards have to be hosted in
+  number and screened.
+- *The save in between.* **Holds as a mechanism; not shown to change the result.** Twenty games played out
+  from a turn-30 save had no conquest and the first eight whole games on the same board had three, which
+  looked like the save's doing (0.017 by chance). Eight more whole games had none: three conquests in sixteen
+  whole games against none in twenty is 0.08, and the stock AI's value is 0.73 by whole games (11 of 15) and
+  0.90 through the chain (9 of 10), no difference at those numbers. At turn 30 the two have not met, and what
+  can be read of both players is the same before the save and after the load. The band is still measured
+  through the chain, because that is how a run is valued, and every run goes through the same chain.
 - *Continuations end by score.* **Answered.** With Time off every decided game ended by a victory someone
   took, and in five of them the winner had the lower score.
 
@@ -618,10 +623,53 @@ minutes a game. Three things follow.
   lost, and the conquests come later than turn 30 in any case. What differs is that the seat is the human's
   again when the save is made and is handed to the engine a second time by the continuation. Whether that is
   the cause is not tested; the continuation now records the turn the seat is first at war and the most cities
-  it held, so the next whole games and the next chain games can be set side by side.
+  it held, so the next whole games and the next chain games can be set side by side. (Eight more whole games
+  had no conquest either: "Eight more whole games" below. The gap is not shown to be real.)
 - *The scripted loop is no floor.* Its fixed lists are an opening a person would recognise, and at turn 30 it
   stood where the stock AI stood (score 112 and 120 against 106 and 102, a policy more, 110 gold less). Thirty
   turns are too few for "answers only what is forced" to cost anything.
+
+**The same draws are the same game, to the end.** The eight whole games asked for a second time, on the board
+that carries its terms, began by replaying the first run game for game: Diplomatic at turn 342 after 757 s
+(775 the first time), then Culture at turn 273 (272, the poll's own second). A continuation is its number's
+draws and nothing else, so new games of one save need new numbers (`--first-continuation M`), and a value can
+be recomputed by anyone from the save and the numbers. The game process then died on its way back to the main
+menu, about 45 loads into one process, and took both games with it, since a row was written only when all its
+continuations were in; the runner now keeps them beside the rows file as it goes (`<rows>.partial`).
+
+### Eight more whole games: the chain is not shown to differ (2026-11-17)
+
+Games 8 to 15 of `board-duel-prince-a-t0-airow`, the engine from turn 0
+(`--value-only --continue 8 --first-continuation 8 --last-turn 500`), with the war turn and the cities recorded.
+
+| game | ended by | winner | turn | minutes | score, seat to Aztecs | the seat first at war | most cities it held |
+|---|---|---|---|---|---|---|---|
+| 8 | Culture | seat | 339 | 12.8 | 2398 to 1408 | never | 3 |
+| 9 | Culture | seat | 313 | 16.6 | 1998 to 1351 | never | 4 |
+| 10 | Diplomatic | seat | 340 | 10.6 | 1889 to 1517 | turn 124 | 3 |
+| 11 | Diplomatic | seat | 342 | 12.0 | 2368 to 1559 | turn 102 | 5 |
+| 12 | Diplomatic | seat | 345 | 32.4 | 1542 to 2350 | turn 147 | 3 |
+| 13 | Diplomatic | seat | 335 | 26.9 | 2185 to 1870 | never | 3 |
+| 14 | Diplomatic | Aztecs | 353 | 13.1 | 2019 to 2058 | turn 111 | 5 |
+| 15 | Diplomatic | seat | 351 | 11.6 | 2227 to 1625 | turn 277 | 4 |
+
+**7 of 8, and no conquest.** With the first eight the board's whole games are **11 of 15 decided, 0.73
+(standard error 0.11)**, three conquests in sixteen.
+
+- *The gap between whole games and the chain was the first eight games' luck, as far as these games can
+  say.* Three conquests in sixteen whole games against none in twenty from a turn-30 save has a chance of 0.08
+  if the two are the same (560 in 7140), where the first eight alone gave 0.017. In value, 11 of 15 whole
+  against 9 of 10 through the chain for the stock AI is no difference either. Nothing was found that a save
+  loses, and now nothing is left that needs it. The engine's two segments with no save between are not worth
+  their 90 minutes until a difference shows again; chain games record the war turn from here on.
+- *The stock AI's games on this board, all of them: 20 of 25 decided, 0.80 (standard error 0.08).* The board
+  sits on the top edge of the band, which is where a board is least use: the seat is Siam, whose trait is its
+  city-states, against one rival, and all 20 of the seat's wins are the World Leader vote or Culture.
+- *War is not the danger here after the first 180 turns.* The seat was at war in five of the eight games,
+  first between turn 102 and turn 277, and the end shows one city lost in all of them (game 14, four of
+  its five).
+- Two games took 27 and 32 minutes for the same 340 turns the others played in 12. The machine did nothing
+  else that is known. A wall-clock limit on a continuation has to allow for it.
 
 ### A Tiny board through the chain (2026-11-17)
 

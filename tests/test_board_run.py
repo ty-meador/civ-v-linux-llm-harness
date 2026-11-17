@@ -555,6 +555,46 @@ class Terms(unittest.TestCase):
             self.assertEqual(seen["time"], "on")
 
 
+class NewGamesOfOneSave(unittest.TestCase):
+    """Live 2026-11-17: eight whole games of one save were asked for twice, and the second run replayed the first
+    two game for game (Diplomatic at turn 342, Culture at 272) before the game process died with nothing written."""
+
+    def value_only(self, out, *more, die_at=None):
+        seen = []
+
+        def fake(_g, save, m, **_kw):
+            if m == die_at:
+                raise RuntimeError("game connection lost")
+            seen.append(m)
+            return {"m": m, "end_reason": "victory", "won": True, "seconds": 60.0, "turn": 300}
+
+        game = mock.Mock()
+        game.has_state.return_value = False
+        with mock.patch.object(board_run, "continuation", fake), mock.patch.object(board_run, "wait_main_menu"), \
+                mock.patch("harness.game.Game", return_value=game), contextlib.redirect_stdout(io.StringIO()):
+            try:
+                board_run.main(["--save", "a", "--value-only", "--continue", "3", "--out", str(out), *more])
+            except RuntimeError:
+                pass
+        return seen
+
+    def test_the_continuations_are_numbered_from_the_one_named(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "rows.jsonl"
+            self.assertEqual(self.value_only(out), [0, 1, 2])
+            self.assertEqual(self.value_only(out, "--first-continuation", "8"), [8, 9, 10])
+            self.assertEqual([c["m"] for c in board_run.read_rows(out)[1]["continuations"]], [8, 9, 10])
+            self.assertFalse(Path(str(out) + ".partial").exists())
+
+    def test_the_games_played_before_a_crash_are_kept_beside_the_rows(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / "rows.jsonl"
+            self.assertEqual(self.value_only(out, die_at=2), [0, 1])
+            self.assertFalse(out.exists())
+            kept = json.loads(Path(str(out) + ".partial").read_text())
+            self.assertEqual([c["m"] for c in kept["continuations"]], [0, 1])
+
+
 class Views(unittest.TestCase):
     def test_shares_are_of_the_living_and_the_place_is_by_score(self):
         r = read(players=[player(0, human=True, score=100, techs=30), player(1, score=300, techs=50),

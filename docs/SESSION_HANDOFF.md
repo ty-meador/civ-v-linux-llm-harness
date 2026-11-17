@@ -1,6 +1,6 @@
-# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2343 tests).
+# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2345 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
-went to bed with "run as many games as you need to"; the night played 40 games to their end.
+went to bed with "run as many games as you need to"; 48 games have been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
 
@@ -15,15 +15,20 @@ number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and
   `board-duel-prince-a-t0-airow`, `board-tiny-prince-a-t0-terms`. Every window on such a board, an entrant's
   too, and every continuation are on one row. `--row ai --time off` do the same at the hand-over for other
   saves; `--last-turn 500` stops a continuation as not decided.
-- **The duel's own value by eight whole games: 0.57** (4 of 7 decided; three Diplomatic wins and a Culture win
-  for the seat, three conquests by the Aztecs before turn 180, one game open at turn 500).
+- **The duel's own value by sixteen whole games: 0.73** (11 of 15 decided, standard error 0.11; the first
+  eight alone said 0.57 with three conquests by the Aztecs before turn 180, the second eight 7 of 8 with
+  none). With the chain's ten it is 20 of 25, 0.80: on the band's top edge.
 - **Rule 8's first test failed on that board.** 30-turn opening window, two deals, five continuations each: the
   scripted loop 10 of 10, the stock AI 9 of 10. Not separated, and both outside the band. The scripted loop's
   fixed lists are a sound opening (Worker, Monument, Shrine, Granary, Tradition), not a floor.
-- **The chain is not the whole game, unexplained.** Twenty games from a turn-30 save: no conquest. Eight whole
-  games: three. At turn 30 the two have not met, and a read of both players is the same before a save and after
-  the load (`logs/boards/scratch/e5_reload_diff.py`). Suspect: the seat is the human's again at the save and is
-  handed over a second time. Continuations now record `first_war_turn` and `most_cities`.
+- **The chain is not shown to differ from the whole game.** Twenty games from a turn-30 save had no conquest
+  and the first eight whole games three (0.017 by chance); eight more whole games had none, and three in
+  sixteen against none in twenty is 0.08. A read of both players is the same before a save and after the load
+  (`logs/boards/scratch/e5_reload_diff.py`). Dropped as a lead unless it shows again; continuations record
+  `first_war_turn` and `most_cities`.
+- **The same save and the same continuation number are the same game to the last turn** (a second run replayed
+  Diplomatic at 342 and Culture at 272). New games of a save need `--first-continuation M`; the duel terms
+  board has used 0 to 15 from turn 0.
 - Minutes: a duel continuation from turn 30 is 12 to 14, a whole duel game 3.5 to 17, a whole Tiny game to
   turn 330 24, a continuation from turn 325 2.2. Ten games give a standard error of 0.16 near 0.5.
 - **Tiny through the chain: 0 of 4** (`board-tiny-prince-a-t0-terms`, Indonesia; at war by turn 93 every game,
@@ -38,10 +43,8 @@ number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and
    (continuations are short there, so twenty are cheap).
 2. **Repeat floor against anchor on that board.** Until one board separates them no model's value means
    anything (rule 8). A window in which sitting still has a price: 60 to 100 turns, or a middle game.
-3. **The chain against the whole game.** Eight whole games on `board-duel-prince-a-t0-airow`
-   (`--value-only --continue 8 --last-turn 500`) with the new war turns; then a game in two engine-played
-   segments with no save between (30 turns, the seat back, autoplay again) to tell the second hand-over from
-   the save. About 90 minutes each.
+3. (Done: the eight whole games, "Eight more whole games" in `docs/BENCHMARK.md`. The two engine segments
+   with no save between are not worth 90 minutes unless a gap shows again.)
 4. #193's "Done when": 20 continuations on one run (the duel has 20 chain games over four runs; one run of 20
    is not played) and a Science win under autoplay (not seen; Diplomatic 22, Culture 5, Domination 3).
 5. #194 the rest (hosting by one command from `logs/boards/scratch/host_board.py`, manifests, the fixed map
@@ -53,17 +56,23 @@ standard error. `scripts/llm_seat_loop.py --until-turn N` tells the entrant the 
 `scripts/play_loop.py` makes a World Congress proposal (#198, unit tests only).
 
 **The machine.** tunerd on the plain socket with no seat table, the session MCP server up; the game at the main menu unless
-a run is still playing (`ps` for `board_run`; eight whole duel games for step 3 were started at 08:42,
-`logs/boards/duel-a/whole-terms.jsonl`). Saves in the game's `Saves/single`: the two terms boards, the hosted
+a run is still playing (`ps` for `board_run` and `screen_boards.sh`; the screening writes
+`logs/boards/screen/screen.log` and one rows file a board). Saves in the game's `Saves/single`: the two terms boards, the hosted
 `board-duel-prince-a-t0` and `board-tiny-prince-a-t0`, `board-tiny-chieftain-a-t0` (the failed hosting, can
 go), the `--...-deal N-end` saves of each run, `scratch-e5-reload`. Rows (gitignored) under `logs/boards/`:
 `duel-a/anchor-airow-notime.jsonl` (eight whole games), `duel-a/floor-t30.jsonl`, `duel-a/anchor-t30.jsonl`,
-`tiny-a/anchor-t30.jsonl`, `tiny-a/full.jsonl`. The user allowed Codex and Grok runs on 2026-11-16; ask again
+`tiny-a/anchor-t30.jsonl`, `tiny-a/full.jsonl`, `duel-a/whole-terms.jsonl` (whole games 8 to 15). The user allowed Codex and Grok runs on 2026-11-16; ask again
 before new paid sessions.
 
 **Mind.** No `scripts/check.sh` while a run plays on the live game. Long Lua goes through `Game().q(code)` and
 returns a table. A killed run leaves the game in play: `board_run.leave(g)` then `wait_main_menu(g)` before
 the next load. GitLab's spam filter refuses long bodies with game-of-chance words: short notes.
+**The game process died about 45 loads into one process** (09:03, on its way back to the main menu). A run
+keeps its finished continuations in `<rows>.partial` until the row is written. Relaunch with Steam up:
+`setsid nohup scripts/launch_civ5.sh main > logs/launch_main.log 2>&1 < /dev/null &`, wait for tunerd's
+"connected to game tuner", then `Game().c.exec('LegalScreen', 'UIManager:DequeuePopup(ContextPtr)',
+check=False)` brings the main menu. Relaunch before a batch that would pass 40 loads. Two of sixteen whole
+games took 27 and 32 minutes where the rest took 12.
 
 # Previous -- 2026-11-17 (small hours): main = 2.17.0 + the benchmark's referee through stage 2's chain (unreleased; runtime v341, 9 tools, 2325 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16: "I'll leave
