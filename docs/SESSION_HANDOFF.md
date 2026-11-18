@@ -1,6 +1,6 @@
 # Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2345 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
-went to bed with "run as many games as you need to" and left the game up a second night; 100 games have
+went to bed with "run as many games as you need to" and left the game up a second night; 105 games have
 been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
@@ -13,10 +13,12 @@ and 0 of 10 at 100 (the stock AI's 100-turn window: 5 of 10). **But the 60-turn 
 independent, the earlier "0.016 by chance" is withdrawn, and the 100-turn result is two deals a side. Rules 4
 and 6 now say so: many deals, one or two continuations each, the error over deals. For a model a deal is a
 window of tokens, so this is the benchmark's real cost.
-**Playing through the night** (each batch in `logs/boards/`; `ps` for `board_run`): the Korea science check
-(`science/`, the user's idea: a science civilization on the seat; three whole games, then two with only
-Science and Domination on), then eight more deals a side at 100 turns with one continuation a deal
-(`duel-d/anchor-t100.jsonl` and `floor-t100.jsonl` grow to ten deals each; `logs/boards/scratch/deals.sh`).
+**A Science victory is seen** (the user's idea, a science civilization on the seat): Korea with every victory
+on won once by the vote and was conquered twice; Korea with only Science and Domination on launched at turn
+426, read as `VICTORY_SPACE_RACE` (`logs/boards/science/`). Every victory type has been read by the referee.
+**Playing through the night** (`ps` for `board_run`): eight more deals a side at 100 turns with one
+continuation a deal, started 01:16, to about 08:30 (`duel-d/anchor-t100.jsonl` and `floor-t100.jsonl` grow to
+ten deals each; `logs/boards/scratch/deals.sh`, played twice with four deals).
 **Code owed**: `--summary`'s "games: ... (standard error ...)" line is over games and should be the error
 over deals (rule 6); not changed yet because `scripts/check.sh` cannot run while games play.
 
@@ -63,8 +65,8 @@ over deals (rule 6); not changed yet because `scripts/check.sh` cannot run while
    decided duel games on four boards; whether the seat has an edge of its own is open.
 3. (Done: the eight whole games, "Eight more whole games" in `docs/BENCHMARK.md`. The two engine segments
    with no save between are not worth 90 minutes unless a gap shows again.)
-4. #193's "Done when": 20 continuations on one run (the duel has 20 chain games over four runs; one run of 20
-   is not played) and a Science win under autoplay (not seen; Diplomatic 22, Culture 5, Domination 3).
+4. #193's "Done when": 20 continuations on one run is not played and, with the deal as the unit, is no longer
+   the right thing to ask for (say so on the issue); the Science win is seen.
 5. #194 the rest (hosting by one command from `logs/boards/scratch/host_board.py`, manifests, the fixed map
    seed), #198's live turn (the scripted loop past t246 on the Maya t242 board), #196, #197.
 

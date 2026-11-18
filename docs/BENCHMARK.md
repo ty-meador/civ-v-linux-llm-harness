@@ -57,10 +57,11 @@ window of turns. Then the game's own AI plays that seat and every other to the e
 - **A continuation is stopped at a turn the board names** (500 at Quick speed so far). With no victory by
   then it is not decided: it is in no share and is counted beside the value. One whole game in eight on the
   first duel ended that way, the seat far ahead.
-- Seen: 100 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
-  Diplomatic (64), Culture (20), Domination (7) and Time (5, before it was switched off), three at the seat's
-  death and one stopped at turn 500; the chain of window, save, load and continuation; a continuation from
-  turn 30 of a duel in 12 to 14 minutes. Not seen: a Science victory.
+- Seen: 105 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
+  Diplomatic (65), Culture (20), Domination (10), Science (1) and Time (5, before it was switched off), three
+  at the seat's death and one stopped at turn 500; the chain of window, save, load and continuation; a
+  continuation from turn 30 of a duel in 12 to 14 minutes. Every victory type has now been read by the
+  referee; Science once, on a board made for it ("A Science victory" below).
 
 **2. Boards.** A board is a save, a seat, a window and a number of deals.
 
@@ -805,9 +806,34 @@ run, by window and deal, the score at the window's end (seat to Austria) and the
 - Next: eight more deals each for the loop and the stock AI at 100 turns, one continuation a deal, so that
   the comparison stands on ten deals a side.
 
+### A Science victory, on a board made for it (2026-11-18)
+
+No game in a hundred had ended by a spaceship. The user's lever (2026-11-17): put a science civilization on
+the seat and the stock AI may go for it. Two duels hosted with Korea on the seat
+(`logs/boards/scratch/host_board.py ... civ=CIVILIZATION_KOREA`, and `only=` for the victory types left on;
+`logs/boards/scratch/science_check.sh CIVILIZATION_KOREA board-duel-korea-a 3 2`), the engine from turn 0:
+
+| board | game | ended by | winner | turn | minutes | technologies, seat to rival |
+|---|---|---|---|---|---|---|
+| Korea against the Aztecs, every victory but Time | 0 | Diplomatic | seat | 321 | 9.8 | 59 to 57 |
+| | 1 | Domination | Aztecs | 264 | 8.7 | 46 to 49 |
+| | 2 | Domination (the seat dead) | Aztecs | 145 | 3.9 | 32 to 29 |
+| Korea against Portugal, only Science and Domination on | 0 | Domination | Portugal | 273 | 8.0 | 53 to 62 |
+| | 1 | **Science** | seat | 426 | 12.6 | 80 to 80 |
+
+- **`VICTORY_SPACE_RACE` is read like the others**: the game ended by itself at turn 426, `Game.GetWinner()`
+  named the seat's team and `Game.GetVictory()` the spaceship, with no screen in the way. That was the last
+  victory type #193 asked to see.
+- *The civilization alone did not bring it.* With the vote and Culture on, Korea's one win was the World
+  Leader vote at turn 321 with 59 technologies of 80; a spaceship needs a hundred turns more than a duel's
+  vote leaves. On duels as hosted, Science is not a way games end.
+- *Taking the earlier victories away did*, once in two. Such a board is a referee's check and not a
+  benchmark board: its seat and its rules were chosen for the outcome.
+- Korea was conquered in three of the five games, twice by the Aztecs, first at war at turns 65 and 154.
+  A seat's civilization moves a board's value a long way, which is the screening's finding again.
+
 ## Not checked yet
 
-- A spaceship win under autoplay (Time, Domination, Culture and Diplomatic are seen).
 - Whether a slot can be made an observer in a running game.
 - How many AI-only games a win estimator needs on stock rules.
 - How much one board's result varies between two runs of the same *agent* (the stock AI's spread on one late
