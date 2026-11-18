@@ -1,4 +1,4 @@
-# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2348 tests).
+# Resume here -- 2026-11-18 (afternoon): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2363 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
 went to bed with "run as many games as you need to" and left the game up a second night; 114 games have
 been played to their end.
@@ -23,8 +23,17 @@ On `board-duel-prince-d` (the Celts against Austria, the one board of five scree
 **A Science victory is seen** (the user's idea, a science civilization on the seat): Korea with every victory
 on won once by the vote and was conquered twice; Korea with only Science and Domination on launched at turn
 426, read as `VICTORY_SPACE_RACE` (`logs/boards/science/`). Every victory type has been read by the referee.
-**Playing** (`ps` for `board_run`): the fixed loop, deals 0 to 7 of the 100-turn window, one continuation a
-deal, started 05:50, to about 10:00 (`logs/boards/duel-d/floor2-t100.jsonl`).
+**The power went at 08:49 on 2026-11-18** inside deal 5's continuation of the fixed loop's run; nothing else
+was lost. The machine came back cold (Steam, the game, tunerd started by hand at 16:08).
+**The estimator's two tools exist** (866e26b): `board_run.py --path N` keeps every player's indicators and
+routes (allies, delegates, tourism) every N turns of a continuation, a window's row keeps the point it ended on
+(`end_point`), and `scripts/board_fit.py` fits win against the seat's shares leaving one game out and values a
+window by that point. A replay of deal 4's continuation with `--path 10` was the same game to the last score.
+**Playing** (`ps` for `after_power.sh`, `logs/boards/scratch/`; `logs/boards/duel-d/batch.log` has a line a
+step): the fixed loop's deals 5 to 7 (`floor2-t100.jsonl`; deal 5 is in, 0, so 1 of 6), then twenty whole
+stock-AI games of the Celts duel with `--path 10` (`whole-path.jsonl`, from about 18:00 to 23:00), then deal
+4's continuation once more with the fuller read (`path-check2.jsonl`; known: Diplomatic at turn 375, 1923
+against 2210). The full suite has not been run since the route reads went in (no `check.sh` while a run plays).
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -59,11 +68,13 @@ deal, started 05:50, to about 10:00 (`logs/boards/duel-d/floor2-t100.jsonl`).
 
 **Next, in this order.**
 1. **Read the fixed loop's eight deals** (`duel-d/floor2-t100.jsonl`) against the stock AI's ten and say
-   where rule 8's first test stands by deals.
-2. **The fitted estimator.** Give a continuation a path (a read of every player every ten turns, kept in
-   the row), play the stock AI's whole games on the Celts duel with it, fit win against the position
-   (score, technologies, cities, turn), and check it on what is already known: the loop's turn-60 saves (0
-   of 5 and 5 of 5) and turn-100 saves (0 of 11). Then a window's value is one read.
+   where rule 8's first test stands by deals. Then `scripts/check.sh`.
+2. **The fitted estimator.** When the twenty games are in: `scripts/board_fit.py --fit
+   logs/boards/duel-d/whole-path.jsonl` compares feature sets against the base rate; pick one, write the
+   model, and check it with `--value` on what is already known: the loop's turn-60 saves (0 of 5 and 5 of
+   5) and turn-100 windows, the stock AI's ten deals at 100 (rows before today have the indicators only,
+   no routes; `--seat 0` for a row that names no seat). On the old rows alone score was the only thing to
+   beat the base rate, and one long game outweighs many windows: wait for the twenty.
 3. A test with bad play inside a 30-turn window (the loop's 30 turns are a sound opening and cost nothing
    on either board): until one exists nobody knows whether a window a model can afford shows anything.
 4. **More boards in the band.** One of five so far (duels b and c were 4 of 4, the first duel 0.80, the
