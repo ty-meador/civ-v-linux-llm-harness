@@ -460,6 +460,23 @@ def ensure_trade_routes(g: Game, seat: int) -> bool:
     return acted
 
 
+def stand_down(g: Game, uid: int, utype: str, seat: int) -> None:
+    """Take a unit off the end-turn list for this turn: skip it, and where the skip is refused hold it.
+
+    Live 2026-11-18 (the Celts duel, seven deals of eight): a Warrior the loop had moved off a stack kept a
+    standing move, a barbarian ship came beside it, and the harness held the move back, so the unit stood awake
+    with its moves and the engine blocked on it. MISSION_SKIP was answered "already on a multi-turn move and does
+    not block end_turn", the loop did not read the answer, and it asked sixteen times and gave up between turn
+    38 and turn 64. MISSION_FORTIFY is taken there (a unit that cannot fortify sleeps). A unit whose standing
+    move is going on refuses all three and blocks nothing, every turn it is on its way: that is not logged."""
+    for mission in ("MISSION_SKIP", "MISSION_FORTIFY", "MISSION_SLEEP"):
+        r = g.unit_mission(uid, mission, pid=seat)
+        if not (isinstance(r, dict) and r.get("ok") is False):
+            if mission != "MISSION_SKIP":
+                log(f"  unit {uid} ({utype}): skip refused, {mission}")
+            return
+
+
 def resolve_units_need_orders(g: Game, seat: int) -> bool:
     """ENDTURN_BLOCKING_UNITS/UNIT_NEEDS_ORDERS: any idle unit with moves left and no
     mission blocks end-turn. A settler that can found gets MISSION_FOUND; everything
@@ -482,13 +499,14 @@ def resolve_units_need_orders(g: Game, seat: int) -> bool:
                 log(f"  unit {u['id']} ({u['type']}): automated")
             else:
                 log(f"  unit {u['id']} ({u['type']}): automate refused: {r.get('err')}")
-                g.unit_mission(u["id"], "MISSION_SKIP", pid=seat)
+                stand_down(g, u["id"], u["type"], seat)
         else:
             # MISSION_FORTIFY silently no-ops on non-combat units (e.g. Worker) -- CanFortify
             # is false for them, so fortified/mission never change and this blocker never
             # clears. MISSION_SKIP is valid for every unit type; it just re-asks next turn
-            # instead of sticking, which is fine for a heuristic bot.
-            g.unit_mission(u["id"], "MISSION_SKIP", pid=seat)
+            # instead of sticking, which is fine for a heuristic bot. Where it is refused the
+            # unit is held instead (stand_down).
+            stand_down(g, u["id"], u["type"], seat)
         acted = True
     return acted
 

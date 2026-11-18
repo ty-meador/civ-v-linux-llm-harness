@@ -178,9 +178,43 @@ class IdleWorkerTest(unittest.TestCase):
 
     def test_refused_automation_falls_back_to_skip(self):
         g = FakeGame(units=[_unit(7, "WORK_BOAT")])
-        g.unit_mission = lambda uid, m, pid=None, **kw: (g.orders.append((uid, m)) or {"ok": False, "err": "nope"})
+        g.unit_mission = lambda uid, m, pid=None, **kw: (
+            g.orders.append((uid, m)) or ({"ok": False, "err": "nope"} if m == "AUTOMATE_BUILD" else {"ok": True}))
         play_loop.resolve_units_need_orders(g, 0)
         self.assertEqual(g.orders, [(7, "AUTOMATE_BUILD"), (7, "MISSION_SKIP")])
+
+
+class RefusedSkipTest(unittest.TestCase):
+    """Live 2026-11-18, the Celts duel: a Warrior with a standing move held back by a barbarian ship beside it
+    blocked the end of the turn, MISSION_SKIP was refused ("already on a multi-turn move and does not block
+    end_turn"), and the loop asked sixteen times and gave up, on seven deals of eight."""
+
+    def refusing(self, g, refused):
+        def mission(uid, m, pid=None, **kw):
+            g.orders.append((uid, m))
+            return {"ok": False, "err": "unit is already on a multi-turn move"} if m in refused else {"ok": True}
+        g.unit_mission = mission
+
+    def test_a_refused_skip_is_a_fortify(self):
+        g = FakeGame(units=[_unit(9, "WARRIOR"), _unit(10, "WARRIOR")])
+        self.refusing(g, {"MISSION_SKIP"})
+        with mock.patch.object(play_loop, "log") as log:
+            self.assertTrue(play_loop.resolve_units_need_orders(g, 0))
+        self.assertEqual(g.orders, [(9, "MISSION_SKIP"), (9, "MISSION_FORTIFY"), (10, "MISSION_SKIP"), (10, "MISSION_FORTIFY")])
+        self.assertIn("skip refused, MISSION_FORTIFY", log.call_args_list[0].args[0])
+
+    def test_a_unit_that_cannot_fortify_sleeps(self):
+        g = FakeGame(units=[_unit(9, "CANNON")])
+        self.refusing(g, {"MISSION_SKIP", "MISSION_FORTIFY"})
+        with mock.patch.object(play_loop, "log"):
+            play_loop.resolve_units_need_orders(g, 0)
+        self.assertEqual(g.orders, [(9, "MISSION_SKIP"), (9, "MISSION_FORTIFY"), (9, "MISSION_SLEEP")])
+
+    def test_a_skip_that_is_taken_is_all_that_is_sent(self):
+        g = FakeGame(units=[_unit(9, "WARRIOR")])
+        self.refusing(g, set())
+        play_loop.resolve_units_need_orders(g, 0)
+        self.assertEqual(g.orders, [(9, "MISSION_SKIP")])
 
 
 if __name__ == "__main__":

@@ -66,6 +66,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   --first-continuation M` numbers them from M. Each finished continuation is written to `<rows>.partial` as it
   comes in (the game process died about 45 loads into one process and took two finished games with it), and a
   continuation records the turn the seat is first at war and the most cities it held.
+- **The deal is the unit, and the scripted loop no longer gives up beside a barbarian ship (2026-11-18).**
+  `board_run.py --summary` gives a value's standard error over its deals and no longer one over games: one
+  window's two deals were 0 of 5 and 5 of 5 with the seat the same in both, so the games of one deal are not
+  independent trials. `scripts/play_loop.py` reads the answer to its skip: a Warrior whose standing move the
+  harness held back (a barbarian ship beside it) blocked the end of the turn, MISSION_SKIP was refused as "does
+  not block end_turn", and the loop asked sixteen times and stopped, on seven deals of eight between turn 38
+  and turn 64. A refused skip is now a fortify, or a sleep where that is refused too. The refusal itself
+  contradicts the hold's own note ("MISSION_SKIP ... drops the path") and is filed.
 - **The window's last turn, in the command and in the prompt (2026-11-17; #201).** `{until}` in a board_run
   command is the turn at which the window is over; `scripts/llm_seat_loop.py --until-turn N` puts it in the
   prompt, which now ends an instance on a turn ("turn T0+N is yours") and not on a count of turn ends, and says

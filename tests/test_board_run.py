@@ -658,6 +658,11 @@ class Summary(unittest.TestCase):
                       "ended by VICTORY_TIME", lines)
         self.assertTrue(any(line.startswith("value: 0.700 (sd 0.000) over 1 finished runs") for line in lines),
                         "a DNF is not averaged into the value")
+        # the deal is the unit (live 2026-11-18: one window's deals were 0 of 5 and 5 of 5): 0.141 / sqrt(2)
+        self.assertIn("deals: 2 finished, the value's standard error over them 0.100 "
+                      "(the deal is the unit: its games are not independent trials)", lines)
+        self.assertEqual(sum(1 for line in lines if line.startswith("deals: ")), 1, "one deal has no error over deals")
+        self.assertFalse(any("standard error" in line for line in lines if line.startswith("games: ")))
         self.assertIn("DNF: 1 of 2 runs (window_not_played), below every finished run in an ordering; "
                       "with DNF as 0 the value is 0.350", lines)
         self.assertEqual(lines[-2].split(), ["value", "0.400", "(0.141)", "0.700", "(0.000)"])
@@ -678,7 +683,7 @@ class Summary(unittest.TestCase):
         lines = board_run.summarise([{"entrant": "board", "end_reason": "value_only", "value": 0.5,
                                       "continuations": games}])
         self.assertIn("and 2 continuations, 1.0 min each", lines[1])      # the open game is in no mean
-        self.assertEqual(lines[2], "games: the seat won 1 of 2 decided, 0.500 (standard error 0.354)")
+        self.assertEqual(lines[2], "games: the seat won 1 of 2 decided, 0.500")
         self.assertEqual(lines[3], "not decided by the stop turn: 1 (turn 500), in no share")
 
     def test_no_run_that_played_its_window_is_one_line(self):

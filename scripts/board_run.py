@@ -538,15 +538,14 @@ def summarise_entrant(name: str, rows: list[dict]) -> list[str]:
 
 
 def pooled_lines(rows: list[dict], games: list[dict]) -> list[str]:
-    """Every decided continuation as one game: the share the seat won and its standard error, which is what says
-    how far two entrants on one board can be told apart; and the continuations the stop turn left undecided, which
-    are in no share and are counted here."""
+    """Every decided continuation as one game: the share the seat won; and the continuations the stop turn left
+    undecided, which are in no share and are counted here. No error is given over games: the games of one deal go
+    together (live 2026-11-18, one window's two deals were 0 of 5 and 5 of 5 with the seat the same in both), so
+    the error of a value is the one over deals, on the line above."""
     lines = []
     if games:
         won = sum(1 for c in games if c.get("won"))
-        p = won / len(games)
-        lines.append(f"games: the seat won {won} of {len(games)} decided, {p:.3f} "
-                     f"(standard error {math.sqrt(p * (1 - p) / len(games)):.3f})")
+        lines.append(f"games: the seat won {won} of {len(games)} decided, {won / len(games):.3f}")
     undecided = [c for r in rows for c in r.get("continuations", []) if c.get("end_reason") == "turn_limit"]
     if undecided:
         lines.append(f"not decided by the stop turn: {len(undecided)} "
@@ -567,6 +566,9 @@ def value_lines(rows: list[dict]) -> list[str]:
         minutes = f", {mean_sd([c['seconds'] for c in games])[0] / 60:.1f} min each" if games else ""
         lines.append(f"value: {m:.3f} (sd {sd:.3f}) over {len(values)} finished runs and {len(games)} continuations{minutes}; "
                      f"by run: {', '.join(f'{v:.2f}' for v in values)}" + (f"; ended by {', '.join(how)}" if how else ""))
+        if len(values) > 1:
+            lines.append(f"deals: {len(values)} finished, the value's standard error over them {sd / math.sqrt(len(values)):.3f} "
+                         "(the deal is the unit: its games are not independent trials)")
         lines.extend(pooled_lines(rows, games))
     if dnf and (values or any("continuations" in r or "value" in r for r in rows)):
         why = ", ".join(sorted({r["end_reason"] for r in dnf}))
