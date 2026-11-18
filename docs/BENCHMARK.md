@@ -26,8 +26,9 @@ one are the argument and the measurements; where they differ from a rule, the ru
   games alone said 0.57, and the gap they seemed to show did not last the second eight.
 - A continuation with no victory by a stop turn is not decided and is in no share (rule 1).
 - A value is given with its standard error and over all of an entrant's games on the board (rule 6).
-- Rule 8's first test failed on the first board and is open: see there. Neither of the first two boards is
-  inside the band (the duel 0.80 to 0.90, a Tiny board 0 of 4), so the next work is finding one.
+- Rule 8's first test failed on the first board (out of the band, a 30-turn window) and **passed on the
+  first board found inside it** with a 100-turn window: the scripted loop 0 of 10, the stock AI 5 of 10
+  ("The floor against the anchor, again" below). One board in five screened is in the band.
 - The same save and the same continuation number are the same game to its last turn, so a value can be
   recomputed by anyone, and new games of a save need new numbers.
 
@@ -51,8 +52,8 @@ window of turns. Then the game's own AI plays that seat and every other to the e
 - **A continuation is stopped at a turn the board names** (500 at Quick speed so far). With no victory by
   then it is not decided: it is in no share and is counted beside the value. One whole game in eight on the
   first duel ended that way, the seat far ahead.
-- Seen: 48 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
-  Diplomatic (29), Culture (7), Domination (3) and Time (5, before it was switched off), three at the seat's
+- Seen: 80 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
+  Diplomatic (52), Culture (14), Domination (5) and Time (5, before it was switched off), three at the seat's
   death and one stopped at turn 500; the chain of window, save, load and continuation; a continuation from
   turn 30 of a duel in 12 to 14 minutes. Not seen: a Science victory.
 
@@ -158,23 +159,24 @@ ordering. They explain a value; they do not replace it.
 **8. What would overturn this, to be tested before any model's tokens are spent on it.** Where each test
 stands after the night of 2026-11-17:
 
-- *The value cannot tell a floor from the anchor.* **Failed on the first board, open.** On the duel's opening
-  (30 turns from turn 0, two deals, five continuations a deal) the scripted loop's value is 1.00 (10 of 10)
-  and the anchor's 0.90 (9 of 10). Nothing separates them, and both are outside the band: after either
-  opening the seat nearly always wins, mostly the World Leader vote. This says the board and window were
-  wrong (a duel leaves the seat one rival and few ways to lose, and 30 opening turns of sitting still cost
-  nothing there), and it does not yet say the valuation is right. The test is to be repeated on a board that is
-  in the band through the chain, with a window in which sitting still has a price; until one separates them
-  no model's value means anything.
+- *The value cannot tell a floor from the anchor.* **Passed on a board in the band with a 100-turn window;
+  failed on the first board with 30.** On `board-duel-prince-d` (the Celts against Austria) the scripted loop
+  played 100 turns, two deals, five continuations a deal, and the seat won **0 of 10**; the stock AI through
+  the same window won **5 of 10**, and 7 of 14 with its four screening games. All of the wins falling to the
+  anchor's side by chance is 0.016 (0.010 with the fourteen). The loop ends its window with one city where
+  the stock AI has two or three, and that is what the value saw. On the first duel's opening (30 turns) the
+  loop's value was 1.00 (10 of 10) and the anchor's 0.90 (9 of 10): nothing separated them, on a board out of
+  the band and a window in which the loop's opening is as good as the AI's. So the valuation can tell worse
+  play from the anchor's when the board is in the band and the play is worse by enough; how short a window
+  still shows it is being measured (60 and 30 turns on the same board).
 - *Continuations are too slow or too noisy.* **Slow and noisy, both measured.** From an opening a duel
   continuation is 12 to 14 minutes, and a whole Tiny game to turn 330 took 24. Five an hour is a value known
   to about 0.2. "Valued within the hour" holds only for late boards (a continuation from turn 325 took 2.2
   minutes). Rule 6 now gives the standard error and says what a difference costs.
-- *No board is undecided.* **Answered for the row, open for the band.** The seat on the human's Prince row
-  lost every whole game; on the AIs' row the duel is 0.80 over all 25 decided games of the stock AI (0.73 by
-  whole games, 0.90 through the chain), on the band's top edge, and the first Tiny board is 0 of 4 through
-  the chain, the seat conquered in three. No board is well inside the band yet; boards have to be hosted in
-  number and screened.
+- *No board is undecided.* **One is, of five.** The seat on the human's Prince row lost every whole game. On
+  the AIs' row the first duel is 0.80 over all 25 decided games of the stock AI, on the band's top edge; two
+  more duels were 4 of 4 and the first Tiny board 0 of 4. `board-duel-prince-d` is 7 of 14, 0.50 (standard
+  error 0.13). Boards have to be hosted in number and screened, about four for one kept.
 - *The save in between.* **Holds as a mechanism; not shown to change the result.** Twenty games played out
   from a turn-30 save had no conquest and the first eight whole games on the same board had three, which
   looked like the save's doing (0.017 by chance). Eight more whole games had none: three conquests in sixteen
@@ -719,6 +721,42 @@ hosting).
 - Little ends early on a duel with both sides on one row. Of the 48 such games three ended by conquest
   (turns 126 to 177, all among the first eight), and in the twenty with the war turn recorded the seat's
   first war was never before turn 102.
+
+### The floor against the anchor, again: a board in the band, 100 turns (2026-11-17)
+
+`board-duel-prince-d`, the Celts on the seat against Austria. The scripted loop for 100 turns, two deals, five
+continuations a deal, then the stock AI through the same window
+(`logs/boards/scratch/floor_anchor.sh board-duel-prince-d 100 5 logs/boards/duel-d`; a deal of the loop is 17
+minutes of window and 73 of continuations, a deal of the stock AI 4 and 71).
+
+| at turn 100 | the loop, deal 0 | the loop, deal 1 | stock AI, deal 0 | stock AI, deal 1 |
+|---|---|---|---|---|
+| cities, population | 1, 12 | 1, 12 | 2, 13 | 3, 11 |
+| technologies, policies | 21, 9 | 20, 9 | 20, 6 | 23, 7 |
+| land, military might | 28, 263 | 29, 269 | 22, 401 | 43, 91 |
+| score, seat to Austria | 266 to 606 | 262 to 403 | 336 to 438 | 459 to 447 |
+| continuations won | 0 of 5 | 0 of 5 | 2 of 5 | 3 of 5 |
+| ended by | Austria's vote four times, its Culture once, turns 356 to 370 | Austria's vote five times, turns 384 to 406 | the vote five times, turns 377 to 450 | the vote four times and the seat's conquest, turns 369 to 413 |
+| the seat first at war | never in four, turn 315 | turns 259 to 380 | turns 113 to 125 | turns 292 to 315 |
+
+**The scripted loop 0 of 10, the stock AI 5 of 10**, 14.5 and 14.1 minutes a game.
+
+- *The value separates them.* Five wins among twenty games all on the anchor's side has a chance of 0.016 if
+  the two were one player (252 in 15504); with the anchor's four screening games, seven wins among
+  twenty-four all on its side, 0.010. Rule 8's first test is passed on this board at this window.
+- *The board is in the band*: the stock AI is 7 of 14 through the chain, 0.50 (standard error 0.13), and its
+  two 100-turn deals are 0.4 and 0.6.
+- *What the loop lacked is cities.* It researches as fast as the stock AI and adopts policies faster
+  (21 and 20 technologies against 20 and 23, 9 policies against 6 and 7). It
+  never builds a Settler, and the engine that takes the seat at turn 100 gets it to three to eight cities too
+  late: nine of the ten games went to Austria's World Leader vote.
+- *A stopped window is not a lost one.* Left at turn 100 with one city, the seat is not conquered in any of the
+  ten games and is at war in six, late. On a duel the price of bad play is paid at the vote, 250 turns on,
+  which is why a game costs 14 minutes whatever was played.
+- Not yet known: how short a window still shows it. The loop's 30-turn opening on the first duel cost
+  nothing, on a board that could not have shown it. The same loop at 60 and at 30 turns on this board is the
+  next measurement; the stock AI's fourteen games are the comparison for every window, since the anchor is
+  the stock AI from the first turn to the last whatever the window is.
 
 ## Not checked yet
 
