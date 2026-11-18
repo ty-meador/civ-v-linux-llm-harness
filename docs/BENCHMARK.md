@@ -26,9 +26,14 @@ one are the argument and the measurements; where they differ from a rule, the ru
   games alone said 0.57, and the gap they seemed to show did not last the second eight.
 - A continuation with no victory by a stop turn is not decided and is in no share (rule 1).
 - A value is given with its standard error and over all of an entrant's games on the board (rule 6).
-- Rule 8's first test failed on the first board (out of the band, a 30-turn window) and **passed on the
-  first board found inside it** with a 100-turn window: the scripted loop 0 of 10, the stock AI 5 of 10
-  ("The floor against the anchor, again" below). One board in five screened is in the band.
+- Rule 8's first test failed on the first board (out of the band, a 30-turn window). On the first board
+  found inside the band the scripted loop's 100-turn window is 0 of 10 where the stock AI's is 5 of 10, its
+  60-turn window 5 of 10 and its 30-turn window 7 of 10 ("The floor against the anchor, again" and "How
+  short a window" below). One board in five screened is in the band.
+- **The games of one deal go together** (the 60-turn window: 0 of 5 on one deal, 5 of 5 on the other, the
+  seat the same at turn 60 in both). The deal is the unit: a value's standard error is taken over deals
+  (rule 6), an entrant needs many deals and few continuations a deal (rule 4), and the 100-turn result
+  stands on two deals a side until more are played.
 - The same save and the same continuation number are the same game to its last turn, so a value can be
   recomputed by anyone, and new games of a save need new numbers.
 
@@ -52,8 +57,8 @@ window of turns. Then the game's own AI plays that seat and every other to the e
 - **A continuation is stopped at a turn the board names** (500 at Quick speed so far). With no victory by
   then it is not decided: it is in no share and is counted beside the value. One whole game in eight on the
   first duel ended that way, the seat far ahead.
-- Seen: 80 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
-  Diplomatic (52), Culture (14), Domination (5) and Time (5, before it was switched off), three at the seat's
+- Seen: 100 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
+  Diplomatic (64), Culture (20), Domination (7) and Time (5, before it was switched off), three at the seat's
   death and one stopped at turn 500; the chain of window, save, load and continuation; a continuation from
   turn 30 of a duel in 12 to 14 minutes. Not seen: a Science victory.
 
@@ -101,8 +106,11 @@ worth as much as the stock AI's. It is reported as a second fixed player, not as
 
 **4. Deals.** An entrant's nth run on a board is deal n: 17 n draws from the game's random stream before the
 window, the same for every entrant, since a save otherwise replays the same game. A continuation takes its own
-draws when it starts. At least three deals an entrant and board; whether a model's own variation asks for more
-is not known.
+draws when it starts. **Deals are what an entrant needs many of.** What the other side does with a deal's
+draws inside the window decides more than the continuations after it do: the scripted loop's 60-turn window
+on the Celts duel was worth 0 of 5 on deal 0 and 5 of 5 on deal 1, the seat identical at turn 60 and Austria
+at score 247 and 182. So eight deals with one or two continuations each, not two deals with five. For a model
+every deal is a window of its tokens, and that, more than machine hours, is what a value costs.
 
 **5. A run counts whatever happened.**
 
@@ -125,12 +133,14 @@ is not known.
 
 **6. What is reported.**
 
-- Per board and entrant: the value over all the decided games of its finished deals (won W of N) with its
-  standard error, sqrt(p (1 - p) / N), the anchor's and the scripted loop's beside it, each deal's own value,
-  and the number of deals not finished. Ten games tell 1.0 from 0.6 and not 0.9 from 0.7; a difference of 0.15
-  between two entrants on one board needs about ninety games each. That is the price of a win as the unit,
-  it is paid in machine hours and not in tokens, and it is the reason the fitted estimator of rule 1 stays on
-  the list.
+- Per board and entrant: the mean of its finished deals' values with **the standard error over deals** (the
+  deals' standard deviation over the root of their number), the anchor's and the scripted loop's beside it,
+  each deal's own value, the games behind them (won W of N), and the number of deals not finished. The
+  games of one deal are not independent trials (rule 4), so sqrt(p (1 - p) / N) over games, which
+  `--summary` still prints, is too small and is not the error of a value. With deals worth 0 or 1 each, ten
+  deals tell 1.0 from 0.5 and not 0.9 from 0.7, and a difference of 0.15 between two entrants on one board
+  needs about ninety deals each. That is the price of a win as the unit, for a model it is paid in windows
+  of tokens, and it is the reason the fitted estimator of rule 1 stays on the list.
 - The headline has two parts and neither is given without the other: **the share of windows finished**, and
   over those **the mean over boards of the entrant's value less the anchor's**, per kind of board, with an
   interval from resampling boards. It reads "finished 8 of 9 windows, and left the seat this much more (or
@@ -159,16 +169,17 @@ ordering. They explain a value; they do not replace it.
 **8. What would overturn this, to be tested before any model's tokens are spent on it.** Where each test
 stands after the night of 2026-11-17:
 
-- *The value cannot tell a floor from the anchor.* **Passed on a board in the band with a 100-turn window;
-  failed on the first board with 30.** On `board-duel-prince-d` (the Celts against Austria) the scripted loop
-  played 100 turns, two deals, five continuations a deal, and the seat won **0 of 10**; the stock AI through
-  the same window won **5 of 10**, and 7 of 14 with its four screening games. All of the wins falling to the
-  anchor's side by chance is 0.016 (0.010 with the fourteen). The loop ends its window with one city where
-  the stock AI has two or three, and that is what the value saw. On the first duel's opening (30 turns) the
-  loop's value was 1.00 (10 of 10) and the anchor's 0.90 (9 of 10): nothing separated them, on a board out of
-  the band and a window in which the loop's opening is as good as the AI's. So the valuation can tell worse
-  play from the anchor's when the board is in the band and the play is worse by enough; how short a window
-  still shows it is being measured (60 and 30 turns on the same board).
+- *The value cannot tell a floor from the anchor.* **It tells them apart at 100 turns on a board in the
+  band, by two deals a side; not at 30 turns on either board.** On `board-duel-prince-d` (the Celts against
+  Austria; two deals, five continuations a deal) the scripted loop's window is worth 7 of 10 at 30 turns,
+  5 of 10 at 60 (0 of 5 and 5 of 5) and **0 of 10 at 100**, where the stock AI's 100-turn window is 5 of 10
+  and its fourteen games on the board are 7. The loop never builds a Settler, and the longer it holds the
+  seat the less the seat is worth: that is the valuation doing what it was meant to. But the games of one
+  deal go together, so the 100-turn result is two deals at 0 against two at 0.4 and 0.6, not twenty
+  independent games (which would have made it 0.016 by chance). It is being played with eight more deals a
+  side. At 30 turns the loop's opening costs nothing on this board (7 of 10 against the stock AI's 7 of
+  14) or on the first duel (10 of 10 against 9 of 10): thirty opening turns of one sound build order are not
+  bad play, and no test of a 30-turn window exists yet that has bad play in it.
 - *Continuations are too slow or too noisy.* **Slow and noisy, both measured.** From an opening a duel
   continuation is 12 to 14 minutes, and a whole Tiny game to turn 330 took 24. Five an hour is a value known
   to about 0.2. "Valued within the hour" holds only for late boards (a continuation from turn 325 took 2.2
@@ -741,9 +752,10 @@ minutes of window and 73 of continuations, a deal of the stock AI 4 and 71).
 
 **The scripted loop 0 of 10, the stock AI 5 of 10**, 14.5 and 14.1 minutes a game.
 
-- *The value separates them.* Five wins among twenty games all on the anchor's side has a chance of 0.016 if
-  the two were one player (252 in 15504); with the anchor's four screening games, seven wins among
-  twenty-four all on its side, 0.010. Rule 8's first test is passed on this board at this window.
+- *The value separates them, as far as two deals a side can say.* Five wins among twenty games all on the
+  anchor's side would have a chance of 0.016 if the two were one player and the games independent (252 in
+  15504). They are not independent ("How short a window" below): what stands is two deals at 0 against two at
+  0.4 and 0.6.
 - *The board is in the band*: the stock AI is 7 of 14 through the chain, 0.50 (standard error 0.13), and its
   two 100-turn deals are 0.4 and 0.6.
 - *What the loop lacked is cities.* It researches as fast as the stock AI and adopts policies faster
@@ -757,6 +769,41 @@ minutes of window and 73 of continuations, a deal of the stock AI 4 and 71).
   nothing, on a board that could not have shown it. The same loop at 60 and at 30 turns on this board is the
   next measurement; the stock AI's fourteen games are the comparison for every window, since the anchor is
   the stock AI from the first turn to the last whatever the window is.
+
+### How short a window, and the deal is the unit (2026-11-18)
+
+The scripted loop on `board-duel-prince-d` again, 60 turns and then 30, two deals and five continuations a
+deal (`logs/boards/scratch/floor.sh board-duel-prince-d 60 5 logs/boards/duel-d`, then 30). With the 100-turn
+run, by window and deal, the score at the window's end (seat to Austria) and the continuations won:
+
+| window | the loop, deal 0 | the loop, deal 1 | the loop | the stock AI |
+|---|---|---|---|---|
+| 30 turns | 124 to 112, 3 of 5 | 124 to 108, 4 of 5 | 7 of 10 | deal 0: 103 to 106, 2 of 4 |
+| 60 turns | 202 to 247, **0 of 5** | 202 to 182, **5 of 5** | 5 of 10 | |
+| 100 turns | 266 to 606, 0 of 5 | 262 to 403, 0 of 5 | 0 of 10 | deal 0: 336 to 438, 2 of 5; deal 1: 459 to 447, 3 of 5 |
+
+- **The longer the loop holds the seat, the less the seat is worth**: 0.7, 0.5, 0.0, against the stock AI's
+  0.50 over its fourteen games. Thirty turns of it cost nothing, as on the first duel.
+- **The games of one deal go together.** At 60 turns the seat is the same in both deals (one city of 9, 15
+  technologies, score 202) and Austria is at 247 in one and 182 in the other; the first is lost five times
+  of five and the second won five times of five. Were the ten games independent at one in two, a split that
+  clean would come twice in a thousand. A continuation's own draws move little: what the other side made of
+  the deal's draws inside the window has decided most of it by the window's end.
+- **So the deal is the unit**, and three things change. A value's error is taken over deals (rule 6): the
+  loop's 60-turn value is 0.5 with deals at 0 and 1, which is no knowledge at all, and not 0.5 with a
+  standard error of 0.16. An entrant's games go into deals, not continuations (rule 4). And the 100-turn
+  result above is two deals a side.
+- **It also says the valuation is sharp where it matters**: one position at turn 60 is worth 0 and another
+  1 with the seat the same in both. The continuations are not adding much noise of their own; the noise is
+  in which game the deal turned out to be.
+- *A deal's path, if one deal is one game.* The loop is a fixed program and a deal is fixed draws, so the
+  three windows should be three cuts of the same two games (not checked turn by turn). Then deal 1 reads 0.8
+  at turn 30, 1.0 at turn 60 and 0.0 at turn 100: handed to the stock AI at turn 60 the seat wins five of
+  five, kept by the loop for forty turns more it loses five of five. Deal 0 reads 0.6, 0.0, 0.0: lost
+  between turn 30 and turn 60. That is rule 1's path, and the first time a window's turns are seen to cost a
+  game.
+- Next: eight more deals each for the loop and the stock AI at 100 turns, one continuation a deal, so that
+  the comparison stands on ten deals a side.
 
 ## Not checked yet
 

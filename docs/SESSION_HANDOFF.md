@@ -1,15 +1,24 @@
 # Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2345 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
-went to bed with "run as many games as you need to"; 80 games have been played to their end.
+went to bed with "run as many games as you need to" and left the game up a second night; 100 games have
+been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
 
-**The headline (2026-11-17, evening): rule 8's first test is passed.** On `board-duel-prince-d` (the Celts
-against Austria, the one board of five screened that is in the band: the stock AI 7 of 14 through the chain)
-the scripted loop's 100-turn window is worth 0 of 10 and the stock AI's 5 of 10 (0.016 by chance). The loop
-ends with one city; nine of its ten games went to Austria's World Leader vote. The same loop at 60 and at 30
-turns on that board is playing (`logs/boards/duel-d/floor-t60.jsonl`, `floor-t30.jsonl`, started 19:45, about
-five hours): how short a window still shows bad play is the next number.
+**The headline (2026-11-18, small hours): the valuation sees bad play, and the deal is the unit.** On
+`board-duel-prince-d` (the Celts against Austria, the one board of five screened that is in the band: the
+stock AI 7 of 14 through the chain) the scripted loop's window is worth 7 of 10 at 30 turns, 5 of 10 at 60
+and 0 of 10 at 100 (the stock AI's 100-turn window: 5 of 10). **But the 60-turn games split 0 of 5 and 5 of
+5 by deal**, the seat identical at turn 60 and Austria at score 247 and 182: the games of one deal are not
+independent, the earlier "0.016 by chance" is withdrawn, and the 100-turn result is two deals a side. Rules 4
+and 6 now say so: many deals, one or two continuations each, the error over deals. For a model a deal is a
+window of tokens, so this is the benchmark's real cost.
+**Playing through the night** (each batch in `logs/boards/`; `ps` for `board_run`): the Korea science check
+(`science/`, the user's idea: a science civilization on the seat; three whole games, then two with only
+Science and Domination on), then eight more deals a side at 100 turns with one continuation a deal
+(`duel-d/anchor-t100.jsonl` and `floor-t100.jsonl` grow to ten deals each; `logs/boards/scratch/deals.sh`).
+**Code owed**: `--summary`'s "games: ... (standard error ...)" line is over games and should be the error
+over deals (rule 6); not changed yet because `scripts/check.sh` cannot run while games play.
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -43,9 +52,10 @@ five hours): how short a window still shows bad play is the next number.
   the band yet**: the duel is above it, this one very likely below.
 
 **Next, in this order.**
-1. **Read the 60- and 30-turn floor runs on `board-duel-prince-d`** against the stock AI's fourteen games
-   there (the anchor is the same player whatever the window, so its games pool), and write the window's
-   length into rule 2.
+1. **Read the ten deals a side at 100 turns on `board-duel-prince-d`** and say whether rule 8's first test
+   is passed by deals. Then a test with bad play inside a 30-turn window (the loop's 30 turns are a sound
+   opening and cost nothing on either board): until one exists nobody knows whether a window a model can
+   afford shows anything.
 2. **More boards in the band.** One of five so far (duels b and c were 4 of 4, the first duel 0.80, the
    Tiny board 0 of 4). `logs/boards/scratch/screen_boards.sh WORLDSIZE_DUEL 4 name ...` hosts, sets the
    terms and screens, 40 minutes a board; keep 1 to 3 of 4 and measure those with ten more games. Tiny
