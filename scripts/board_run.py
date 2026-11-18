@@ -74,6 +74,10 @@ SS_COMPUTER, SS_TAKEN, SS_OBSERVER = 1, 3, 4
 # What a row keeps per civilization. `score` is the engine's own; the rest are the plain indicators the
 # benchmark sketch names, reported side by side with no claim that they add up.
 INDICATORS = ("score", "techs", "policies", "cities", "population", "military", "land", "gold", "science", "happiness")
+# Where a player stands on the routes to a victory that the indicators do not show: city-states allied, delegates in
+# the World Congress (none before one sits) and tourism a turn. A point of a path keeps them beside the indicators.
+# A seat 300 points of score behind all game won by the vote with 12 delegates against 6 (live 2026-11-18).
+ROUTES = ("allies", "delegates", "tourism")
 
 READ = """
 local out = {turn = Game.GetGameTurn(), state = Game.GetGameState(), winner = Game.GetWinner(), victory = "",
@@ -82,6 +86,7 @@ local out = {turn = Game.GetGameTurn(), state = Game.GetGameState(), winner = Ga
   slots = {}, players = {}}
 local v = Game.GetVictory()
 if v ~= nil and v >= 0 and GameInfo.Victories[v] then out.victory = GameInfo.Victories[v].Type end
+local league = Game.GetNumActiveLeagues() > 0 and Game.GetActiveLeague() or nil
 for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
   out.slots[#out.slots + 1] = PreGame.GetSlotStatus(i)
   local p = Players[i]
@@ -90,10 +95,16 @@ for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
     local techs, policies = 0, 0
     for row in GameInfo.Technologies() do if team:IsHasTech(row.ID) then techs = techs + 1 end end
     for row in GameInfo.Policies() do if p:HasPolicy(row.ID) then policies = policies + 1 end end
+    local allies = 0
+    for m = GameDefines.MAX_MAJOR_CIVS, GameDefines.MAX_CIV_PLAYERS - 1 do
+      local c = Players[m]
+      if c and c:IsAlive() and c:IsMinorCiv() and c:GetAlly() == i then allies = allies + 1 end
+    end
     out.players[#out.players + 1] = {id = i, civ = p:GetCivilizationShortDescription(), alive = p:IsAlive(),
       human = p:IsHuman(), team = p:GetTeam(), turn_active = p:IsTurnActive(), score = p:GetScore(), techs = techs, policies = policies, cities = p:GetNumCities(),
       population = p:GetTotalPopulation(), military = p:GetMilitaryMight(), land = p:GetNumPlots(),
-      gold = p:GetGold(), science = p:GetScience(), happiness = p:GetExcessHappiness()}
+      gold = p:GetGold(), science = p:GetScience(), happiness = p:GetExcessHappiness(), allies = allies,
+      delegates = league and league:CalculateStartingVotesForMember(i) or 0, tourism = p:GetTourism()}
   end
 end
 return out
@@ -294,7 +305,7 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
         raise
     burn = DRAWS_A_CONTINUATION * (m + 1)
     t0 = clock()
-    out: dict = {"m": m, "burn": burn, "from_turn": before["turn"], "end_reason": None, "won": False}
+    out: dict = {"m": m, "burn": burn, "seat": seat, "from_turn": before["turn"], "end_reason": None, "won": False}
     if path_every:
         out["path"] = [path_point(before)]
     try:
@@ -340,8 +351,10 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
 
 def path_point(read: dict) -> dict:
     """One point of a game's path: the turn it was read on (the engine plays on while it is read, so the turn is the
-    read's own) and every player's indicators."""
-    return {"turn": read["turn"], "players": [{k: p[k] for k in ("id", "alive", *INDICATORS)} for p in read["players"]]}
+    read's own) and every player's indicators and standing on the routes. A window's row keeps the point it ends on
+    (`end_point`): what an estimator values the window by."""
+    return {"turn": read["turn"],
+            "players": [{k: p[k] for k in ("id", "alive", *INDICATORS, *ROUTES)} for p in read["players"]]}
 
 
 DECIDED = ("victory", "seat_dead")
@@ -421,7 +434,8 @@ def run_once(g, save: str, turns: int, seat: int | None = None, burn: int = 0, p
         after = g.q(READ)
         row.update(seconds=round(clock() - t0, 1), end=seat_view(after, seat), winner=after["winner"],
                    victory=after["victory"], turns_played=after["turn"] - before["turn"],
-                   players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]])
+                   players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],
+                   end_point=path_point(after))
         keep_end(g, row, end_save, save_game, sleep, clock)
         return row
     finally:
@@ -494,7 +508,8 @@ def run_entrant(g, save: str, command: list[str], label: str, turns: int, seat: 
         elif row["end_reason"] is None:
             row["end_reason"] = "window_played" if after["turn"] - before["turn"] == turns else "window_not_played"
         row.update(end=end, winner=after["winner"], victory=after["victory"], turns_played=after["turn"] - before["turn"],
-                   players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]])
+                   players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],
+                   end_point=path_point(after))
         keep_end(g, row, end_save, save_game, sleep, clock)
         if keep_notebook is not None and nb.exists():
             keep_notebook.parent.mkdir(parents=True, exist_ok=True)

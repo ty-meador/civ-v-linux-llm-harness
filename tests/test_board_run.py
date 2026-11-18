@@ -32,6 +32,7 @@ _spec.loader.exec_module(board_run)
 def player(pid, human=False, alive=True, **kw):
     row = {"id": pid, "civ": f"civ{pid}", "alive": alive, "human": human}
     row.update({k: 10 for k in board_run.INDICATORS})
+    row.update({k: 0 for k in board_run.ROUTES})
     row.update(kw)
     return row
 
@@ -151,6 +152,9 @@ class Runs(unittest.TestCase):
         self.assertEqual(row["seconds"], 12.0)
         self.assertEqual(len(said), 3, "one line a new turn, none for a poll that saw the same turn")
         self.assertEqual(g.left, 1, "the game was not left for the main menu")
+        self.assertEqual((row["end_point"]["turn"], [p["score"] for p in row["end_point"]["players"]]), (252, [140, 310]),
+                         "every player where the window ends: what an estimator values it by")
+        self.assertEqual(set(row["end_point"]["players"][1]), {"id", "alive", *board_run.INDICATORS, *board_run.ROUTES})
         json.dumps(row)
 
     def test_the_draws_come_before_the_handover_and_the_seat_is_the_one_found(self):
@@ -377,9 +381,11 @@ class Continuations(unittest.TestCase):
                  poll(130, 870, winner=1, victory="VICTORY_DOMINATION")]
         c = self.go(FakeGame(reads, polls=polls), path_every=10)
         self.assertEqual([pt["turn"] for pt in c["path"]], [95, 101, 112], "the start, then the first poll of each ten turns")
-        self.assertEqual(c["path"][0]["players"][1], {"id": 1, "alive": True, **{k: two[1][k] for k in board_run.INDICATORS}})
+        self.assertEqual(c["path"][0]["players"][1],
+                         {"id": 1, "alive": True, **{k: two[1][k] for k in board_run.INDICATORS + board_run.ROUTES}})
         self.assertEqual((c["end_reason"], c["won"], [p["score"] for p in c["players"]]), ("victory", False, [100, 140]),
                          "the poll that brings the winner is the end, not a point")
+        self.assertEqual(c["seat"], 0, "a save valued as it is names no seat in its row: the game says whose it was")
 
     def test_no_path_is_kept_unless_asked(self):
         c = self.go(FakeGame([read(turn=95)], polls=[poll(101, 898), poll(130, 870, winner=0, victory="VICTORY_CULTURAL")]))

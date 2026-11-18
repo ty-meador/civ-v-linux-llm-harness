@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+"""Fit a win estimator on games the engine played by itself, and value a window by one read of where it ends.
+
+Rule 1 of docs/BENCHMARK.md values a position by the seat's chance to win from it. Playing that out costs about
+ten deals a side to tell 0.3 from 0.0 and every deal is a window of a model's tokens. The engine's own games
+cost none: `scripts/board_run.py --path N` keeps every player's indicators every N turns of a continuation, and
+each such point with the game's outcome is a row here. The fit is a logistic regression of "the seat's team won"
+on the seat's share of the living players' total in each named indicator, less an even share (so 0 is parity).
+
+    scripts/board_fit.py --fit logs/boards/duel-d/whole-path.jsonl --features score techs delegates \
+        --model logs/boards/duel-d/estimator.json
+    scripts/board_fit.py --model logs/boards/duel-d/estimator.json --value logs/boards/duel-d/floor2-t100.jsonl
+
+A feature is an indicator or a route of board_run (`score`, `delegates`), the same times the turn in hundreds
+(`score*t`: a lead late is worth more than a lead early), or `t` alone. With no `--features` a few sets are
+compared.
+
+The game is the unit, not the point: a game's thirty points are one outcome. Every figure of merit is taken
+leaving one game out (fitted on the others, scored on its points) and stands beside the same figure for the
+base rate alone, which is what the estimator has to beat. A window's row gives one point per decided
+continuation, all at the position the window ended on, and those are left out together. A fit is of the boards
+it was fitted on: the intercept is the seat's own edge there.
+
+`--value` reads the point each window ended on (`end_point`, or the seat's shares in a row older than that)
+and gives the estimate beside the played-out value where the row has one, by entrant, with the standard error
+over deals.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from board_run import DECIDED, INDICATORS, ROUTES, entrant_of, mean_sd, read_rows
+
+KEYS = INDICATORS + ROUTES
+SETS = (("score",), ("score", "score*t"), ("score", "techs", "cities"), ("score", "delegates", "allies"),
+        ("score", "techs", "cities", "military", "delegates", "allies"))
+BANDS = ((0, 50), (50, 100), (100, 200), (200, 10_000))
+
+
+def shares_of(players: list[dict], seat: int) -> tuple[dict, int] | None:
+    """The seat's share of the living players' total in every key the point has, and how many live. An indicator
+    nobody has any of (delegates before a Congress sits) is an even share. None when the seat is dead."""
+    living = [p for p in players if p["alive"]]
+    me = next((p for p in living if p["id"] == seat), None)
+    if me is None:
+        return None
+    out = {}
+    for k in KEYS:
+        if k in me:
+            total = sum(max(p.get(k, 0), 0) for p in living)
+            out[k] = max(me[k], 0) / total if total else 1 / len(living)
+    return out, len(living)
+
+
+def seat_of(row: dict, c: dict | None = None, seat: int | None = None) -> int | None:
+    """The seat a game was played for: the continuation's own, else the row's (a row that only values a save names
+    none), else the one given by hand for rows older than both."""
+    found = (c or {}).get("seat", row.get("seat"))
+    return seat if found is None else found
+
+
+def window_point(row: dict) -> tuple[dict, int, int] | None:
+    """Where a window ended: the seat's shares, the living, the turn. From the row's `end_point`, else from the
+    seat's own view in a row older than that (the indicators only). None for a row with no window or a dead seat."""
+    if row.get("end_point"):
+        got = shares_of(row["end_point"]["players"], row["seat"])
+        return (*got, row["end_point"]["turn"]) if got else None
+    end = row.get("end") or {}
+    if end.get("alive") and end.get("share") and end.get("of"):
+        return dict(end["share"]), end["of"], end["turn"]
+    return None
+
+
+def points_of(rows: list[dict], name: str = "", seat: int | None = None) -> list[dict]:
+    """Every position with an outcome in the rows: each point of a decided continuation's path, or, for a
+    continuation that kept none, the position its window ended on. `group` is what is left out together."""
+    out = []
+    for i, row in enumerate(rows):
+        for c in row.get("continuations") or ():
+            if c.get("end_reason") not in DECIDED:
+                continue
+            if c.get("path"):
+                for pt in c["path"]:
+                    got = shares_of(pt["players"], seat_of(row, c, seat))
+                    if got:
+                        out.append({"group": f"{name}:{i}:{c['m']}", "turn": pt["turn"], "share": got[0], "n": got[1],
+                                    "won": bool(c["won"])})
+            else:
+                got = window_point(row)
+                if got:
+                    out.append({"group": f"{name}:{i}", "turn": got[2], "share": got[0], "n": got[1], "won": bool(c["won"])})
+    return out
+
+
+def features_of(point: dict, features: tuple[str, ...]) -> list[float] | None:
+    """The point as the model sees it, the constant first. None when the point lacks a named key."""
+    x = [1.0]
+    for f in features:
+        key, _, by = f.partition("*")
+        t = point["turn"] / 100
+        if key == "t":
+            x.append(t)
+            continue
+        if key not in point["share"]:
+            return None
+        lead = point["share"][key] - 1 / point["n"]
+        x.append(lead * t if by == "t" else lead)
+    return x
+
+
+def sigmoid(z: float) -> float:
+    return 1 / (1 + math.exp(-z)) if z >= 0 else math.exp(z) / (1 + math.exp(z))
+
+
+def solve(a: list[list[float]], b: list[float]) -> list[float]:
+    """a x = b by elimination with partial pivoting; a is small, symmetric and made positive by the ridge."""
+    n = len(b)
+    m = [[*a[i], b[i]] for i in range(n)]
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(m[r][col]))
+        m[col], m[pivot] = m[pivot], m[col]
+        for r in range(col + 1, n):
+            k = m[r][col] / m[col][col]
+            for j in range(col, n + 1):
+                m[r][j] -= k * m[col][j]
+    x = [0.0] * n
+    for i in range(n - 1, -1, -1):
+        x[i] = (m[i][n] - sum(m[i][j] * x[j] for j in range(i + 1, n))) / m[i][i]
+    return x
+
+
+def fit(xs: list[list[float]], ys: list[bool], ridge: float = 1.0) -> list[float]:
+    """Logistic regression by Newton's method. Each column is scaled to unit root mean square and the ridge is on
+    the scaled coefficients, never on the constant; the coefficients come back in the features' own units. The
+    ridge keeps a fit finite when a feature splits the games cleanly, which a few dozen games easily do."""
+    k = len(xs[0])
+    scale = [1.0] + [math.sqrt(sum(x[j] ** 2 for x in xs) / len(xs)) or 1.0 for j in range(1, k)]
+    zs = [[x[j] / scale[j] for j in range(k)] for x in xs]
+    b = [0.0] * k
+    for _ in range(50):
+        grad = [-ridge * b[j] if j else 0.0 for j in range(k)]
+        hess = [[(ridge if i == j and i else 0.0) for j in range(k)] for i in range(k)]
+        for z, y in zip(zs, ys):
+            p = sigmoid(sum(bj * zj for bj, zj in zip(b, z)))
+            w = max(p * (1 - p), 1e-9)
+            for i in range(k):
+                grad[i] += (y - p) * z[i]
+                for j in range(i, k):
+                    hess[i][j] += w * z[i] * z[j]
+        for i in range(k):
+            for j in range(i):
+                hess[i][j] = hess[j][i]
+        step = solve(hess, grad)
+        b = [bj + sj for bj, sj in zip(b, step)]
+        if max(abs(s) for s in step) < 1e-8:
+            break
+    return [b[j] / scale[j] for j in range(k)]
+
+
+def predict(coef: list[float], x: list[float]) -> float:
+    return sigmoid(sum(c * v for c, v in zip(coef, x)))
+
+
+def left_out(points: list[dict], features: tuple[str, ...], ridge: float = 1.0) -> list[tuple[dict, float]]:
+    """Every point with the chance given it by a fit that never saw its game."""
+    usable = [(p, x) for p in points if (x := features_of(p, features)) is not None]
+    out = []
+    for g in sorted({p["group"] for p, _ in usable}):
+        train = [(p, x) for p, x in usable if p["group"] != g]
+        if not train:
+            continue
+        coef = fit([x for _, x in train], [p["won"] for p, _ in train], ridge)
+        out += [(p, predict(coef, x)) for p, x in usable if p["group"] == g]
+    return out
+
+
+def merit(scored: list[tuple[dict, float]]) -> dict:
+    """Log loss and Brier score of scored points, and the same by band of turns."""
+    def of(pairs):
+        if not pairs:
+            return None
+        ll = -sum(math.log(min(max(q if p["won"] else 1 - q, 1e-6), 1.0)) for p, q in pairs) / len(pairs)
+        brier = sum((q - p["won"]) ** 2 for p, q in pairs) / len(pairs)
+        return {"points": len(pairs), "log_loss": round(ll, 4), "brier": round(brier, 4)}
+    out = of(scored) or {"points": 0}
+    out["bands"] = {f"{lo}-{hi - 1}" if hi < 10_000 else f"{lo}+": m for lo, hi in BANDS
+                    if (m := of([(p, q) for p, q in scored if lo <= p["turn"] < hi]))}
+    return out
+
+
+def fit_lines(points: list[dict], sets: tuple[tuple[str, ...], ...], ridge: float) -> tuple[list[str], dict | None]:
+    """A table of the feature sets by what they give a game they never saw, and the best one fitted on everything."""
+    games = sorted({p["group"] for p in points})
+    won = len({p["group"] for p in points if p["won"]})
+    lines = [f"{len(points)} points of {len(games)} games, the seat won {won}",
+             f"{'features':<48} {'points':>6} {'log loss':>9} {'Brier':>7}   log loss by turn band"]
+    best = None
+    for features in ((), *sets):
+        m = merit(left_out(points, features, ridge))
+        if not m["points"]:
+            lines.append(f"{' '.join(features):<48} no point has every feature")
+            continue
+        bands = "  ".join(f"{k} {v['log_loss']:.3f}" for k, v in m["bands"].items())
+        lines.append(f"{' '.join(features) or '(the base rate alone)':<48} {m['points']:>6} {m['log_loss']:>9.4f} "
+                     f"{m['brier']:>7.4f}   {bands}")
+        if features and (best is None or m["log_loss"] < best[1]["log_loss"]):
+            best = (features, m)
+    if best is None:
+        return lines, None
+    usable = [(p, x) for p in points if (x := features_of(p, best[0])) is not None]
+    coef = fit([x for _, x in usable], [p["won"] for p, _ in usable], ridge)
+    model = {"features": list(best[0]), "coef": [round(c, 5) for c in coef], "ridge": ridge,
+             "points": len(usable), "games": len({p["group"] for p, _ in usable}), "left_out": best[1]}
+    lines.append("fitted on every game: " + ", ".join(f"{n} {c:+.3f}" for n, c in zip(("constant", *best[0]), coef)))
+    return lines, model
+
+
+def value_lines(model: dict, rows: list[dict]) -> list[str]:
+    """Each entrant's windows valued by the model at the point they ended on, beside the played-out value."""
+    features = tuple(model["features"])
+    lines = []
+    for name in dict.fromkeys(entrant_of(r) for r in rows):
+        est, played = [], []
+        for row in (r for r in rows if entrant_of(r) == name):
+            got = window_point(row)
+            x = features_of({"share": got[0], "n": got[1], "turn": got[2]}, features) if got else None
+            if x is None:
+                continue
+            est.append(predict(model["coef"], x))
+            if row.get("value") is not None:
+                played.append((est[-1], row["value"]))
+        if not est:
+            lines.append(f"{name}: no window with every feature of the model")
+            continue
+        mean, sd = mean_sd(est)
+        line = f"{name}: estimate {mean:.3f} over {len(est)} deals (standard error {sd / math.sqrt(len(est)):.3f})"
+        if played:
+            line += (f"; played out {sum(v for _, v in played) / len(played):.3f} on {len(played)} of them, "
+                     f"estimated {sum(e for e, _ in played) / len(played):.3f} there")
+        lines.append(line)
+    return lines
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--fit", nargs="+", type=Path, metavar="ROWS", help="rows files whose decided games are fitted")
+    ap.add_argument("--features", nargs="+", metavar="F", help="one feature set; without it several are compared")
+    ap.add_argument("--seat", type=int, help="the seat of rows that name none (a save valued before 2026-11-18)")
+    ap.add_argument("--ridge", type=float, default=1.0, help="the penalty on the scaled coefficients (default 1)")
+    ap.add_argument("--model", type=Path, help="with --fit the file the best fit is written to; with --value the one read")
+    ap.add_argument("--value", nargs="+", type=Path, metavar="ROWS", help="rows files whose windows the model values")
+    a = ap.parse_args(argv)
+    if not a.fit and not (a.value and a.model):
+        ap.error("give --fit ROWS, or --model FILE --value ROWS")
+    model = None
+    if a.fit:
+        points = [p for f in a.fit for p in points_of(read_rows(f), f.stem, a.seat)]
+        if len({p["group"] for p in points}) < 3:
+            print("fewer than three decided games in the rows: nothing to fit", file=sys.stderr)
+            return 2
+        lines, model = fit_lines(points, (tuple(a.features),) if a.features else SETS, a.ridge)
+        print("\n".join(lines))
+        if model and a.model:
+            model["fitted_on"] = [str(f) for f in a.fit]
+            a.model.write_text(json.dumps(model, indent=1) + "\n")
+    elif a.model:
+        model = json.loads(a.model.read_text())
+    if a.value and model:
+        for f in a.value:
+            print(f"{f}:")
+            print("\n".join("  " + line for line in value_lines(model, read_rows(f))))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
