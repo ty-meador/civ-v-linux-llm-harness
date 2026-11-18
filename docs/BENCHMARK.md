@@ -29,7 +29,11 @@ one are the argument and the measurements; where they differ from a rule, the ru
 - Rule 8's first test failed on the first board (out of the band, a 30-turn window). On the first board
   found inside the band the scripted loop's 100-turn window is 0 of 10 where the stock AI's is 5 of 10, its
   60-turn window 5 of 10 and its 30-turn window 7 of 10 ("The floor against the anchor, again" and "How
-  short a window" below). One board in five screened is in the band.
+  short a window" below). One board in five screened is in the band. With ten deals the stock AI there is
+  0.30 and the loop's three finished deals are 0: suggestive, and by deals not yet a separation.
+- **A win as the only unit costs too much**: about ten deals a side to tell 0.3 from 0.0, each deal a window
+  of a model's tokens. The fitted estimator of rule 1, fitted on the stock AI's own games, is the next
+  instrument ("Ten deals of the stock AI" below).
 - **The games of one deal go together** (the 60-turn window: 0 of 5 on one deal, 5 of 5 on the other, the
   seat the same at turn 60 in both). The deal is the unit: a value's standard error is taken over deals
   (rule 6), an entrant needs many deals and few continuations a deal (rule 4), and the 100-turn result
@@ -57,8 +61,8 @@ window of turns. Then the game's own AI plays that seat and every other to the e
 - **A continuation is stopped at a turn the board names** (500 at Quick speed so far). With no victory by
   then it is not decided: it is in no share and is counted beside the value. One whole game in eight on the
   first duel ended that way, the seat far ahead.
-- Seen: 105 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
-  Diplomatic (65), Culture (20), Domination (10), Science (1) and Time (5, before it was switched off), three
+- Seen: 114 games played out with no screen in the way, the winner read from `Game.GetWinner()`, ended by
+  Diplomatic (73), Culture (20), Domination (11), Science (1) and Time (5, before it was switched off), three
   at the seat's death and one stopped at turn 500; the chain of window, save, load and continuation; a
   continuation from turn 30 of a duel in 12 to 14 minutes. Every victory type has now been read by the
   referee; Science once, on a board made for it ("A Science victory" below).
@@ -170,15 +174,18 @@ ordering. They explain a value; they do not replace it.
 **8. What would overturn this, to be tested before any model's tokens are spent on it.** Where each test
 stands after the night of 2026-11-17:
 
-- *The value cannot tell a floor from the anchor.* **It tells them apart at 100 turns on a board in the
-  band, by two deals a side; not at 30 turns on either board.** On `board-duel-prince-d` (the Celts against
+- *The value cannot tell a floor from the anchor.* **Open. The loop's seat is worth less the longer the loop
+  holds it, on a board in the band; by deals the difference at 100 turns is not yet shown, and at 30 turns
+  there is none on either board.** On `board-duel-prince-d` (the Celts against
   Austria; two deals, five continuations a deal) the scripted loop's window is worth 7 of 10 at 30 turns,
   5 of 10 at 60 (0 of 5 and 5 of 5) and **0 of 10 at 100**, where the stock AI's 100-turn window is 5 of 10
   and its fourteen games on the board are 7. The loop never builds a Settler, and the longer it holds the
   seat the less the seat is worth: that is the valuation doing what it was meant to. But the games of one
   deal go together, so the 100-turn result is two deals at 0 against two at 0.4 and 0.6, not twenty
-  independent games (which would have made it 0.016 by chance). It is being played with eight more deals a
-  side. At 30 turns the loop's opening costs nothing on this board (7 of 10 against the stock AI's 7 of
+  independent games (which would have made it 0.016 by chance). With eight more deals a side the stock AI
+  is 0.30 over ten deals (standard error 0.13) and the loop finished three deals of ten, all at 0: by deals
+  that is not yet a separation (three in ten by chance), and the loop's seven unfinished windows were its own
+  fault, since fixed. At 30 turns the loop's opening costs nothing on this board (7 of 10 against the stock AI's 7 of
   14) or on the first duel (10 of 10 against 9 of 10): thirty opening turns of one sound build order are not
   bad play, and no test of a 30-turn window exists yet that has bad play in it.
 - *Continuations are too slow or too noisy.* **Slow and noisy, both measured.** From an opening a duel
@@ -805,6 +812,52 @@ run, by window and deal, the score at the window's end (seat to Austria) and the
   game.
 - Next: eight more deals each for the loop and the stock AI at 100 turns, one continuation a deal, so that
   the comparison stands on ten deals a side.
+
+### Ten deals of the stock AI, and a loop that did not finish (2026-11-18)
+
+Deals 2 to 9 of the same 100-turn window for both, one continuation a deal
+(`logs/boards/scratch/deals.sh board-duel-prince-d 100 4 1 logs/boards/duel-d`, twice).
+
+| deal | the stock AI at turn 100, score to Austria | its game | the scripted loop |
+|---|---|---|---|
+| 0 | 336 to 438 | 2 of 5 | 0 of 5 |
+| 1 | 459 to 447 | 3 of 5 | 0 of 5 |
+| 2 | 394 to 504 | lost, the vote, turn 398 | did not finish (stuck at turn 55) |
+| 3 | 435 to 512 | lost, the vote, 413 | lost, the vote, 438 |
+| 4 | 503 to 450 | lost, the vote, 408 | did not finish (54) |
+| 5 | 449 to 479 | lost, the vote, 392 | did not finish (64) |
+| 6 | 422 to 447 | lost, conquered, 302 | did not finish (55) |
+| 7 | 449 to 448 | won, the vote, 383 | did not finish (54) |
+| 8 | 560 to 401 | won, the vote, 368 | did not finish (38) |
+| 9 | 502 to 490 | lost, the vote, 403 | did not finish (52) |
+
+- **The stock AI over ten deals: 0.30, standard error over deals 0.13** (deals at 0.4, 0.6, six at 0 and two
+  at 1). The board is in the band, in its lower part; the 0.50 of its first fourteen games was two deals and
+  a screening.
+- **The scripted loop did not finish seven deals of eight**, and finished three of ten in all, each worth 0
+  (0 of 11 games). By rule 5 that is its result: finished 3 of 10 windows, and a DNF stands below every
+  finished run. The cause was the loop's and is fixed (ccb2de9): a Warrior it had moved off a stack kept a
+  standing move, a barbarian ship came beside it, the harness held the move back and the engine blocked the
+  end of the turn on the unit; the loop's skip was refused as "does not block end_turn" and it asked sixteen
+  times and stopped. The refusal contradicts the hold's own note and is filed (#211). The fixed loop is
+  another entrant and plays deals 0 to 7 again.
+- **By deals the two are not yet told apart at 100 turns.** Three finished deals at 0 against ten of which six
+  are at 0 could be one player three times in ten (84 in 286). Twenty games had said 0.016. Even if the fixed
+  loop loses all eight of its deals, eight deals at 0 against four above 0 in ten is 0.07. A board where the
+  anchor is 0.3 has little room under it: this board shows a worse player slowly and would show a better one
+  faster.
+- **One deal is one game, as far as the window reaches.** The loop's log of its own orders is the same line
+  for line in the 30-, 60- and 100-turn runs of a deal over the turns they share, and deal 8 played again
+  stopped on the same turn at the same unit. So the three windows of "How short a window" are three cuts of
+  two games, and a deal's path is what that section read it as.
+- **What a value costs is now measured, and it is too much for a win as the only unit.** A deal is worth 0
+  or 1 or near it; ten deals give a standard error of 0.13 to 0.16; telling 0.3 from 0.0 takes about ten
+  deals a side and telling 0.5 from 0.35 about ninety. For a model a deal is a window of its tokens. The
+  position at the window's end already says most of what the continuations then confirm (Austria at 247 or
+  at 182 with the seat the same: 0 of 5 and 5 of 5), so the next instrument is the fitted estimator of rule
+  1: the stock AI's own games, read every ten turns, give positions with their outcomes for no tokens; a
+  model's deal is then valued by one read at its window's end, on a scale finer than won and lost, and
+  continuations check the estimator and no longer carry the value.
 
 ### A Science victory, on a board made for it (2026-11-18)
 

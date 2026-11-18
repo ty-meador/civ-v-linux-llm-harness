@@ -1,26 +1,30 @@
-# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2345 tests).
+# Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2348 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
-went to bed with "run as many games as you need to" and left the game up a second night; 105 games have
+went to bed with "run as many games as you need to" and left the game up a second night; 114 games have
 been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
 
-**The headline (2026-11-18, small hours): the valuation sees bad play, and the deal is the unit.** On
-`board-duel-prince-d` (the Celts against Austria, the one board of five screened that is in the band: the
-stock AI 7 of 14 through the chain) the scripted loop's window is worth 7 of 10 at 30 turns, 5 of 10 at 60
-and 0 of 10 at 100 (the stock AI's 100-turn window: 5 of 10). **But the 60-turn games split 0 of 5 and 5 of
-5 by deal**, the seat identical at turn 60 and Austria at score 247 and 182: the games of one deal are not
-independent, the earlier "0.016 by chance" is withdrawn, and the 100-turn result is two deals a side. Rules 4
-and 6 now say so: many deals, one or two continuations each, the error over deals. For a model a deal is a
-window of tokens, so this is the benchmark's real cost.
+**The headline (2026-11-18, morning): a win as the only unit costs too much; the fitted estimator is next.**
+On `board-duel-prince-d` (the Celts against Austria, the one board of five screened that is in the band):
+- The scripted loop's window is worth 7 of 10 at 30 turns, 5 of 10 at 60, 0 of 10 at 100. **The 60-turn games
+  split 0 of 5 and 5 of 5 by deal** with the seat identical at turn 60 (Austria at 247 and at 182): the games
+  of one deal are not independent. The deal is the unit (rules 4 and 6; `--summary` now gives the error over
+  deals), and an earlier "0.016 by chance" is withdrawn.
+- Ten deals of the stock AI at 100 turns: **0.30, standard error over deals 0.13**. The loop finished 3 deals
+  of 10, all at 0, and **did not finish 7** (stuck on a Warrior beside a barbarian ship; fixed in ccb2de9,
+  the harness side filed as #211). By deals the two are not yet told apart (three in ten by chance).
+- One deal is one game: the loop's order log is the same line for line across the 30-, 60- and 100-turn runs
+  of a deal, and deal 8 replayed stopped at the same unit on the same turn.
+- **So about ten deals a side tell 0.3 from 0.0, and each deal is a window of a model's tokens.** The next
+  instrument is rule 1's fitted estimator: the stock AI's own games read every ten turns give positions with
+  outcomes for no tokens; a model's deal is then valued by one read at the window's end. Not started; the
+  runner needs a path of reads inside a continuation first.
 **A Science victory is seen** (the user's idea, a science civilization on the seat): Korea with every victory
 on won once by the vote and was conquered twice; Korea with only Science and Domination on launched at turn
 426, read as `VICTORY_SPACE_RACE` (`logs/boards/science/`). Every victory type has been read by the referee.
-**Playing through the night** (`ps` for `board_run`): eight more deals a side at 100 turns with one
-continuation a deal, started 01:16, to about 08:30 (`duel-d/anchor-t100.jsonl` and `floor-t100.jsonl` grow to
-ten deals each; `logs/boards/scratch/deals.sh`, played twice with four deals).
-**Code owed**: `--summary`'s "games: ... (standard error ...)" line is over games and should be the error
-over deals (rule 6); not changed yet because `scripts/check.sh` cannot run while games play.
+**Playing** (`ps` for `board_run`): the fixed loop, deals 0 to 7 of the 100-turn window, one continuation a
+deal, started 05:50, to about 10:00 (`logs/boards/duel-d/floor2-t100.jsonl`).
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -54,25 +58,28 @@ over deals (rule 6); not changed yet because `scripts/check.sh` cannot run while
   the band yet**: the duel is above it, this one very likely below.
 
 **Next, in this order.**
-1. **Read the ten deals a side at 100 turns on `board-duel-prince-d`** and say whether rule 8's first test
-   is passed by deals. Then a test with bad play inside a 30-turn window (the loop's 30 turns are a sound
-   opening and cost nothing on either board): until one exists nobody knows whether a window a model can
-   afford shows anything.
-2. **More boards in the band.** One of five so far (duels b and c were 4 of 4, the first duel 0.80, the
+1. **Read the fixed loop's eight deals** (`duel-d/floor2-t100.jsonl`) against the stock AI's ten and say
+   where rule 8's first test stands by deals.
+2. **The fitted estimator.** Give a continuation a path (a read of every player every ten turns, kept in
+   the row), play the stock AI's whole games on the Celts duel with it, fit win against the position
+   (score, technologies, cities, turn), and check it on what is already known: the loop's turn-60 saves (0
+   of 5 and 5 of 5) and turn-100 saves (0 of 11). Then a window's value is one read.
+3. A test with bad play inside a 30-turn window (the loop's 30 turns are a sound opening and cost nothing
+   on either board): until one exists nobody knows whether a window a model can afford shows anything.
+4. **More boards in the band.** One of five so far (duels b and c were 4 of 4, the first duel 0.80, the
    Tiny board 0 of 4). `logs/boards/scratch/screen_boards.sh WORLDSIZE_DUEL 4 name ...` hosts, sets the
    terms and screens, 40 minutes a board; keep 1 to 3 of 4 and measure those with ten more games. Tiny
    boards and a middle-game board cut from an AI game are not screened yet. The seat's side has won 30 of 37
    decided duel games on four boards; whether the seat has an edge of its own is open.
-3. (Done: the eight whole games, "Eight more whole games" in `docs/BENCHMARK.md`. The two engine segments
-   with no save between are not worth 90 minutes unless a gap shows again.)
-4. #193's "Done when": 20 continuations on one run is not played and, with the deal as the unit, is no longer
-   the right thing to ask for (say so on the issue); the Science win is seen.
-5. #194 the rest (hosting by one command from `logs/boards/scratch/host_board.py`, manifests, the fixed map
+5. #193's "Done when": the Science win is seen; 20 continuations on one run is not played and, with the deal
+   as the unit, is no longer the right thing to ask for (noted on the issue).
+6. #211 (the harness's skip guard against its own hold note), #194 the rest (hosting by one command from `logs/boards/scratch/host_board.py`, manifests, the fixed map
    seed), #198's live turn (the scripted loop past t246 on the Maya t242 board), #196, #197.
 
 **The tool** is `scripts/board_run.py`; its docstring is the manual. New this night: `--terms`, `--row`,
-`--time`, `--last-turn`, `{until}` in a command, and in `--summary` the decided games as one pool with the
-standard error. `scripts/llm_seat_loop.py --until-turn N` tells the entrant the turn the window ends (#201);
+`--time`, `--last-turn`, `--first-continuation`, `{until}` in a command, `<rows>.partial`, and in `--summary`
+the value's standard error over deals. The same command played again on the same rows file adds deals (a
+run's deals are numbered on from the rows already there). `scripts/llm_seat_loop.py --until-turn N` tells the entrant the turn the window ends (#201);
 `scripts/play_loop.py` makes a World Congress proposal (#198, unit tests only).
 
 **The machine.** tunerd on the plain socket with no seat table, the session MCP server up; the game at the main menu unless
