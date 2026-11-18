@@ -1,8 +1,15 @@
 # Resume here -- 2026-11-17 (morning): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2345 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
-went to bed with "run as many games as you need to"; 48 games have been played to their end.
+went to bed with "run as many games as you need to"; 80 games have been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
+
+**The headline (2026-11-17, evening): rule 8's first test is passed.** On `board-duel-prince-d` (the Celts
+against Austria, the one board of five screened that is in the band: the stock AI 7 of 14 through the chain)
+the scripted loop's 100-turn window is worth 0 of 10 and the stock AI's 5 of 10 (0.016 by chance). The loop
+ends with one city; nine of its ten games went to Austria's World Leader vote. The same loop at 60 and at 30
+turns on that board is playing (`logs/boards/duel-d/floor-t60.jsonl`, `floor-t30.jsonl`, started 19:45, about
+five hours): how short a window still shows bad play is the next number.
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -36,13 +43,14 @@ number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and
   the band yet**: the duel is above it, this one very likely below.
 
 **Next, in this order.**
-1. **Find a board that is in the band through the chain** (stock AI plays the window, save, continuations).
-   Host several (duel and Tiny, other civilizations and maps; `logs/boards/scratch/host_board.py`), make each
-   carry its terms, screen each with `--turns 30 --continue 4 --last-turn 500`, keep the ones near the middle
-   and measure them with more games. A middle-game board cut from an AI game is the other candidate
-   (continuations are short there, so twenty are cheap).
-2. **Repeat floor against anchor on that board.** Until one board separates them no model's value means
-   anything (rule 8). A window in which sitting still has a price: 60 to 100 turns, or a middle game.
+1. **Read the 60- and 30-turn floor runs on `board-duel-prince-d`** against the stock AI's fourteen games
+   there (the anchor is the same player whatever the window, so its games pool), and write the window's
+   length into rule 2.
+2. **More boards in the band.** One of five so far (duels b and c were 4 of 4, the first duel 0.80, the
+   Tiny board 0 of 4). `logs/boards/scratch/screen_boards.sh WORLDSIZE_DUEL 4 name ...` hosts, sets the
+   terms and screens, 40 minutes a board; keep 1 to 3 of 4 and measure those with ten more games. Tiny
+   boards and a middle-game board cut from an AI game are not screened yet. The seat's side has won 30 of 37
+   decided duel games on four boards; whether the seat has an edge of its own is open.
 3. (Done: the eight whole games, "Eight more whole games" in `docs/BENCHMARK.md`. The two engine segments
    with no save between are not worth 90 minutes unless a gap shows again.)
 4. #193's "Done when": 20 continuations on one run (the duel has 20 chain games over four runs; one run of 20
@@ -63,6 +71,11 @@ go), the `--...-deal N-end` saves of each run, `scratch-e5-reload`. Rows (gitign
 `duel-a/anchor-airow-notime.jsonl` (eight whole games), `duel-a/floor-t30.jsonl`, `duel-a/anchor-t30.jsonl`,
 `tiny-a/anchor-t30.jsonl`, `tiny-a/full.jsonl`, `duel-a/whole-terms.jsonl` (whole games 8 to 15). The user allowed Codex and Grok runs on 2026-11-16; ask again
 before new paid sessions.
+
+**Scratch scripts** (gitignored, `logs/boards/scratch/`): `screen_boards.sh`, `floor_anchor.sh BOARD TURNS R
+OUTDIR` (the loop then the stock AI), `floor.sh` (the loop only), `relaunch_game.sh` (exit through
+`UI.ExitGame()` on the main menu, since a plain kill is ignored; launch; wait for tunerd; clear the legal
+screen), `host_board.py`.
 
 **Mind.** No `scripts/check.sh` while a run plays on the live game. Long Lua goes through `Game().q(code)` and
 returns a table. A killed run leaves the game in play: `board_run.leave(g)` then `wait_main_menu(g)` before
