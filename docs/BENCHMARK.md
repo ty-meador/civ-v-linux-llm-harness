@@ -30,7 +30,8 @@ one are the argument and the measurements; where they differ from a rule, the ru
   found inside the band the scripted loop's 100-turn window is 0 of 10 where the stock AI's is 5 of 10, its
   60-turn window 5 of 10 and its 30-turn window 7 of 10 ("The floor against the anchor, again" and "How
   short a window" below). One board in five screened is in the band. With ten deals the stock AI there is
-  0.30 and the loop's three finished deals are 0: suggestive, and by deals not yet a separation.
+  0.30 and the fixed loop's eight deals 0.125 (one win): by deals not a separation ("The fixed loop's eight
+  deals" below).
 - **A win as the only unit costs too much**: about ten deals a side to tell 0.3 from 0.0, each deal a window
   of a model's tokens. The fitted estimator of rule 1, fitted on the stock AI's own games, is the next
   instrument ("Ten deals of the stock AI" below).
@@ -858,6 +859,23 @@ Deals 2 to 9 of the same 100-turn window for both, one continuation a deal
   1: the stock AI's own games, read every ten turns, give positions with their outcomes for no tokens; a
   model's deal is then valued by one read at its window's end, on a scale finer than won and lost, and
   continuations check the estimator and no longer carry the value.
+
+### The fixed loop's eight deals (2026-11-18)
+
+The loop with the skip fixed (ccb2de9) played deals 0 to 7 of the 100-turn window on `board-duel-prince-d`, one
+continuation a deal, to `--last-turn 500` (`logs/boards/duel-d/floor2-t100.jsonl`; a power cut stopped the run
+inside deal 5's continuation and the same command played again took deals 5 to 7 up).
+
+- **It finished every window** (about 17 minutes each), second by score in all eight, one city in each.
+- **1 of 8: 0.125, standard error over deals 0.125.** Deal 4 was won by the vote at turn 375; six were lost to
+  Austria's vote and deal 5 to its Culture at turn 280.
+- **Against the stock AI's 0.30 (0.13) over ten deals the difference is 0.175 with a standard error of 0.18.**
+  One deal above 0 in eight against four in ten is 0.23 by chance. Rule 8's first test is not passed at 100
+  turns on this board by deals, and eighteen windows were played to learn it.
+- **The won deal was won from behind.** Read every ten turns (`--path 10`, the same game to the last score as
+  the run without it), the seat was behind on score at every read from turn 100 to the end (by 59 to 327 points)
+  and had 12 delegates against 6 at turn 371, with 8 needed. Score alone does not see the route this board is mostly
+  decided by, so a point of a path keeps allies, delegates and tourism beside the indicators.
 
 ### A Science victory, on a board made for it (2026-11-18)
 

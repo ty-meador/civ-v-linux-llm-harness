@@ -76,7 +76,7 @@ SS_COMPUTER, SS_TAKEN, SS_OBSERVER = 1, 3, 4
 INDICATORS = ("score", "techs", "policies", "cities", "population", "military", "land", "gold", "science", "happiness")
 # Where a player stands on the routes to a victory that the indicators do not show: city-states allied, delegates in
 # the World Congress (none before one sits) and tourism a turn. A point of a path keeps them beside the indicators.
-# A seat 300 points of score behind all game won by the vote with 12 delegates against 6 (live 2026-11-18).
+# A seat behind on score at every read of its game won by the vote with 12 delegates against 6 (live 2026-11-18).
 ROUTES = ("allies", "delegates", "tourism")
 
 READ = """
