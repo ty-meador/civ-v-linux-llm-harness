@@ -368,6 +368,23 @@ class Continuations(unittest.TestCase):
         quiet = self.go(FakeGame([read(turn=252)], polls=[poll(300, 860, winner=0, victory="VICTORY_CULTURAL")]))
         self.assertNotIn("first_war_turn", quiet)
 
+    def test_a_path_is_every_players_indicators_at_the_start_and_every_n_turns(self):
+        """The estimator's rows (rule 1): positions the stock AI played from, with the game's outcome beside them."""
+        two = [player(0, human=True, score=100), player(1, score=140)]
+        reads = [read(turn=95, players=two), read(turn=101, players=two), read(turn=112, players=two),
+                 read(turn=130, winner=1, victory="VICTORY_DOMINATION", players=two)]
+        polls = [poll(99, 900), poll(101, 898), poll(105, 894), poll(112, 887), poll(119, 880),
+                 poll(130, 870, winner=1, victory="VICTORY_DOMINATION")]
+        c = self.go(FakeGame(reads, polls=polls), path_every=10)
+        self.assertEqual([pt["turn"] for pt in c["path"]], [95, 101, 112], "the start, then the first poll of each ten turns")
+        self.assertEqual(c["path"][0]["players"][1], {"id": 1, "alive": True, **{k: two[1][k] for k in board_run.INDICATORS}})
+        self.assertEqual((c["end_reason"], c["won"], [p["score"] for p in c["players"]]), ("victory", False, [100, 140]),
+                         "the poll that brings the winner is the end, not a point")
+
+    def test_no_path_is_kept_unless_asked(self):
+        c = self.go(FakeGame([read(turn=95)], polls=[poll(101, 898), poll(130, 870, winner=0, victory="VICTORY_CULTURAL")]))
+        self.assertNotIn("path", c)
+
     def test_a_decided_game_keeps_how_it_stood(self):
         end = read(turn=330, winner=1, victory="VICTORY_TIME", players=[player(0, human=True, score=1571), player(1, score=1865)])
         c = self.go(FakeGame([read(), end], polls=[poll(330, 900, winner=1, victory="VICTORY_TIME")]))

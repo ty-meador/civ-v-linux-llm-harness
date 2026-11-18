@@ -274,11 +274,14 @@ def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
 
 
 def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.0, stall: float = 900.0,
-                 row: str = "own", time_victory: str = "on", stop_turn: int | None = None,
+                 row: str = "own", time_victory: str = "on", stop_turn: int | None = None, path_every: int = 0,
                  sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
     """One game played on from `save` to its end by the game's own AI on every seat. Says whether the seat's team
     took the victory. It ends on a victory, on the seat's death (a game lost, whoever wins it later) or on a stall,
-    and leaves for the main menu, since the engine would play on past all three."""
+    and leaves for the main menu, since the engine would play on past all three.
+
+    With `path_every` N the game keeps its path: every player's indicators where it starts and at the first poll
+    of every N turns after. A path with the game's outcome is what a win estimator is fitted on (rule 1)."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
         raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -292,6 +295,8 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
     burn = DRAWS_A_CONTINUATION * (m + 1)
     t0 = clock()
     out: dict = {"m": m, "burn": burn, "from_turn": before["turn"], "end_reason": None, "won": False}
+    if path_every:
+        out["path"] = [path_point(before)]
     try:
         started = g.q(start_chunk(burn, TO_THE_END, seat, row, time_victory))
         out.update(seat_row=started.get("seat_row"), time_victory=started.get("time_victory"))
@@ -303,6 +308,8 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
             sleep(poll)
             now = g.q(POLL % {"seat": seat})
             if now["turn"] != last_turn:
+                if path_every and now["turn"] // path_every > last_turn // path_every and now["winner"] < 0:
+                    out["path"].append(path_point(g.q(READ)))
                 last_turn, last_change = now["turn"], clock()
                 if now["turn"] % 25 == 0:
                     say(f"    continuation {m}: turn {now['turn']}  +{clock() - t0:.0f}s")
@@ -329,6 +336,12 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
                 return out
     finally:
         leave(g)
+
+
+def path_point(read: dict) -> dict:
+    """One point of a game's path: the turn it was read on (the engine plays on while it is read, so the turn is the
+    read's own) and every player's indicators."""
+    return {"turn": read["turn"], "players": [{k: p[k] for k in ("id", "alive", *INDICATORS)} for p in read["players"]]}
 
 
 DECIDED = ("victory", "seat_dead")
@@ -654,6 +667,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--first-continuation", type=int, default=0, metavar="M",
                     help="number the continuations from M. Continuation m takes 29 (m + 1) draws and a save replays the "
                          "same game on the same draws, so M past the ones already played gives new games of one save")
+    ap.add_argument("--path", type=int, default=0, metavar="N",
+                    help="keep each continuation's path: every player's indicators at its start and every N turns "
+                         "after, in the row. A path with its game's outcome is what a win estimator is fitted on")
     ap.add_argument("--value-only", action="store_true",
                     help="no window: value --save itself by --continue R continuations (a board's own worth)")
     ap.add_argument("--terms", metavar="NEW",
@@ -724,7 +740,7 @@ def main(argv: list[str] | None = None) -> int:
                 for m in range(a.first_continuation, a.first_continuation + a.continuations) if row.get("end_save") else ():
                     wait_main_menu(g)
                     c = continuation(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row or "own",
-                                     time_victory=a.time or "on", stop_turn=a.last_turn)
+                                     time_victory=a.time or "on", stop_turn=a.last_turn, path_every=a.path)
                     row["continuations"].append(c)
                     partial.write_text(json.dumps(row) + "\n")   # a game that dies under a later one loses none of these
                     print(f"  continuation {m}: {c['end_reason']}, {'won' if c['won'] else 'not won'}"
