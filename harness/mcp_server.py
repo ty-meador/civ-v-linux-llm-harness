@@ -187,10 +187,34 @@ def _op(g) -> Any:
     return getattr(g, "lock", contextlib.nullcontext)()
 
 
+def window_until() -> int | None:
+    """CIV5_UNTIL_TURN: a referee's window, the game turn that is the seat's when it is over (Game.window_over).
+    Set by the referee's seat loop (scripts/llm_seat_loop.py --until-turn); unset or unreadable is no window."""
+    raw = os.environ.get("CIV5_UNTIL_TURN", "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        print(f"civ5: CIV5_UNTIL_TURN={raw!r} is not a turn; no window is kept", file=sys.stderr, flush=True)
+        return None
+
+
+def _window_over(g, ts) -> dict | None:
+    """Game.window_over on a game that holds a window; a fake keeps none (one that answers any name with a
+    recorder is asked nothing: only a turn in `window_until` counts)."""
+    until = getattr(g, "window_until", None)
+    if not isinstance(until, int) or isinstance(until, bool):
+        return None
+    over = g.window_over(ts)
+    return over if isinstance(over, dict) and "note" in over else None
+
+
 def game() -> Game:
     global _game, _seat_unresolved
     if _game is None:
         g = Game(os.environ.get("CIV5_TUNERD_SOCK"))
+        g.window_until = window_until()
         # The wait loops take the per-socket operation lock once per poll through this (game.py holds
         # no lock of its own), so that between polls another seat's server can act. See action_lock.py.
         g.lock = lambda: action_lock(_sock(), seat=g.seat, tool="wait poll")
@@ -286,6 +310,11 @@ def _refusal_for(g, ts: dict, key: tuple[str, str]) -> dict | None:
     never changes the game, and a response's input IS the pending thing."""
     if key in classes.HARMLESS or key in classes.RESPONSE:
         return None
+    # A referee's window: the turn it ends on is not played, so nothing is ordered on it. Reads, an answer to a
+    # leader on screen and the notebook stay open.
+    over = _window_over(g, ts)
+    if over:
+        return {"ok": False, "err": over["note"], "window_over": over}
     # Every refusal below carries `gate`, the same object turn_status shows: the one thing that must happen
     # first and the tool that does it.
     gate = _gate(ts, g.seat)

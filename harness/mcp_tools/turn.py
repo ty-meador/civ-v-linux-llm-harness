@@ -474,6 +474,11 @@ def finish_turn(actions: list[dict] | None = None, autosave: bool = True, timeou
         if not batch.get("ok"):
             with _op(g):
                 st = g.turn_state()
+            over = core._window_over(g, st)
+            if over:
+                # the orders were refused because the window is over: say that, not "send them again"
+                return J(_lean({"ok": False, "ended": False, "seat": g.seat, "turn": st.get("turn"), "batch": batch,
+                                "err": over["note"], "window_over": over, "status": st}))
             return J(_lean({"ok": False, "ended": False, "seat": g.seat, "turn": st.get("turn"), "batch": batch,
                             "status": st, "gate": _gate(st, g.seat),
                             "hint": "an order was refused, so the turn was not ended: read batch.results, re-check the "

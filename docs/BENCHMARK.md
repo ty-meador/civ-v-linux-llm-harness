@@ -150,7 +150,13 @@ every deal is a window of its tokens, and that, more than machine hours, is what
 
 **5. A run counts whatever happened.**
 
-- The window is the referee's: the board must be that many turns on.
+- The window is the referee's: the board must be that many turns on. **The referee closes the seat on the
+  window's turn** (added 2026-11-19; the user: overshooting is the benchmark's to handle, not the entrant's).
+  The seat's server is given that turn (`CIV5_UNTIL_TURN`, set by `llm_seat_loop.py --until-turn`): the finish
+  that brings it says `window_over`, a run of quiet turns stops on it, and on it every order and every finish
+  is refused. So an entrant cannot play past its window and a count gone wrong is not a DNF; stopping short
+  still is. Before this a board one turn past the window read as not played and had no value (the pilot's
+  deal 1, whose cause was the harness's own and is fixed apart from this).
 - **DNF is a result of its own** (the user, 2026-11-16). A run that stopped short (gave up, ran out of time or
   quota, the client died) did not finish. It has no value and is not averaged in as a nought: a seat left
   after nine good turns and a seat played into a lost position are different things and a mean would hide

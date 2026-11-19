@@ -6,6 +6,12 @@ in the seat directory, play N game turns through the civ5 MCP tools, write a rep
 reports/, stop. When the process exits the loop starts the next cycle. A file named STOP in the
 seat directory ends the loop after the current cycle; STOP_NOW kills the current cycle too.
 
+A referee's window (`--until-turn N`, docs/BENCHMARK.md rule 5): every instance is told that turn, the loop
+reads the board before each cycle and ends when it is there, and the seat's server is handed the turn as
+`CIV5_UNTIL_TURN`, on which it refuses every order and every finish. That variable reaches the server through
+the CLI's own environment (grok and claude pass it on; codex needs it forwarded in the seat's config, as the
+ledger's two are).
+
 Usage:
   scripts/llm_seat_loop.py --agent codex --seat 0 --dir ~/projects/codex-seat \
       --model gpt-5.6-terra --effort low --turns 20
@@ -344,6 +350,10 @@ def main() -> int:
         env = dict(os.environ)
         env.setdefault("CIV5_CLIENT", f"{args.agent}/{args.model}")
         env.setdefault("CIV5_CALL_LOG", str(Path(__file__).resolve().parent.parent / "logs" / "calls.jsonl"))
+        if args.until_turn is not None:
+            # the referee closes the seat on the window's turn (harness/mcp_server.py window_until): the seat's
+            # server refuses orders there and no finish ends it. Reaches the server as the ledger's variables do.
+            env["CIV5_UNTIL_TURN"] = str(args.until_turn)
         if args.agent == "claude":
             # a loop started from inside a Claude Code session must not hand that session's identity down, and
             # the seat's memory is the notebook: no second one under the operator's home
