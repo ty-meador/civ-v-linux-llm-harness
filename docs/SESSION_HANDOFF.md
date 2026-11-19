@@ -19,6 +19,21 @@ Claude", "keep this initial run small", the 50-dollar estimate; resets of the su
   (`~/projects/bench-seats/duel-d/<name>/deal-N`: a later deal must not find an earlier deal's reports), and
   ends the batch at the first deal not finished or the first `"status":"rejected"` in a stream. A file `STOP`
   in `~/projects/bench-seats/duel-d/claude-sonnet-t100` ends it before the next deal.
+- **Deal 0** (13:04 to 13:31): the window finished in 14 minutes and ten instances for 1.94 dollars at list
+  (not the 6 to 7 priced from late turns), about 4 points of the five-hour limit; the seat ended ahead, 463
+  to Austria's 342 with 3 cities (the stock AI's deal 0 on the same dice 336 to 438, the loop's 266 to 606);
+  estimate 0.68 (the model's error 0.09), played out by the stock AI not won (Austria, Diplomatic, turn 342).
+- **Deal 1's first play is void, the harness's doing** (rule 5; row kept in `claude-sonnet-t100-void.jsonl`,
+  folders `deal-1-void`): Austria proposed embassies at the end of turn 99, the finish came back `ended: true,
+  turn: 99` at that gate, the round finished inside the accept, the answer's own arrival opened turn 100 with
+  no turn in its reply, and the finish that followed (sent for turn 99, with orders) ran them on turn 100 and
+  ended it. The board stood at 101 (407 to Austria's 443), which `board_run` reads as `window_not_played`.
+  Fixed in d52eb26 (the answer names `new_turn` and leaves the turn unseen, so the next finish hands it back
+  unended); deal 1 plays again from 13:53 with deals 2 to 7 behind it (`pilot.sh 100 7 1`). Not seen live
+  since: it needs a leader speaking at a turn's end.
+- **Open, a rule to settle**: the board must be exactly the window's turns on, so an entrant that passes the
+  turn by its own count (`skip_quiet_turns` too large) is a DNF with nothing to value. The referee could close
+  the seat at the window's turn instead (an environment variable the seat's server reads); not built.
 - **The stock AI's batch was stopped at twelve rows** (deals 10 and 11 played, 13:02) to give the game to the
   pilot while the user was there; deals 12 to 19 follow the pilot by themselves if all eight finish.
 - `llm_seat_loop.py --until-turn` now ends the loop by the board, read before every cycle (198875f).
