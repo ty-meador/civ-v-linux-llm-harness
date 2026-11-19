@@ -27,8 +27,9 @@ it was fitted on: the intercept is the seat's own edge there.
 
 `--value` reads the point each played window ended on (`end_point`, or the seat's shares in a row older than
 that) and gives the estimate beside the played-out value where the row has one, by entrant, with the standard
-error over deals. That error is the spread of the entrant's positions, not the model's own doubt: the estimate
-is as good as the fit, and continuations are what check it.
+error over deals. That error is the spread of the entrant's positions, not the model's own doubt, which is
+given beside it as the range of the estimate over the fits that each leave one game out. The estimate is as
+good as the fit, and continuations are what check it.
 """
 from __future__ import annotations
 
@@ -171,17 +172,21 @@ def predict(coef: list[float], x: list[float]) -> float:
     return sigmoid(sum(c * v for c, v in zip(coef, x)))
 
 
+def fits_left_out(usable: list[tuple[dict, list[float]]], ridge: float = 1.0) -> dict[str, list[float]]:
+    """For each game, the fit on every other game."""
+    out = {}
+    for g in sorted({p["group"] for p, _ in usable}):
+        train = [(p, x) for p, x in usable if p["group"] != g]
+        if train:
+            out[g] = fit([x for _, x in train], [p["won"] for p, _ in train], ridge)
+    return out
+
+
 def left_out(points: list[dict], features: tuple[str, ...], ridge: float = 1.0) -> list[tuple[dict, float]]:
     """Every point with the chance given it by a fit that never saw its game."""
     usable = [(p, x) for p in points if (x := features_of(p, features)) is not None]
-    out = []
-    for g in sorted({p["group"] for p, _ in usable}):
-        train = [(p, x) for p, x in usable if p["group"] != g]
-        if not train:
-            continue
-        coef = fit([x for _, x in train], [p["won"] for p, _ in train], ridge)
-        out += [(p, predict(coef, x)) for p, x in usable if p["group"] == g]
-    return out
+    fits = fits_left_out(usable, ridge)
+    return [(p, predict(fits[p["group"]], x)) for p, x in usable if p["group"] in fits]
 
 
 def merit(scored: list[tuple[dict, float]]) -> dict:
@@ -220,7 +225,8 @@ def fit_lines(points: list[dict], sets: tuple[tuple[str, ...], ...], ridge: floa
     usable = [(p, x) for p in points if (x := features_of(p, best[0])) is not None]
     coef = fit([x for _, x in usable], [p["won"] for p, _ in usable], ridge)
     model = {"features": list(best[0]), "coef": [round(c, 5) for c in coef], "ridge": ridge,
-             "points": len(usable), "games": len({p["group"] for p, _ in usable}), "left_out": best[1]}
+             "points": len(usable), "games": len({p["group"] for p, _ in usable}), "left_out": best[1],
+             "left_out_coefs": [[round(c, 5) for c in f] for f in fits_left_out(usable, ridge).values()]}
     lines.append("fitted on every game: " + ", ".join(f"{n} {c:+.3f}" for n, c in zip(("constant", *best[0]), coef)))
     return lines, model
 
@@ -231,13 +237,14 @@ def value_lines(model: dict, rows: list[dict]) -> list[str]:
     lo, hi = model.get("turns") or (0, 10_000)
     lines = []
     for name in dict.fromkeys(entrant_of(r) for r in rows):
-        est, played, outside = [], [], 0
+        est, played, outside, xs = [], [], 0, []
         for row in (r for r in rows if entrant_of(r) == name):
             got = window_point(row) if row.get("end_reason") == "window_played" else None   # a DNF has no value
             x = features_of({"share": got[0], "n": got[1], "turn": got[2]}, features) if got else None
             if x is None:
                 continue
             outside += not lo <= got[2] <= hi
+            xs.append(x)
             est.append(predict(model["coef"], x))
             if row.get("value") is not None:
                 played.append((est[-1], row["value"]))
@@ -246,6 +253,9 @@ def value_lines(model: dict, rows: list[dict]) -> list[str]:
             continue
         mean, sd = mean_sd(est)
         line = f"{name}: estimate {mean:.3f} over {len(est)} deals (standard error {sd / math.sqrt(len(est)):.3f})"
+        doubt = [sum(predict(coef, x) for x in xs) / len(xs) for coef in model.get("left_out_coefs") or ()]
+        if doubt:
+            line += f", {min(doubt):.3f} to {max(doubt):.3f} as one game or another is left out of the fit"
         if played:
             line += (f"; played out {sum(v for _, v in played) / len(played):.3f} on {len(played)} of them, "
                      f"estimated {sum(e for e, _ in played) / len(played):.3f} there")

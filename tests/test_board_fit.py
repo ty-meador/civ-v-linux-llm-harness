@@ -128,6 +128,14 @@ class Value(unittest.TestCase):
         self.assertIn("over 2 deals", line)
         self.assertIn("1 ended outside turns 20 to 110", line)
 
+    def test_the_models_own_doubt_stands_beside_the_estimate(self):
+        """The error over deals is how an entrant's positions differ; how far the fit moves with its games is another."""
+        model = {"features": ["score"], "coef": [0.0, 10.0], "left_out_coefs": [[0.0, 5.0], [0.0, 20.0]]}
+        rows = [{"entrant": "stock-ai", "seat": 0, "end_reason": "window_played", "end_point": point(100, 60, 40)}]
+        (line,) = board_fit.value_lines(model, rows)
+        self.assertIn("estimate 0.731 over 1 deals", line)
+        self.assertIn("0.622 to 0.881 as one game or another is left out of the fit", line)
+
     def test_the_command_fits_writes_the_model_and_values_rows_with_it(self):
         with tempfile.TemporaryDirectory() as d:
             rows, model = Path(d) / "whole.jsonl", Path(d) / "model.json"
@@ -135,6 +143,7 @@ class Value(unittest.TestCase):
             self.assertEqual(board_fit.main(["--fit", str(rows), "--features", "score", "--model", str(model)]), 0)
             kept = json.loads(model.read_text())
             self.assertEqual((kept["features"], kept["games"], kept["points"]), (["score"], 40, 120))
+            self.assertEqual(len(kept["left_out_coefs"]), 40, "one fit a game left out: the model's own doubt")
             self.assertEqual(board_fit.main(["--model", str(model), "--value", str(rows)]), 0)
             self.assertEqual(board_fit.main(["--fit", str(rows), "--features", "score", "--turns", "100", "150", "--model", str(model)]), 0)
             kept = json.loads(model.read_text())

@@ -1,4 +1,4 @@
-# Resume here -- 2026-11-19 (small hours): main = 2.17.0 + the benchmark's referee, rules version 1 and the estimator's first fit (unreleased; runtime v341, 9 tools, 2364 tests).
+# Resume here -- 2026-11-19 (small hours): main = 2.17.0 + the benchmark's referee, rules version 1 and the estimator's first fit (unreleased; runtime v341, 9 tools, 2365 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
 went to bed with "run as many games as you need to" and left the game up a second night; 114 games have
 been played to their end.
@@ -28,8 +28,10 @@ with the routes read as well (`path-check.jsonl`, `path-check2.jsonl`).
 and Domination on launched at turn 426, read as `VICTORY_SPACE_RACE` (`logs/boards/science/`). Every victory
 type has been read by the referee.
 **The power went at 08:49 on 2026-11-18**; the machine came back cold (Steam, the game, tunerd by hand at
-16:08). **Nothing is playing**; the game is at the main menu on a process about 30 loads old: relaunch before
-the next batch (`logs/boards/scratch/relaunch_game.sh`).
+16:08). **Playing** since 00:20 on 2026-11-19 (`ps` for `more_whole.sh`, `logs/boards/scratch/`): forty more
+whole stock-AI games with `--path 10`, continuations 20 to 59, ten a row appended to `whole-path.jsonl`, a fresh
+game process every twenty, to about 12:30; `logs/boards/duel-d/batch.log` has a line every ten and "more whole
+games done" at the end. No `check.sh` until then.
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -63,10 +65,12 @@ the next batch (`logs/boards/scratch/relaunch_game.sh`).
   the band yet**: the duel is above it, this one very likely below.
 
 **Next, in this order.**
-1. **Narrow the estimator's own doubt**: more whole games with `--path 10` on the Celts duel
-   (`--first-continuation 20`, 18 minutes each, no tokens; twenty took six hours), then
-   fit again and see whether the 0.41 and the 0.14 hold. Give `board_fit` the model's doubt in `--value`
-   (the estimate's range over the leave-one-out fits) so the error printed is the whole one.
+1. **Narrow the estimator's own doubt**: when the forty games are in, fit again (`board_fit.py --fit
+   logs/boards/duel-d/whole-path.jsonl --turns 20 110 --model ...estimator-t20-110.json --value
+   .../anchor-t100.jsonl .../floor2-t100.jsonl`) and see whether the 0.41 and the 0.14 hold and how far
+   the range beside each estimate (the fits that each leave one game out: 0.36 to 0.44 and 0.08 to 0.19 on
+   nineteen games) has closed; whether a second feature now helps in turns 20 to 110; write it into
+   BENCHMARK.md under "The estimator's first fit". Then `scripts/check.sh`.
 2. **Say what the estimate is in the rules** (rule 1 and rule 6 of BENCHMARK.md): the headline by estimate
    with continuations as its audit, on which turns a window may end (not before the positions move apart:
    60 at the least on this board), and what guards an entrant who plays for the vote. Then the pilot (#200
