@@ -5,6 +5,34 @@ been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
 
+**The pilot is playing (2026-11-19, from 13:05): the user's word for paid sessions was given that day** ("use
+Claude", "keep this initial run small", the 50-dollar estimate; resets of the subscription's limit on offer).
+- **The opening is priced**: one 10-turn opening window of the Celts duel by Claude Sonnet 5.5 at low effort
+  (`claude-sonnet-5-5`, one instance): finished in 74 seconds, 0.22 dollars at list by the CLI's own total
+  (0.022 a turn, a third of a late turn's 0.06 to 0.07), 33 requests. Row
+  `logs/boards/duel-d/pilot-claude-sonnet-t10.jsonl`, streams in `pilot-claude-sonnet-t10-logs/deal-0/`.
+- **The eight deals** of the 100-turn window are playing: `logs/boards/scratch/pilot_then_anchor.sh` (`ps` for
+  it) runs `pilot.sh 100 8 1 claude-sonnet-t100` (label `claude/sonnet-5.5-low`, ten-turn instances, no
+  notebook, one continuation a deal with `--path 10`; rows `logs/boards/duel-d/claude-sonnet-t100.jsonl`,
+  streams `claude-sonnet-t100-logs/deal-N/`, one line a deal in `batch.log`) and then `more_anchor.sh 8`.
+  `pilot.sh` plays one deal a `board_run` call, gives every deal its own seat folder
+  (`~/projects/bench-seats/duel-d/<name>/deal-N`: a later deal must not find an earlier deal's reports), and
+  ends the batch at the first deal not finished or the first `"status":"rejected"` in a stream. A file `STOP`
+  in `~/projects/bench-seats/duel-d/claude-sonnet-t100` ends it before the next deal.
+- **The stock AI's batch was stopped at twelve rows** (deals 10 and 11 played, 13:02) to give the game to the
+  pilot while the user was there; deals 12 to 19 follow the pilot by themselves if all eight finish.
+- `llm_seat_loop.py --until-turn` now ends the loop by the board, read before every cycle (198875f).
+- **Open, asked by the user**: a deal cut by the subscription's limit is a DNF today and nothing is kept to
+  pick it up from (`keep_end` saves a played window only; inside the four-hour limit the loop's back-off
+  retries by itself). Proposed and not built: save the position on such a stop, `board_run --resume` from
+  exactly there (never an earlier save: two tries at the same dice), only for a stop the stream shows as a
+  limit or a dead client, the row saying how often and how long; rule 5 reworded to "interrupted" until
+  resumed. Not checked: that a save taken inside an entrant's window plays on as the same game.
+- When the eight are in: `board_fit.py --model logs/boards/duel-d/estimator-t90-110-windows.json --value
+  logs/boards/duel-d/claude-sonnet-t100.jsonl` against the stock AI's and the loop's rows, the cost from
+  `scripts/usage_measure.py logs/calls.jsonl --usage logs/boards/duel-d/claude-sonnet-t100-logs --min-turns 1`,
+  and a look through the streams for a Read, Glob or Grep outside the seat folder.
+
 **The headline (2026-11-19, midday): the estimator separates the two entrants, with an honest error of
 0.07 to 0.10, most of it the model's own.** On `board-duel-prince-d` (the Celts against Austria, the one board
 of five screened that is in the band), `docs/BENCHMARK.md` "The estimator on sixty games" (and "The
