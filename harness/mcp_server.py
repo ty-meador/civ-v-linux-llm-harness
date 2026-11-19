@@ -451,6 +451,9 @@ def guarded(fn):
                     # looking at anything: the gate then never asks the agent to spend a call on it.
                     settle = getattr(g, "settle_announcements", None)   # a bare fake has none
                     ts = settle(ts) if settle else ts
+                    # The turn this call began on: an answer that outlasts the AI round compares it with the turn
+                    # on screen afterwards (mcp_tools/diplomacy.py _with_next).
+                    g.call_turn = ts.get("turn")
                     refused = _refusal_for(g, ts, key)
                     if refused is not None:
                         return J(refused)

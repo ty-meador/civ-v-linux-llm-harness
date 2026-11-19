@@ -9,17 +9,45 @@ from harness import mcp_server as core
 from harness.mcp_server import J, guarded, retired
 
 
+def _turn_began_during(g) -> int | None:
+    """The turn on screen when it is mine and is not the one this call began on (the guard's `call_turn`): the
+    AI round finished while the leader was answered. None otherwise, and on a fake that keeps no `call_turn`."""
+    before = getattr(g, "call_turn", None)
+    if not isinstance(before, int) or isinstance(before, bool):
+        return None
+    ts = g.turn_state()
+    now = ts.get("turn")
+    if isinstance(now, int) and now != before and ts.get("my_turn") and ts.get("active_player") == g.seat:
+        return now
+    return None
+
+
 def _with_next(g, out):
     """Another leader queued behind the one just answered (live t136: China, Portugal and Russia in a row at
     one turn start): hand over the next question with the reply, as respond_discussion does, plus the gate
     it raises, so the caller needs no extra read to learn the table is still not free and which tool
     settles it. Once the table IS free, the turn's arrival work runs if it has not yet this turn (a turn that
     opened under a leader screen never reached it: live t225, the Great Musician's order sat out the turn) and
-    its `orders` / `resumed_moves` ride on the reply. Anything that cannot be read leaves the reply as it was."""
+    its `orders` / `resumed_moves` ride on the reply. Anything that cannot be read leaves the reply as it was.
+
+    A turn that began during the answer is not opened here (live 2026-11-19, the benchmark's Celts duel: Austria
+    proposed embassies at the end of turn 99, the finish came back `ended: true, turn: 99` at that gate, the
+    round finished inside the accept, and the arrival run here made turn 100 one of ours had met while the
+    reply named no turn; the finish that followed, sent for turn 99 with its orders, ran them on turn 100 and
+    ended it, and the entrant met turn 101 with a window that ended at 100). The reply says `new_turn`, and the
+    turn stays unseen, so the next finish hands it back unended with none of its orders run (Game.unseen_turn)."""
     if not (isinstance(out, dict) and out.get("ok")):
         return out
     try:
         if not g.discussion_pending():
+            began = _turn_began_during(g)
+            if began is not None:
+                out["new_turn"] = {"turn": began,
+                                   "note": f"turn {began} began while the leader was answered: the turn before it has "
+                                           "ended and nothing of yours has seen this one. turn(action='finish') hands "
+                                           "it back unended with its digest (orders sent with that call do not run); "
+                                           "then play it"}
+                return out
             arrived = g.arrive_if_due()
             if arrived:
                 out.update(arrived)

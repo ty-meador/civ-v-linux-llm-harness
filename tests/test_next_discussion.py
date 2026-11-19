@@ -126,6 +126,34 @@ class WithNextTests(unittest.TestCase):
         self.assertEqual(g.arrivals, 1)
         self.assertNotIn("orders", out)
 
+    def test_a_turn_that_began_during_the_answer_is_named_and_left_unopened(self):
+        # live 2026-11-19 (the benchmark's Celts duel, deal 1): the leader spoke at the end of turn 99, the round
+        # finished inside the accept, and the arrival run here opened turn 100 with no word of it in the reply.
+        g = FakeGame([{"screen": "trade"}])
+        g.seat, g.call_turn = 0, 99
+        g.turn_state = lambda: {"turn": 100, "my_turn": True, "active_player": 0}
+        out = _with_next(g, g.accept_deal())
+        self.assertEqual(out["new_turn"]["turn"], 100)
+        self.assertIn("unended", out["new_turn"]["note"])
+        self.assertEqual(g.arrivals, 0, "the turn stays unseen: the next finish hands it back unended")
+
+    def test_the_same_turn_or_a_round_still_running_opens_as_before(self):
+        for now in ({"turn": 99, "my_turn": True, "active_player": 0},       # the leader spoke inside my turn
+                    {"turn": 100, "my_turn": False, "active_player": 0},     # the AIs still move: nothing is due yet
+                    {"turn": 100, "my_turn": True, "active_player": 1}):     # hotseat: the other seat's turn
+            g = FakeGame([{"screen": "trade"}])
+            g.seat, g.call_turn = 0, 99
+            g.turn_state = lambda now=now: now
+            out = _with_next(g, g.accept_deal())
+            self.assertNotIn("new_turn", out)
+            self.assertEqual(g.arrivals, 1)
+
+    def test_a_game_that_keeps_no_call_turn_reads_no_turn(self):
+        g = FakeGame([{"screen": "trade"}])
+        g.turn_state = lambda: self.fail("no read without the guard's call_turn")
+        out = _with_next(g, g.accept_deal())
+        self.assertNotIn("new_turn", out)
+
 
 class GreetingQueueTests(unittest.TestCase):
     """Live t145 (Venice): three first-meeting greetings queued at one turn start; one Back per call answered
