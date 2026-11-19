@@ -60,6 +60,31 @@ window of turns. Then the game's own AI plays that seat and every other to the e
 - A seat dead or a game lost inside the window is 0, a game won inside it is 1, with no continuation.
 - It is a probability, not one game's result: one continuation is a coin, twenty are an estimate. Where that is
   still too coarse the fitted estimator is the finer instrument, and the continuations are what it is fitted on.
+- **The estimate (added 2026-11-19).** On a board with a fitted model a run has a second value: the model's
+  chance of the seat winning, read once from the position the window ended on (`scripts/board_fit.py`).
+  Entrants on that board are compared by the estimate. The played-out value is its audit, and every
+  continuation played for the audit is a row of the board's next fit.
+  - *The model is the board's.* A logistic fit of the seat's team winning on what the referee reads of every
+    player at one moment (the seat's share of each indicator and route), fitted on games the engine played
+    from that board: whole games, and the continuations of played windows, whoever played the window. Only
+    the reads within ten turns of the turn the window ends on are fitted. It knows nothing of how a position
+    was reached or who played it. A feature is kept only if it lowers the log loss on games left out of the
+    fit.
+  - *It is named and frozen.* A value by estimate names the model's file, its games and the turns fitted. A
+    new fit revalues every entrant of the board together, never one.
+  - *A window ends only where the model tells something*: in turns where it beats the base rate on games it
+    never saw. On the Celts duel that is not before turn 60; at 30 the estimate tells no entrant from another.
+  - *Its limit is its features.* With score as its one feature (all that helps before turn 110 on the Celts
+    duel) the estimate orders entrants as their share of score does, and what is said of score above holds
+    of it. It is then the board's measured rate of exchange between a lead in score and wins, not a judgement
+    of the position. An entrant who plays for what the model has no feature for is valued too low: on that
+    board 37 of 59 games end by the vote and delegates say nothing before turn 200. The audit is the guard.
+    An entrant whose played-out value stands above its estimate by more than their errors is reported by the
+    played-out value, the report says so, and its continuations go into the fit.
+  - Seen ("The estimator on sixty games" below): score alone on turns 90 to 110 of 59 whole games and 21
+    played windows; the stock AI's ten 100-turn windows 0.413 and the scripted loop's eight 0.093, where
+    played out they were 0.30 and 0.125. Not seen: an entrant the model never saw valued and then audited; a
+    second board; a model with more than score in it at a turn a window can afford.
 - **The path, on a long window.** The referee can save at fixed turns inside the window and value each save the
   same way. The path says whether a lead was built early and kept, thrown away, or won back from behind. The
   headline stays the value at the window's end: an average over the path would pay for a lead that was then
@@ -151,7 +176,18 @@ every deal is a window of its tokens, and that, more than machine hours, is what
   `--summary` still prints, is too small and is not the error of a value. With deals worth 0 or 1 each, ten
   deals tell 1.0 from 0.5 and not 0.9 from 0.7, and a difference of 0.15 between two entrants on one board
   needs about ninety deals each. That is the price of a win as the unit, for a model it is paid in windows
-  of tokens, and it is the reason the fitted estimator of rule 1 stays on the list.
+  of tokens, and it is the reason for the estimate of rule 1.
+- **A value by estimate has two errors and both are given** (added 2026-11-19). The deals' (the standard
+  deviation of the deals' estimates over the root of their number) is the entrant's. The model's is the
+  board's: a jackknife over the games of the fit (the estimate under each fit that leaves one game out, their
+  spread scaled by the number of games). It is shared by every entrant valued on the board and more deals do
+  not make it smaller; more games of the board do, most where entrants' windows end. A difference between two
+  entrants is given with the model's error taken on the difference, since one fit values both. On the Celts
+  duel at 100 turns the stock AI less the scripted loop is 0.320 with 0.045 from the deals and 0.056 from the
+  model, 0.072 together; the same eighteen windows played out, 0.175 with 0.18. A deal's estimate varies far
+  less than a deal's win (a standard deviation of 0.14 over the stock AI's ten deals against 0.5 for a coin),
+  so eight deals give the entrant's own error as 0.05 where eight wins give 0.18. The range of the fits that
+  leave one game out is not an error and is not given.
 - The headline has two parts and neither is given without the other: **the share of windows finished**, and
   over those **the mean over boards of the entrant's value less the anchor's**, per kind of board, with an
   interval from resampling boards. It reads "finished 8 of 9 windows, and left the seat this much more (or
@@ -987,6 +1023,13 @@ won), 11 by Domination (6 won), ending between turn 248 and 437, half by 378. 22
   0.534 (0.008 over 59), 2.6 standard errors apart, and played out 0.30 against 0.54. Nothing in how a window
   is played accounts for it. Every entrant gets the same deals, so a comparison is not moved by it; a level
   read off ten deals is.
+- **What a model's value on this board would cost, from what is measured.** Eight deals of a 100-turn window,
+  one read each, give the entrant's own error as about 0.05. The only turns priced so far are late ones (the
+  Maya board at turn 242, ten-turn cycles of the seat loop, `docs/measurements/2026-11-14-what-grows/`): 0.06
+  to 0.07 dollars a turn at list prices for Sonnet 5.5 and for gpt-6.1-sol, and about 55 seconds a turn. At
+  that rate a deal is 6 to 7 dollars and an hour and a half, an entrant's eight deals about 50 dollars and
+  twelve hours on the one machine. An opening's first turns ask less than a late turn, so this is the upper
+  side; no opening window has been priced. By wins the same error would want about a hundred deals.
 
 ### A Science victory, on a board made for it (2026-11-18)
 

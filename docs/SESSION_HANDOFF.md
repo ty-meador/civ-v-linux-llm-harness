@@ -40,9 +40,12 @@ A replay with `--path 10` is the same game to the last score, with the routes re
 and Domination on launched at turn 426, read as `VICTORY_SPACE_RACE` (`logs/boards/science/`). Every victory
 type has been read by the referee.
 **The power went at 08:49 on 2026-11-18**; the machine came back cold (Steam, the game, tunerd by hand at
-16:08). **Nothing is playing**: the forty whole games ended at 11:55 on 2026-11-19 (`batch.log`), the game is
-at the main menu on a process about 21 loads old (relaunch with `logs/boards/scratch/relaunch_game.sh` before
-40), and the duel board has used continuations 0 to 59 from turn 0 (`more_whole.sh FIRST LAST` plays more).
+16:08). **Playing** since 12:15 on 2026-11-19 (`ps` for `more_anchor.sh`, `logs/boards/scratch/`): ten more
+stock-AI 100-turn windows of the duel board (deals 10 to 19, one continuation each with `--path 10`), rows
+appended to `logs/boards/duel-d/anchor-t100.jsonl` (the first ten kept as `anchor-t100-deals0-9.jsonl`), to
+about 15:40; `batch.log` ends with "more anchor deals done". No `check.sh` until then. The forty whole games
+ended at 11:55 (continuations 0 to 59 of the board are used; `more_whole.sh FIRST LAST` plays more). The game
+process was relaunched at 12:15 and will be about 20 loads old when the batch ends (relaunch before 40).
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -76,18 +79,20 @@ at the main menu on a process about 21 loads old (relaunch with `logs/boards/scr
   the band yet**: the duel is above it, this one very likely below.
 
 **Next, in this order.**
-1. **Say what the estimate is in the rules** (rule 1 and rule 6 of BENCHMARK.md): the headline by estimate
-   with continuations as its audit and as rows of the next fit; the model fitted on the turns about the
-   window's end; both errors given (the deals' and the model's jackknife) and what each is; on which turns a
-   window may end (not before the positions move apart: 60 at the least on this board); what guards an
-   entrant who plays for the vote. Then the pilot (#200 on) can be costed: a model's deal is one window and
-   one read, and a few continuations of it to put rows where it ends.
-2. **The model's error is the cost now.** 0.056 to 0.09 on the difference against the deals' 0.03 to 0.045.
-   What lowers it: rows where entrants end (continuations of windows; the twenty-one played windows took the
-   slope's error from 6.5 to 4.6), not more whole games alone (sixty against twenty moved it 0.097 to 0.090).
-   Untried: the deals of the ten stock-AI windows are a low draw at 2.6 standard errors with nothing in the
-   mechanism to account for it; ten more stock-AI windows (deals 10 to 19, about 4 minutes each and one
-   continuation) would say whether it is the draw.
+1. **Read the ten new stock-AI deals** (`board_fit.py --model logs/boards/duel-d/estimator-t90-110.json
+   --value logs/boards/duel-d/anchor-t100.jsonl`, and the rows' own values): were deals 0 to 9 a low draw
+   (share 0.493 at turn 100, 0.30 played out, against the whole games' 0.534 and 0.54)? Then fit again with
+   all twenty windows as rows (`--fit whole-path.jsonl anchor-t100.jsonl floor2-t100.jsonl floor-t100.jsonl
+   --turns 90 110 --features score --model estimator-t90-110-windows.json`), write both into BENCHMARK.md
+   under "The estimator on sixty games", and run `scripts/check.sh`.
+2. **The pilot (#200 on), which needs the user's word: it is paid sessions.** The rules now say what the
+   estimate is (rule 1 "The estimate", rule 6's two errors). A model's value on the duel board is eight
+   deals of a 100-turn window and one read each, for an error of its own of about 0.05; priced from the late
+   turns measured (0.06 to 0.07 dollars and 55 seconds a turn) about 50 dollars at list and twelve hours a
+   client. No opening turn has been priced: one 10-turn opening window by one client first, then the eight.
+   `scripts/llm_seat_loop.py` must tell the entrant the turn at which the window is over (#201's note).
+   The model's error stays the larger part (0.056 on the difference with the windows in the fit): each
+   entrant's deals should get a continuation, which costs no tokens and puts rows where it ends.
 3. A test with bad play inside a 30-turn window (the loop's 30 turns are a sound opening and cost nothing
    on either board): until one exists nobody knows whether a window a model can afford shows anything.
 4. **More boards in the band.** One of five so far (duels b and c were 4 of 4, the first duel 0.80, the
