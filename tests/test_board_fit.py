@@ -128,13 +128,32 @@ class Value(unittest.TestCase):
         self.assertIn("over 2 deals", line)
         self.assertIn("1 ended outside turns 20 to 110", line)
 
-    def test_the_models_own_doubt_stands_beside_the_estimate(self):
-        """The error over deals is how an entrant's positions differ; how far the fit moves with its games is another."""
+    def test_the_models_own_error_stands_beside_the_estimate(self):
+        """The error over deals is how an entrant's positions differ; how far the fit moves with its games is another,
+        and it is a jackknife over the games, not the range of the fits that leave one out (0.622 to 0.881 here)."""
         model = {"features": ["score"], "coef": [0.0, 10.0], "left_out_coefs": [[0.0, 5.0], [0.0, 20.0]]}
         rows = [{"entrant": "stock-ai", "seat": 0, "end_reason": "window_played", "end_point": point(100, 60, 40)}]
         (line,) = board_fit.value_lines(model, rows)
         self.assertIn("estimate 0.731 over 1 deals", line)
-        self.assertIn("0.622 to 0.881 as one game or another is left out of the fit", line)
+        self.assertIn("of the model 0.129 by a jackknife over its 2 games", line)
+
+    def test_a_jackknife_of_a_mean_is_the_means_standard_error(self):
+        xs = [1.0, 2.0, 4.0, 7.0, 11.0]
+        left_out = [(sum(xs) - x) / (len(xs) - 1) for x in xs]
+        mean = sum(xs) / len(xs)
+        se = (sum((x - mean) ** 2 for x in xs) / (len(xs) - 1) / len(xs)) ** 0.5
+        self.assertAlmostEqual(board_fit.jackknife(left_out), se)
+
+    def test_two_entrants_get_their_difference_with_the_models_error_taken_on_the_difference(self):
+        """One fit values both, so a steeper fit moves both estimates apart and a flatter one together: the model's
+        error of the difference is not the two errors added."""
+        model = {"features": ["score"], "coef": [0.0, 10.0], "left_out_coefs": [[0.0, 5.0], [0.0, 20.0]]}
+        rows = [{"entrant": "stock-ai", "seat": 0, "end_reason": "window_played", "end_point": point(100, 60, 40)},
+                {"entrant": "play-loop", "seat": 0, "end_reason": "window_played", "end_point": point(100, 40, 60)},
+                {"entrant": "nobody", "seat": 0, "end_reason": "window_not_played", "end_point": point(38, 90, 10)}]
+        (line,) = board_fit.difference_lines(board_fit.windows_of(model, rows))
+        self.assertEqual(line, "stock-ai less play-loop: +0.462 (standard error over deals 0.000, of the model 0.258, "
+                               "together 0.258)")
 
     def test_the_command_fits_writes_the_model_and_values_rows_with_it(self):
         with tempfile.TemporaryDirectory() as d:

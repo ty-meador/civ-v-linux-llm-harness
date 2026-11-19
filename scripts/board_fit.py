@@ -27,9 +27,12 @@ it was fitted on: the intercept is the seat's own edge there.
 
 `--value` reads the point each played window ended on (`end_point`, or the seat's shares in a row older than
 that) and gives the estimate beside the played-out value where the row has one, by entrant, with the standard
-error over deals. That error is the spread of the entrant's positions, not the model's own doubt, which is
-given beside it as the range of the estimate over the fits that each leave one game out. The estimate is as
-good as the fit, and continuations are what check it.
+error over deals. That error is the spread of the entrant's positions, not the model's own error, which is
+given beside it: a jackknife over the fit's games (the estimate under each fit that leaves one game out, their
+spread scaled up by the number of games). The range of those fits is not an error and is not printed: on nineteen
+games it ran from 0.36 to 0.44 for windows that forty more games put at 0.49. Two entrants valued in one call
+also get their difference, whose model error is taken on the difference itself, since one fit values both. The
+estimate is as good as the fit, and continuations are what check it.
 """
 from __future__ import annotations
 
@@ -231,37 +234,74 @@ def fit_lines(points: list[dict], sets: tuple[tuple[str, ...], ...], ridge: floa
     return lines, model
 
 
-def value_lines(model: dict, rows: list[dict]) -> list[str]:
-    """Each entrant's windows valued by the model at the point they ended on, beside the played-out value."""
+def jackknife(values: list[float]) -> float:
+    """The standard error of a figure, from the same figure with each game in turn left out of the fit."""
+    n, mean = len(values), sum(values) / len(values)
+    return math.sqrt((n - 1) / n * sum((v - mean) ** 2 for v in values))
+
+
+def windows_of(model: dict, rows: list[dict]) -> dict[str, dict]:
+    """Each entrant's played windows as the model sees them: the features of the point each ended on, the estimate
+    there, the same mean under every fit that left a game out, and the played-out value where the row has one."""
     features = tuple(model["features"])
     lo, hi = model.get("turns") or (0, 10_000)
-    lines = []
+    out = {}
     for name in dict.fromkeys(entrant_of(r) for r in rows):
-        est, played, outside, xs = [], [], 0, []
+        w = {"xs": [], "est": [], "played": [], "outside": 0}
         for row in (r for r in rows if entrant_of(r) == name):
             got = window_point(row) if row.get("end_reason") == "window_played" else None   # a DNF has no value
             x = features_of({"share": got[0], "n": got[1], "turn": got[2]}, features) if got else None
             if x is None:
                 continue
-            outside += not lo <= got[2] <= hi
-            xs.append(x)
-            est.append(predict(model["coef"], x))
+            w["outside"] += not lo <= got[2] <= hi
+            w["xs"].append(x)
+            w["est"].append(predict(model["coef"], x))
             if row.get("value") is not None:
-                played.append((est[-1], row["value"]))
+                w["played"].append((w["est"][-1], row["value"]))
+        w["left_out"] = [sum(predict(coef, x) for x in w["xs"]) / len(w["xs"])
+                         for coef in (model.get("left_out_coefs") or ()) if w["xs"]]
+        out[name] = w
+    return out
+
+
+def value_lines(model: dict, rows: list[dict]) -> list[str]:
+    """Each entrant's windows valued by the model at the point they ended on, beside the played-out value."""
+    lo, hi = model.get("turns") or (0, 10_000)
+    lines = []
+    for name, w in windows_of(model, rows).items():
+        est, played = w["est"], w["played"]
         if not est:
             lines.append(f"{name}: no window with every feature of the model")
             continue
         mean, sd = mean_sd(est)
-        line = f"{name}: estimate {mean:.3f} over {len(est)} deals (standard error {sd / math.sqrt(len(est)):.3f})"
-        doubt = [sum(predict(coef, x) for x in xs) / len(xs) for coef in model.get("left_out_coefs") or ()]
-        if doubt:
-            line += f", {min(doubt):.3f} to {max(doubt):.3f} as one game or another is left out of the fit"
+        line = f"{name}: estimate {mean:.3f} over {len(est)} deals (standard error over deals {sd / math.sqrt(len(est)):.3f}"
+        if len(w["left_out"]) > 1:
+            line += f", of the model {jackknife(w['left_out']):.3f} by a jackknife over its {len(w['left_out'])} games"
+        line += ")"
         if played:
             line += (f"; played out {sum(v for _, v in played) / len(played):.3f} on {len(played)} of them, "
                      f"estimated {sum(e for e, _ in played) / len(played):.3f} there")
-        if outside:
-            line += f"; {outside} ended outside turns {lo} to {hi}, which the model was fitted on"
+        if w["outside"]:
+            line += f"; {w['outside']} ended outside turns {lo} to {hi}, which the model was fitted on"
         lines.append(line)
+    return lines
+
+
+def difference_lines(windows: dict[str, dict]) -> list[str]:
+    """Each pair of entrants: the difference of their estimates, its error over deals and the model's error, which
+    is taken on the difference (one fit values both, so the two estimates move together) and then both together."""
+    names = [n for n, w in windows.items() if w["est"]]
+    lines = []
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            wa, wb = windows[a], windows[b]
+            (ma, sa), (mb, sb) = mean_sd(wa["est"]), mean_sd(wb["est"])
+            deals = math.sqrt(sa ** 2 / len(wa["est"]) + sb ** 2 / len(wb["est"]))
+            line = f"{a} less {b}: {ma - mb:+.3f} (standard error over deals {deals:.3f}"
+            if len(wa["left_out"]) > 1:
+                fit_se = jackknife([x - y for x, y in zip(wa["left_out"], wb["left_out"])])
+                line += f", of the model {fit_se:.3f}, together {math.hypot(deals, fit_se):.3f}"
+            lines.append(line + ")")
     return lines
 
 
@@ -294,9 +334,15 @@ def main(argv: list[str] | None = None) -> int:
     elif a.model:
         model = json.loads(a.model.read_text())
     if a.value and model:
+        seen: dict[str, dict] = {}
         for f in a.value:
+            rows = read_rows(f)
             print(f"{f}:")
-            print("\n".join("  " + line for line in value_lines(model, read_rows(f))))
+            print("\n".join("  " + line for line in value_lines(model, rows)))
+            for name, w in windows_of(model, rows).items():
+                seen[f"{name} ({f.stem})" if name in seen else name] = w
+        for line in difference_lines(seen):
+            print(line)
     return 0
 
 

@@ -34,10 +34,12 @@ one are the argument and the measurements; where they differ from a rule, the ru
   deals" below).
 - **A win as the only unit costs too much**: about ten deals a side to tell 0.3 from 0.0, each deal a window
   of a model's tokens. The fitted estimator of rule 1 now exists (`scripts/board_fit.py`, "The estimator's
-  first fit" below): fitted on nineteen of the stock AI's own games and read once where a window ends, it
-  puts the stock AI's 100-turn windows at 0.41 and the scripted loop's at 0.14, 0.27 apart with a standard
-  error of 0.04, where the same eighteen windows played out were 0.175 apart with one of 0.18. Its own
-  doubt (the slope, from nineteen games) is not in that error; continuations remain its check.
+  first fit" and "The estimator on sixty games" below): fitted on fifty-nine of the stock AI's own games and
+  read once where a window ends, it puts the stock AI's 100-turn windows 0.27 to 0.31 above the scripted
+  loop's with a standard error of 0.08 to 0.10, where the same eighteen windows played out were 0.175 apart
+  with one of 0.18. Most of that error is the model's own (0.07 to 0.09, a jackknife over its games; the
+  first fit's "0.04" left it out) and is paid once a board in games that cost no tokens; an entrant's deals
+  add 0.03 to 0.04. Continuations remain its check, and each one played is a row for the next fit.
 - **The games of one deal go together** (the 60-turn window: 0 of 5 on one deal, 5 of 5 on the other, the
   seat the same at turn 60 in both). The deal is the unit: a value's standard error is taken over deals
   (rule 6), an entrant needs many deals and few continuations a deal (rule 4), and the 100-turn result
@@ -882,6 +884,10 @@ inside deal 5's continuation and the same command played again took deals 5 to 7
 
 ### The estimator's first fit (2026-11-18)
 
+*Corrected by the next section: the "standard error of 0.036" below is the error over deals alone. The
+model's own error on nineteen games was 0.10 on the difference and 0.12 on each estimate (a jackknife), far
+more than the leave-one-out ranges given here, and forty more games moved both estimates up by 0.08.*
+
 Twenty whole games of `board-duel-prince-d` played by the engine on both seats (`--value-only --continue 20
 --path 10 --last-turn 500`, 18 minutes a game, no tokens; `logs/boards/duel-d/whole-path.jsonl`). The seat won 9
 of the 19 decided (thirteen by the vote, three by Domination, three by Culture; one not decided by turn 500).
@@ -921,6 +927,66 @@ never saw, beside the base rate's 0.749.
   too low before turn 200. The estimate is the fine scale; continuations stay the check on it.
 - **At 30 turns it cannot tell entrants apart** (0.506 with 0.012 for the loop, and the stock AI's positions at
   turn 30 run from 0.46 to 0.55 of score): the positions have not yet moved apart, whoever plays.
+
+### The estimator on sixty games (2026-11-19)
+
+Forty more whole games of the board (continuations 20 to 59; the sixty took 17.4 minutes a game, 11.5 to 23.4). Of the sixty,
+59 are decided and the seat won 32 (0.54, standard error 0.065): 37 by the vote (16 won), 11 by Culture (10
+won), 11 by Domination (6 won), ending between turn 248 and 437, half by 378. 2213 positions.
+
+- **The difference held; the levels did not.** The first fit's model again (score alone, turns 20 to 110, now
+  555 points): constant +0.03, score +8.8 (it was -0.29 and +10.5). The stock AI's ten windows 0.490, the
+  loop's eight 0.219: 0.27 apart as before, and both 0.08 higher. The seat won 23 of the forty new games
+  against 9 of the first nineteen.
+- **The range beside the first fit was not an error.** 0.36 to 0.44 does not hold 0.49, nor 0.08 to 0.19
+  0.22. The fits that each leave one game out give a standard error when their spread is scaled by the number
+  of games (a jackknife). On nineteen games that is 0.118 for the stock AI's estimate, 0.125 for the loop's
+  and 0.097 for the difference: the first fit's "0.27 with 0.036" was 0.27 with 0.10. On fifty-nine: 0.067,
+  0.113 and 0.090, with the deals' 0.033 together 0.096. `board_fit.py --value` prints the jackknife in place
+  of the range, and for two entrants the difference with the model's error taken on the difference itself
+  (one fit values both).
+- **Three times the games barely moved the difference's error** (0.097 to 0.090) though the slope's own fell
+  from 6.0 to 4.1: the loop's positions (a share of 0.35) lie outside every position the stock AI's games
+  reach at turn 100 (0.42 to 0.68), so its estimate hangs on the slope, and more so the nearer it comes to
+  the middle.
+- **Fitted nearer the turn the windows end on, the slope is steeper.** Score alone, the 59 games:
+
+  | turns fitted | points | slope (jackknife) | an even position | stock AI | loop | difference (deals, model, together) | log loss, a game left out (base rate) |
+  |---|---|---|---|---|---|---|---|
+  | 20 to 110 | 555 | 8.8 (4.1) | 0.51 | 0.490 | 0.219 | 0.272 (0.033, 0.090, 0.096) | 0.689 (0.707) |
+  | 60 to 110 | 319 | 10.2 (4.8) | 0.48 | 0.459 | 0.169 | 0.291 (0.037, 0.080, 0.088) | 0.676 (0.707) |
+  | 90 to 110 | 142 | 12.4 (6.5) | 0.45 | 0.432 | 0.118 | 0.313 (0.042, 0.066, 0.079) | 0.668 (0.706) |
+
+  Before turn 60 score still says nothing (0.708 against 0.707); turns 110 to 159 0.619; turns 160 to 259
+  with delegates and allies 0.543; from 260 0.360, delegates alone 0.437. No second feature helps before turn
+  110 (techs, cities, military, the routes, the turn, score times the turn). A band of turns is a choice that
+  moves a level by 0.06 to 0.10 and the difference by 0.04; the game is the unit in any band, so the model
+  for a window is the one fitted on the turns about its end (90 to 110 here).
+- **Score at turn 100 without a model.** Ahead on score the seat won 28 of 40, behind 4 of 19 (0.0006 by
+  chance). By share: under 0.45 0 of 4, to 0.50 4 of 15, to 0.55 11 of 17, to 0.60 12 of 15, above 5 of 8.
+  More a step at the even share than a line, which is some of why the slope's error is wide.
+- **The played windows as rows of the fit.** A window's continuations are positions with outcomes too
+  (`--fit` takes their rows: one point a decided continuation, the deal left out whole), and they lie where
+  entrants end, not where the stock AI does. With the ten stock-AI windows (7 of 18 games won), the loop's
+  eight (1 of 8) and the three before the fix (0 of 11), turns 90 to 110, 80 games: constant -0.27, score
+  +13.7 (4.6), log loss 0.606 against 0.705; the stock AI 0.413 (deals 0.044, model 0.054), the loop 0.093
+  (0.011, 0.052), the difference 0.320 (0.045, 0.056, together 0.072). The model has then seen the windows it
+  values (each estimate's error still leaves a deal out); for an entrant after them it has not.
+  `logs/boards/duel-d/estimator-t90-110-windows.json`.
+- **What the two errors are.** The model's is of the board: paid once, in games and continuations already
+  played, and shared by every entrant valued on it, so it does not shrink with an entrant's deals. The deals'
+  is the entrant's: 0.03 to 0.045 on ten and eight deals here. Which of two entrants stands higher is their
+  positions' difference (the loop's share of score at turn 100 is 0.350 with 0.010 over its eight deals, the
+  stock AI's 0.493 with 0.014 over ten) and the slope's sign; how much higher in wins carries the slope's
+  error.
+- **A window is the first turns of a whole game on the same draws.** A 100-turn window that took 493 draws
+  (deal 29's) ended on the position whole game 16 (29 times 17 draws) showed at turn 100: every indicator and
+  route of both players equal, gold apart, which is read at another moment of the turn
+  (`logs/boards/duel-d/same-game-check.jsonl`). So the ten stock-AI windows are ten more first hundred turns
+  of the same kind as the sixty, and they came out low: a share of 0.493 at turn 100 against the whole games'
+  0.534 (0.008 over 59), 2.6 standard errors apart, and played out 0.30 against 0.54. Nothing in how a window
+  is played accounts for it. Every entrant gets the same deals, so a comparison is not moved by it; a level
+  read off ten deals is.
 
 ### A Science victory, on a board made for it (2026-11-18)
 
