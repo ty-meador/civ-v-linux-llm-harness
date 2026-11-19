@@ -94,6 +94,38 @@ def prompt_for(turns: int, stamp: str, until: int | None = None) -> str:
     return PROMPT.format(window=window_words(turns, until), stamp=stamp)
 
 
+WINDOW = "return {turn = Game.GetGameTurn(), winner = Game.GetWinner(), alive = Players[%d]:IsAlive()}"
+
+
+def read_window(seat: int) -> dict:
+    """The operator's own read of the game between two instances (the plain tunerd; no seat sees it)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from harness.game import Game
+    return Game().q(WINDOW % seat)
+
+
+def window_over(until: int, seat: int, read=read_window) -> str:
+    """Why a referee's window wants no further instance, or "" while it does. An instance is told the turn and
+    stops there, but the loop only counted cycles: ten cycles of ten turns leave a 100-turn window short when
+    one instance stops a turn early, and a cycle more than needed starts a client that has nothing to play.
+    So with `--until-turn` the loop reads the turn before every cycle and ends by the board. A read that
+    fails says nothing (no game in play, the bridge down): the loop goes on as it did, and backs off."""
+    try:
+        now = read(seat)
+    except Exception as e:                                     # whatever the bridge raised
+        print(f"window read failed ({type(e).__name__}: {e}); going on", file=sys.stderr, flush=True)
+        return ""
+    if not isinstance(now, dict) or "turn" not in now:
+        return ""
+    if now.get("winner", -1) >= 0:
+        return "the game is decided"
+    if now.get("alive") is False:
+        return "the seat is dead"
+    if now["turn"] >= until:
+        return f"the window is over (turn {now['turn']} of {until})"
+    return ""
+
+
 def build_cmd(agent: str, model: str, effort: str, prompt: str, seat_dir: Path, last_msg: Path,
               session: str | None = None):
     if agent == "codex":
@@ -255,13 +287,14 @@ def run_cycle(cmd: list[str], *, cwd: Path, env: dict, stream: Path, err_path: P
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--agent", choices=AGENTS, required=True)
-    ap.add_argument("--seat", type=int, required=True, help="only for the log line and the cycle row; the seat is pinned in the CLI's MCP config")
+    ap.add_argument("--seat", type=int, required=True, help="for the log line, the cycle row and the read of --until-turn; the seat is pinned in the CLI's MCP config")
     ap.add_argument("--dir", required=True, help="the seat directory (AGENTS.md, reports/)")
     ap.add_argument("--model", required=True)
     ap.add_argument("--effort", default="low")
     ap.add_argument("--turns", type=int, default=20)
     ap.add_argument("--until-turn", type=int, default=None, metavar="N",
-                    help="a referee's window: every instance is also told to stop when game turn N is the seat's")
+                    help="a referee's window: every instance is also told to stop when game turn N is the seat's, and the "
+                         "loop ends when the board is there (or the game is decided, or the seat dead)")
     ap.add_argument("--cycles", type=int, default=0, help="0 = until STOP")
     ap.add_argument("--cycle-timeout", type=int, default=4 * 3600, help="seconds before a cycle is killed")
     ap.add_argument("--log-dir", default=str(Path(__file__).resolve().parent.parent / "logs" / "night"))
@@ -293,6 +326,11 @@ def main() -> int:
         if args.cycles and cycle >= args.start_cycle + args.cycles:
             log("cycle budget spent, loop ends")
             return 0
+        if args.until_turn is not None:
+            over = window_over(args.until_turn, args.seat)
+            if over:
+                log(f"{over}, loop ends")
+                return 0
         stamp_ = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         prompt = prompt_for(args.turns, f"c{cycle}-{stamp_}", args.until_turn)
         last_msg = log_dir / f"{args.agent}-c{cycle}.last.md"

@@ -214,5 +214,37 @@ class OldStreamTests(unittest.TestCase):
             self.assertIsNotNone(cycle.own_total(codex_old))
 
 
+
+class WindowOver(unittest.TestCase):
+    """A referee's window (docs/BENCHMARK.md rule 5): with `--until-turn` the loop ends by the board, read
+    before every cycle, and not by a count of cycles."""
+
+    def over(self, now, until=100):
+        return loop.window_over(until, 0, read=lambda seat: now)
+
+    def test_a_window_still_open_wants_another_instance(self):
+        self.assertEqual(self.over({"turn": 99, "winner": -1, "alive": True}), "")
+
+    def test_the_turn_that_is_the_seats_ends_it(self):
+        self.assertIn("window is over", self.over({"turn": 100, "winner": -1, "alive": True}))
+        self.assertIn("turn 103 of 100", self.over({"turn": 103, "winner": -1, "alive": True}))
+
+    def test_a_decided_game_or_a_dead_seat_ends_it_before_the_turn(self):
+        self.assertEqual(self.over({"turn": 40, "winner": 1, "alive": True}), "the game is decided")
+        self.assertEqual(self.over({"turn": 40, "winner": -1, "alive": False}), "the seat is dead")
+
+    def test_a_read_that_fails_or_says_nothing_does_not_end_the_loop(self):
+        def down(seat):
+            raise OSError("no socket")
+        self.assertEqual(loop.window_over(100, 0, read=down), "")
+        self.assertEqual(self.over(None), "")
+        self.assertEqual(self.over({}), "")
+
+    def test_the_read_names_the_seat(self):
+        seen = []
+        loop.window_over(100, 2, read=lambda seat: seen.append(seat) or {"turn": 1})
+        self.assertEqual(seen, [2])
+        self.assertIn("Players[2]", loop.WINDOW % 2)
+
 if __name__ == "__main__":
     unittest.main()
