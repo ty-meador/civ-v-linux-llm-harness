@@ -1,39 +1,35 @@
-# Resume here -- 2026-11-18 (afternoon): main = 2.17.0 + the benchmark's referee and rules version 1 (unreleased; runtime v341, 9 tools, 2363 tests).
+# Resume here -- 2026-11-19 (small hours): main = 2.17.0 + the benchmark's referee, rules version 1 and the estimator's first fit (unreleased; runtime v341, 9 tools, 2364 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
 went to bed with "run as many games as you need to" and left the game up a second night; 114 games have
 been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
 
-**The headline (2026-11-18, morning): a win as the only unit costs too much; the fitted estimator is next.**
-On `board-duel-prince-d` (the Celts against Austria, the one board of five screened that is in the band):
-- The scripted loop's window is worth 7 of 10 at 30 turns, 5 of 10 at 60, 0 of 10 at 100. **The 60-turn games
-  split 0 of 5 and 5 of 5 by deal** with the seat identical at turn 60 (Austria at 247 and at 182): the games
-  of one deal are not independent. The deal is the unit (rules 4 and 6; `--summary` now gives the error over
-  deals), and an earlier "0.016 by chance" is withdrawn.
-- Ten deals of the stock AI at 100 turns: **0.30, standard error over deals 0.13**. The loop finished 3 deals
-  of 10, all at 0, and **did not finish 7** (stuck on a Warrior beside a barbarian ship; fixed in ccb2de9,
-  the harness side filed as #211). By deals the two are not yet told apart (three in ten by chance).
-- One deal is one game: the loop's order log is the same line for line across the 30-, 60- and 100-turn runs
-  of a deal, and deal 8 replayed stopped at the same unit on the same turn.
-- **So about ten deals a side tell 0.3 from 0.0, and each deal is a window of a model's tokens.** The next
-  instrument is rule 1's fitted estimator: the stock AI's own games read every ten turns give positions with
-  outcomes for no tokens; a model's deal is then valued by one read at the window's end. Not started; the
-  runner needs a path of reads inside a continuation first.
-**A Science victory is seen** (the user's idea, a science civilization on the seat): Korea with every victory
-on won once by the vote and was conquered twice; Korea with only Science and Domination on launched at turn
-426, read as `VICTORY_SPACE_RACE` (`logs/boards/science/`). Every victory type has been read by the referee.
-**The power went at 08:49 on 2026-11-18** inside deal 5's continuation of the fixed loop's run; nothing else
-was lost. The machine came back cold (Steam, the game, tunerd started by hand at 16:08).
-**The estimator's two tools exist** (866e26b): `board_run.py --path N` keeps every player's indicators and
-routes (allies, delegates, tourism) every N turns of a continuation, a window's row keeps the point it ended on
-(`end_point`), and `scripts/board_fit.py` fits win against the seat's shares leaving one game out and values a
-window by that point. A replay of deal 4's continuation with `--path 10` was the same game to the last score.
-**Playing** (`ps` for `after_power.sh`, `logs/boards/scratch/`; `logs/boards/duel-d/batch.log` has a line a
-step): the fixed loop's deals 5 to 7 (`floor2-t100.jsonl`; deal 5 is in, 0, so 1 of 6), then twenty whole
-stock-AI games of the Celts duel with `--path 10` (`whole-path.jsonl`, from about 18:00 to 23:00), then deal
-4's continuation once more with the fuller read (`path-check2.jsonl`; known: Diplomatic at turn 375, 1923
-against 2210). The full suite has not been run since the route reads went in (no `check.sh` while a run plays).
+**The headline (2026-11-19): the estimator separates what wins could not.** On `board-duel-prince-d` (the
+Celts against Austria, the one board of five screened that is in the band), `docs/BENCHMARK.md` "The
+estimator's first fit" and "The fixed loop's eight deals":
+- **By wins**: the stock AI's ten 100-turn deals 0.30 (standard error over deals 0.13), the fixed scripted
+  loop's eight 0.125 (0.125, one win, by the vote from behind on score). 0.175 apart with 0.18: not told apart.
+- **By one read where the window ends**: 0.412 (0.034) against 0.138 (0.012), 0.27 apart with 0.036. The
+  model is score alone (constant -0.29, +10.5 a unit of the seat's share of score), fitted on turns 20 to 110
+  of twenty whole stock-AI games (`logs/boards/duel-d/whole-path.jsonl`, 9 of 19 decided won, no tokens), and
+  it never saw a window or the loop. Model file: `logs/boards/duel-d/estimator-t20-110.json` (gitignored).
+- **Its limits**: the slope rests on nineteen games (leaving one out moves the difference from 0.24 to 0.32);
+  the loop's positions lie outside what the stock AI's games reach; this board is decided late and by the
+  vote (delegates say nothing before turn 200, most of it after 260), so an entrant playing for delegates
+  is valued too low; at 30 turns positions have not moved apart and the estimate tells nobody from anybody.
+- The deal is still the unit, and one deal is one game as far as the window reaches (the 60-turn games split
+  0 of 5 and 5 of 5 by deal).
+**The tools**: `board_run.py --path N` (every player's indicators and routes every N turns of a continuation;
+a window's row keeps `end_point`), `scripts/board_fit.py` (`--fit ROWS [--turns LO HI] [--features ...]
+[--model FILE]`, `--model FILE --value ROWS`). A replay with `--path 10` is the same game to the last score,
+with the routes read as well (`path-check.jsonl`, `path-check2.jsonl`).
+**A Science victory is seen** (the user's idea, a science civilization on the seat): Korea with only Science
+and Domination on launched at turn 426, read as `VICTORY_SPACE_RACE` (`logs/boards/science/`). Every victory
+type has been read by the referee.
+**The power went at 08:49 on 2026-11-18**; the machine came back cold (Steam, the game, tunerd by hand at
+16:08). **Nothing is playing**; the game is at the main menu on a process about 30 loads old: relaunch before
+the next batch (`logs/boards/scratch/relaunch_game.sh`).
 
 **What the night found, in the order it matters.**
 - **Every AI plays on `HANDICAP_AI_DEFAULT` at any difficulty**; a human seat handed to the engine keeps the
@@ -67,14 +63,14 @@ against 2210). The full suite has not been run since the route reads went in (no
   the band yet**: the duel is above it, this one very likely below.
 
 **Next, in this order.**
-1. **Read the fixed loop's eight deals** (`duel-d/floor2-t100.jsonl`) against the stock AI's ten and say
-   where rule 8's first test stands by deals. Then `scripts/check.sh`.
-2. **The fitted estimator.** When the twenty games are in: `scripts/board_fit.py --fit
-   logs/boards/duel-d/whole-path.jsonl` compares feature sets against the base rate; pick one, write the
-   model, and check it with `--value` on what is already known: the loop's turn-60 saves (0 of 5 and 5 of
-   5) and turn-100 windows, the stock AI's ten deals at 100 (rows before today have the indicators only,
-   no routes; `--seat 0` for a row that names no seat). On the old rows alone score was the only thing to
-   beat the base rate, and one long game outweighs many windows: wait for the twenty.
+1. **Narrow the estimator's own doubt**: more whole games with `--path 10` on the Celts duel
+   (`--first-continuation 20`, 18 minutes each, no tokens; twenty took six hours), then
+   fit again and see whether the 0.41 and the 0.14 hold. Give `board_fit` the model's doubt in `--value`
+   (the estimate's range over the leave-one-out fits) so the error printed is the whole one.
+2. **Say what the estimate is in the rules** (rule 1 and rule 6 of BENCHMARK.md): the headline by estimate
+   with continuations as its audit, on which turns a window may end (not before the positions move apart:
+   60 at the least on this board), and what guards an entrant who plays for the vote. Then the pilot (#200
+   on) can be costed: a model's deal is one window and one read.
 3. A test with bad play inside a 30-turn window (the loop's 30 turns are a sound opening and cost nothing
    on either board): until one exists nobody knows whether a window a model can afford shows anything.
 4. **More boards in the band.** One of five so far (duels b and c were 4 of 4, the first duel 0.80, the

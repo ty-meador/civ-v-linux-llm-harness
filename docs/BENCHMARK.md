@@ -33,8 +33,11 @@ one are the argument and the measurements; where they differ from a rule, the ru
   0.30 and the fixed loop's eight deals 0.125 (one win): by deals not a separation ("The fixed loop's eight
   deals" below).
 - **A win as the only unit costs too much**: about ten deals a side to tell 0.3 from 0.0, each deal a window
-  of a model's tokens. The fitted estimator of rule 1, fitted on the stock AI's own games, is the next
-  instrument ("Ten deals of the stock AI" below).
+  of a model's tokens. The fitted estimator of rule 1 now exists (`scripts/board_fit.py`, "The estimator's
+  first fit" below): fitted on nineteen of the stock AI's own games and read once where a window ends, it
+  puts the stock AI's 100-turn windows at 0.41 and the scripted loop's at 0.14, 0.27 apart with a standard
+  error of 0.04, where the same eighteen windows played out were 0.175 apart with one of 0.18. Its own
+  doubt (the slope, from nineteen games) is not in that error; continuations remain its check.
 - **The games of one deal go together** (the 60-turn window: 0 of 5 on one deal, 5 of 5 on the other, the
   seat the same at turn 60 in both). The deal is the unit: a value's standard error is taken over deals
   (rule 6), an entrant needs many deals and few continuations a deal (rule 4), and the 100-turn result
@@ -876,6 +879,48 @@ inside deal 5's continuation and the same command played again took deals 5 to 7
   the run without it), the seat was behind on score at every read from turn 100 to the end (by 59 to 327 points)
   and had 12 delegates against 6 at turn 371, with 8 needed. Score alone does not see the route this board is mostly
   decided by, so a point of a path keeps allies, delegates and tourism beside the indicators.
+
+### The estimator's first fit (2026-11-18)
+
+Twenty whole games of `board-duel-prince-d` played by the engine on both seats (`--value-only --continue 20
+--path 10 --last-turn 500`, 18 minutes a game, no tokens; `logs/boards/duel-d/whole-path.jsonl`). The seat won 9
+of the 19 decided (thirteen by the vote, three by Domination, three by Culture; one not decided by turn 500).
+Read every ten turns they are 713 positions with an outcome. `scripts/board_fit.py` fits the seat's team winning
+on the seat's share of each indicator less an even share; every figure below is the log loss on a game the fit
+never saw, beside the base rate's 0.749.
+
+- **What decides this board comes late, and it is the vote.** Over all turns score gives 0.662 and score with
+  delegates and allies 0.584. By turns: before turn 60 nothing beats the base rate (score 0.762); turns 60 to
+  109 score 0.719; 110 to 159 score 0.664; from 260 delegates alone 0.379. At turn 100 the seat's share of
+  score was 0.56 in the games it won (0.48 to 0.68) and 0.51 in those it lost (0.44 to 0.60).
+- **A model for windows is fitted on the turns windows end in** (`--turns 20 110`, 178 points): constant -0.29,
+  score +10.5 a unit of share, so an even position is 0.43 and five points of share are about 0.13. On the
+  stock AI's games alone that is a thin gain (0.7325 against 0.7500), and the slope runs from 8.7 to 13.5 as one
+  game or another is left out. No second feature helps in those turns.
+- **Read once where a window ended, it agrees with what playing the windows out gave**, on windows it never
+  saw and an entrant it never saw:
+
+  | windows | deals | estimate (error over deals) | played out |
+  |---|---|---|---|
+  | stock AI, 100 turns | 10 | 0.412 (0.034) | 0.30 (0.13) |
+  | fixed loop, 100 turns | 8 | 0.138 (0.012) | 0.125 (0.125) |
+  | loop before the fix, 100 turns, the three finished | 3 | 0.144 (0.032) | 0 of 11 games |
+  | loop, 60 turns | 2 | 0.402 (0.094) | 0.50 (0 of 5 and 5 of 5) |
+  | loop, 30 turns | 2 | 0.506 (0.012) | 0.70 |
+
+- **The same eighteen windows now separate the two entrants.** 0.412 against 0.138 is 0.27 with a standard
+  error of 0.036; played out they were 0.175 apart with 0.18. A read has no won-or-lost in it, so the error left
+  is how much an entrant's positions differ from deal to deal. Rule 8's first test is passed on this board at
+  100 turns by the estimate; by wins it is not shown.
+- **What that error leaves out.** The model's own doubt: as one game or another is left out of the fit the
+  stock AI's estimate runs from 0.36 to 0.44, the loop's from 0.08 to 0.19 and the difference from 0.24 to
+  0.32, and more whole games narrow it at 18 minutes each. The loop's positions (a share of 0.35)
+  lie outside what the stock AI's games reach at turn 100 (0.44 to 0.68), so its estimate is a line carried on;
+  the played-out 1 of 8 and 0 of 11 say the line is not far off. And score is not the game: the loop's one win
+  came by the vote from behind on score at every read, and an entrant that played for delegates would be valued
+  too low before turn 200. The estimate is the fine scale; continuations stay the check on it.
+- **At 30 turns it cannot tell entrants apart** (0.506 with 0.012 for the loop, and the stock AI's positions at
+  turn 30 run from 0.46 to 0.55 of score): the positions have not yet moved apart, whoever plays.
 
 ### A Science victory, on a board made for it (2026-11-18)
 

@@ -11,6 +11,10 @@ on the seat's share of the living players' total in each named indicator, less a
         --model logs/boards/duel-d/estimator.json
     scripts/board_fit.py --model logs/boards/duel-d/estimator.json --value logs/boards/duel-d/floor2-t100.jsonl
 
+`--turns LO HI` fits on the points read in those turns only. What decides a game changes as it goes (on the
+Celts duel delegates say nothing before turn 200 and most of it after 260), so a model meant for windows that
+end by turn 100 is fitted on the turns such windows end in, and `--value` says when a window ended outside them.
+
 A feature is an indicator or a route of board_run (`score`, `delegates`), the same times the turn in hundreds
 (`score*t`: a lead late is worth more than a lead early), or `t` alone. With no `--features` a few sets are
 compared.
@@ -21,9 +25,10 @@ base rate alone, which is what the estimator has to beat. A window's row gives o
 continuation, all at the position the window ended on, and those are left out together. A fit is of the boards
 it was fitted on: the intercept is the seat's own edge there.
 
-`--value` reads the point each window ended on (`end_point`, or the seat's shares in a row older than that)
-and gives the estimate beside the played-out value where the row has one, by entrant, with the standard error
-over deals.
+`--value` reads the point each played window ended on (`end_point`, or the seat's shares in a row older than
+that) and gives the estimate beside the played-out value where the row has one, by entrant, with the standard
+error over deals. That error is the spread of the entrant's positions, not the model's own doubt: the estimate
+is as good as the fit, and continuations are what check it.
 """
 from __future__ import annotations
 
@@ -223,14 +228,16 @@ def fit_lines(points: list[dict], sets: tuple[tuple[str, ...], ...], ridge: floa
 def value_lines(model: dict, rows: list[dict]) -> list[str]:
     """Each entrant's windows valued by the model at the point they ended on, beside the played-out value."""
     features = tuple(model["features"])
+    lo, hi = model.get("turns") or (0, 10_000)
     lines = []
     for name in dict.fromkeys(entrant_of(r) for r in rows):
-        est, played = [], []
+        est, played, outside = [], [], 0
         for row in (r for r in rows if entrant_of(r) == name):
-            got = window_point(row)
+            got = window_point(row) if row.get("end_reason") == "window_played" else None   # a DNF has no value
             x = features_of({"share": got[0], "n": got[1], "turn": got[2]}, features) if got else None
             if x is None:
                 continue
+            outside += not lo <= got[2] <= hi
             est.append(predict(model["coef"], x))
             if row.get("value") is not None:
                 played.append((est[-1], row["value"]))
@@ -242,6 +249,8 @@ def value_lines(model: dict, rows: list[dict]) -> list[str]:
         if played:
             line += (f"; played out {sum(v for _, v in played) / len(played):.3f} on {len(played)} of them, "
                      f"estimated {sum(e for e, _ in played) / len(played):.3f} there")
+        if outside:
+            line += f"; {outside} ended outside turns {lo} to {hi}, which the model was fitted on"
         lines.append(line)
     return lines
 
@@ -251,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fit", nargs="+", type=Path, metavar="ROWS", help="rows files whose decided games are fitted")
     ap.add_argument("--features", nargs="+", metavar="F", help="one feature set; without it several are compared")
     ap.add_argument("--seat", type=int, help="the seat of rows that name none (a save valued before 2026-11-18)")
+    ap.add_argument("--turns", nargs=2, type=int, metavar=("LO", "HI"), help="fit on the points read in these turns only")
     ap.add_argument("--ridge", type=float, default=1.0, help="the penalty on the scaled coefficients (default 1)")
     ap.add_argument("--model", type=Path, help="with --fit the file the best fit is written to; with --value the one read")
     ap.add_argument("--value", nargs="+", type=Path, metavar="ROWS", help="rows files whose windows the model values")
@@ -259,7 +269,8 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("give --fit ROWS, or --model FILE --value ROWS")
     model = None
     if a.fit:
-        points = [p for f in a.fit for p in points_of(read_rows(f), f.stem, a.seat)]
+        lo, hi = a.turns or (0, 10_000)
+        points = [p for f in a.fit for p in points_of(read_rows(f), f.stem, a.seat) if lo <= p["turn"] <= hi]
         if len({p["group"] for p in points}) < 3:
             print("fewer than three decided games in the rows: nothing to fit", file=sys.stderr)
             return 2
@@ -267,6 +278,8 @@ def main(argv: list[str] | None = None) -> int:
         print("\n".join(lines))
         if model and a.model:
             model["fitted_on"] = [str(f) for f in a.fit]
+            if a.turns:
+                model["turns"] = a.turns
             a.model.write_text(json.dumps(model, indent=1) + "\n")
     elif a.model:
         model = json.loads(a.model.read_text())

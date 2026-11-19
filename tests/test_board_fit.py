@@ -113,12 +113,20 @@ class Fit(unittest.TestCase):
 class Value(unittest.TestCase):
     def test_a_window_is_valued_at_the_point_it_ended_on_beside_what_playing_it_out_gave(self):
         model = {"features": ["score"], "coef": [0.0, 10.0]}
-        rows = [{"entrant": "play-loop", "seat": 0, "end_point": point(100, 60, 40), "value": 1.0},
-                {"entrant": "play-loop", "seat": 0, "end_point": point(100, 40, 60), "value": 0.0},
-                {"entrant": "play-loop", "seat": 0, "end_reason": "window_not_played"}]
+        rows = [{"entrant": "play-loop", "seat": 0, "end_reason": "window_played", "end_point": point(100, 60, 40), "value": 1.0},
+                {"entrant": "play-loop", "seat": 0, "end_reason": "window_played", "end_point": point(100, 40, 60), "value": 0.0},
+                {"entrant": "play-loop", "seat": 0, "end_reason": "window_not_played", "end_point": point(38, 90, 10)}]
         (line,) = board_fit.value_lines(model, rows)
-        self.assertIn("play-loop: estimate 0.500 over 2 deals", line)
+        self.assertIn("play-loop: estimate 0.500 over 2 deals", line, "a window that was not played has no value, estimated or played")
         self.assertIn("played out 0.500 on 2 of them", line)
+        self.assertNotIn("outside", line)
+
+    def test_a_window_that_ended_outside_the_turns_of_the_fit_is_said(self):
+        model = {"features": ["score"], "coef": [0.0, 10.0], "turns": [20, 110]}
+        rows = [{"entrant": "stock-ai", "seat": 0, "end_reason": "window_played", "end_point": point(t, 60, 40)} for t in (100, 250)]
+        (line,) = board_fit.value_lines(model, rows)
+        self.assertIn("over 2 deals", line)
+        self.assertIn("1 ended outside turns 20 to 110", line)
 
     def test_the_command_fits_writes_the_model_and_values_rows_with_it(self):
         with tempfile.TemporaryDirectory() as d:
@@ -128,6 +136,9 @@ class Value(unittest.TestCase):
             kept = json.loads(model.read_text())
             self.assertEqual((kept["features"], kept["games"], kept["points"]), (["score"], 40, 120))
             self.assertEqual(board_fit.main(["--model", str(model), "--value", str(rows)]), 0)
+            self.assertEqual(board_fit.main(["--fit", str(rows), "--features", "score", "--turns", "100", "150", "--model", str(model)]), 0)
+            kept = json.loads(model.read_text())
+            self.assertEqual((kept["turns"], kept["points"]), ([100, 150], 80), "the points read at turn 50 are not fitted")
 
     def test_fewer_than_three_decided_games_is_nothing_to_fit(self):
         with tempfile.TemporaryDirectory() as d:
