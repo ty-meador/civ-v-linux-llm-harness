@@ -1092,6 +1092,50 @@ folder of its own for every deal), the 100-turn window of the Celts duel, deals 
   so those are not compared.
 - Not done: a continuation more than one a deal, and the same deals by a second model.
 
+### Twenty deals of the stock AI, and the burn is not a new deal (2026-11-20)
+
+The stock AI's deals 12 to 19 were played in the night (no tokens), so `anchor-t100.jsonl` holds twenty 100-turn
+windows with one continuation each (deals 0 and 1 have five).
+
+- **The twenty**: by estimate 0.415 (standard error over deals 0.033, of the model 0.053, the 80-game fit of
+  turns 90 to 110); played out 5 of 20 by each deal's first game, 9 of 28 over all. The second ten read like the
+  first: score share at turn 100 of 0.491 against 0.493, estimate 0.416 against 0.413.
+- **So the first ten were not a low draw.** Twenty windows stand at a share of 0.492 (spread 0.049) where the
+  59 whole games stand at 0.534 (0.059): 0.043 apart with a standard error of 0.013, 0.004 by permutation. It
+  is the seat that is lower (score 448 against 510); Austria is the same (459 against 444).
+- **It is the burn, not the window.** A window and a whole game are one process: the same row, Time off, and
+  deal 29's window was whole game 16 to the last indicator. What the twenty windows share is a burn of 0 to
+  323 draws. The eleven whole games that burned 29 to 319 stand at 0.492 as well (spread 0.032, won 3 of 10
+  decided); the 48 that burned 348 to 1740 stand at 0.544 (won 29 of 48). Those two sets of whole games are
+  0.052 apart with 0.013, and no window is in that comparison.
+
+| draws burned | games (whole) | share at turn 100 | seat's score | Austria's | whole games won |
+|---|---|---|---|---|---|
+| 0 to 170 | 16 (5) | 0.491 | 453 | 468 | 0 of 5 |
+| 171 to 340 | 15 (6) | 0.493 | 457 | 466 | 3 of 5 |
+| 341 to 520 | 6 (5) | 0.600 | 617 | 415 | 4 of 5 |
+| 521 to 700 | 7 (7) | 0.558 | 561 | 441 | 5 of 7 |
+| 701 to 1050 | 12 (12) | 0.535 | 507 | 443 | 7 of 12 |
+| 1051 to 1400 | 12 (12) | 0.526 | 486 | 439 | 6 of 12 |
+| 1401 to 1740 | 12 (12) | 0.539 | 507 | 436 | 7 of 12 |
+
+- **It is there by turn 10.** Of the ten whole games at burns up to 319 with a read at turn 10, six stand at
+  69 to Austria's 73 and the seat is level or ahead in two. Of the 46 at burns from 348 on, three stand at 69
+  to 73 and the seat is level or ahead in 43. So whatever the burn decides, it decides in the first ten turns.
+- **Not explained.** A burn only moves the game's random stream, and a stream moved by 17 draws should be as
+  new a game as one moved by 1700. That it is not says the first turns draw little and what they draw is
+  shared between neighbours, or something else that this note does not know. No mechanism is claimed.
+- **What it touches.** Rule 5's unit is the deal, and deals a few draws apart are not shown to be independent
+  games: an error "over deals" may be too small. The board's own value (0.54) and the estimator's rows are
+  mostly games at high burns, the anchor's and every entrant's windows are at low ones. What it does not
+  touch: entrants are set side by side on the same deals, so the same dice. On deals 0 to 7 the pilot's model
+  less the stock AI is +0.062 with 0.112 taken deal by deal (unpaired +0.020 with 0.093 on all twenty), and
+  the two estimates run against each other across those deals (correlation -0.59 on eight).
+- **Being played**: 100-turn windows at burns 340 to 663 (do windows there stand at the whole games' 0.58?),
+  and 10-turn windows at every burn 0 to 30, every fourth 300 to 400 and ten far ones to 20000 (are neighbours
+  one game early on, is there an edge near 330). `logs/boards/scratch/burn_scan.sh`, rows
+  `burn-scan-t100.jsonl`, `burn-scan-t10.jsonl`.
+
 ### A Science victory, on a board made for it (2026-11-18)
 
 No game in a hundred had ended by a spaceship. The user's lever (2026-11-17): put a science civilization on

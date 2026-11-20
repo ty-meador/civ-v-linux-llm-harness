@@ -16,18 +16,28 @@ number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and
   tunerd once port 4318 listened, `relaunch_game.sh wait-only`). The machine was booted again at 22:00 and
   the stack brought up the same way (48 Lua states at 22:08); tunerd on the plain socket.
 - **The night's batches (2026-11-19, from 22:09, no tokens)**: `logs/boards/scratch/after_reboot.sh` played
-  the processor check (done, below) and runs `more_anchor.sh 8`; `logs/boards/scratch/sonnet_more.sh 4` is
-  step 3, written and to be started when the anchor's deals are in (four continuations a deal, numbered from
-  1, rows `claude-sonnet-t100-more.jsonl`; a file `STOP` in `logs/boards/duel-d` ends it before the next deal).
-  One line a step in `logs/boards/duel-d/batch.log`.
+  the processor check and the stock AI's deals 12 to 19 (done 01:23, twenty deals in `anchor-t100.jsonl`).
+  `logs/boards/scratch/sonnet_more.sh 4 [FIRST_DEAL]` is step 3 (four continuations a deal, numbered from 1,
+  rows `claude-sonnet-t100-more.jsonl`): deal 0 from 01:27, then paused by a `STOP` file for the burn scan,
+  deals 1 to 7 after it. `logs/boards/scratch/burn_scan.sh` is the scan (below). A file `STOP` in
+  `logs/boards/duel-d` ends either before its next game or deal; one line a step in `batch.log` there.
+- **The night's finding: the burn is not a new deal** (`docs/BENCHMARK.md`, "Twenty deals of the stock AI, and
+  the burn is not a new deal"). The second ten deals read like the first (share 0.491 and 0.493 at turn 100
+  against the whole games' 0.534), so the ten were no low draw. The eleven whole games at burns up to 319
+  stand at 0.492 too and the 48 from 348 on at 0.544, and it is there by turn 10 (the seat level or ahead in
+  2 of 10 against 43 of 46). Not explained. It touches rule 5's unit (deals a few draws apart are not shown
+  independent) and the estimator's level for windows; entrants set side by side on the same deals are on the
+  same dice. The scan: 10-turn windows at every burn 0 to 30, every fourth 300 to 400 and ten to 20000, then
+  100-turn windows at burns 340 to 663. **Read the scan, then decide how deals are spaced** (a far larger
+  stride, or a deal made another way), before any second entrant is paid for.
 - **The user asked (22:05) whether a model is being benchmarked. It is not**: the eight deals were a pilot of
   the design, and 0.434 with 0.087 is no result about Sonnet. Say so wherever the figure is quoted.
 - **Rules changed this day, both the user's**: the referee closes the seat on the window's turn (07495ba, seen
   live on deals 3 to 7), and time is no part of a result (0263b18).
 - **Next, in this order** (none of it needs tokens except the last):
-  1. `logs/boards/scratch/more_anchor.sh 8`: the stock AI's deals 12 to 19 (the file has 0 to 11), then
-     handoff step 1 below (were deals 0 to 9 a low draw; fit again with all the windows as rows, Sonnet's
-     eight among them, which also puts rows where a model's windows end).
+  1. **Deals 12 to 19 are played; deals 0 to 9 were no low draw (above).** Still to do once Sonnet's
+     continuations are in: fit again with all the windows as rows, Sonnet's eight among them, which also puts
+     rows where a model's windows end.
   2. **Done (22:28): a save is the same game on another processor.** The stock AI's deal 0 on the 5800X3D
      (`logs/boards/duel-d/cpu-check.jsonl`) against deal 0 of `anchor-t100-deals0-9.jsonl`: every field the
      two rows share is equal but the seconds (the window's end to the last indicator, the continuation's first
