@@ -1084,8 +1084,13 @@ folder of its own for every deal), the 100-turn window of the Celts duel, deals 
   (07495ba, seen live from deal 3: the last finish says `window_over`), and time is no part of a result.
 - No file outside its seat folder was read by any instance (every Read, Glob and Grep of the eight deals'
   streams).
-- Not done: a continuation more than one a deal, the same deals by a second model, and the same game on
-  another processor (the stock AI's deal 0 once more against its stored row).
+- **A save is the same game on another processor** (one game, 2026-11-19 22:09, `cpu-check.jsonl`): the stock
+  AI's deal 0, played on the Ryzen 7 5800X3D against its row of 2026-11-17 from the processor before it. The
+  window's end is equal to the last indicator (336 to Austria's 438, 20 technologies, 2 cities, military 401),
+  and so is the game played out from it: first war at turn 114, Austria's Diplomatic victory at turn 398, 1449
+  to 2191. Every field the two rows share is equal but the seconds. The old row has no `end_point` and no path,
+  so those are not compared.
+- Not done: a continuation more than one a deal, and the same deals by a second model.
 
 ### A Science victory, on a board made for it (2026-11-18)
 

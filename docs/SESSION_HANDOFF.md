@@ -13,19 +13,25 @@ number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and
   19.34 dollars at list for the eight (with the opening window and the void play about 21.8). Its deals spread
   about 0.25 where the stock AI's spread 0.14, so eight deals give 0.087 and not the 0.05 priced.
 - **The machine**: a Ryzen 7 5800X3D since the evening (cold start at 20:00: Steam, `launch_civ5.sh main`,
-  tunerd once port 4318 listened, `relaunch_game.sh wait-only`). The game is at the main menu, about 4 loads
-  old; tunerd on the plain socket; nothing is playing.
+  tunerd once port 4318 listened, `relaunch_game.sh wait-only`). The machine was booted again at 22:00 and
+  the stack brought up the same way (48 Lua states at 22:08); tunerd on the plain socket.
+- **The night's batches (2026-11-19, from 22:09, no tokens)**: `logs/boards/scratch/after_reboot.sh` played
+  the processor check (done, below) and runs `more_anchor.sh 8`; `logs/boards/scratch/sonnet_more.sh 4` is
+  step 3, written and to be started when the anchor's deals are in (four continuations a deal, numbered from
+  1, rows `claude-sonnet-t100-more.jsonl`; a file `STOP` in `logs/boards/duel-d` ends it before the next deal).
+  One line a step in `logs/boards/duel-d/batch.log`.
+- **The user asked (22:05) whether a model is being benchmarked. It is not**: the eight deals were a pilot of
+  the design, and 0.434 with 0.087 is no result about Sonnet. Say so wherever the figure is quoted.
 - **Rules changed this day, both the user's**: the referee closes the seat on the window's turn (07495ba, seen
   live on deals 3 to 7), and time is no part of a result (0263b18).
 - **Next, in this order** (none of it needs tokens except the last):
   1. `logs/boards/scratch/more_anchor.sh 8`: the stock AI's deals 12 to 19 (the file has 0 to 11), then
      handoff step 1 below (were deals 0 to 9 a low draw; fit again with all the windows as rows, Sonnet's
      eight among them, which also puts rows where a model's windows end).
-  2. The same game on another processor, once, in the same batch: `board_run.py --save board-duel-prince-d
-     --turns 100 --runs 1 --continue 1 --last-turn 500 --path 10 --out logs/boards/duel-d/cpu-check.jsonl`
-     against deal 0 of `anchor-t100-deals0-9.jsonl` (`end`, `end_point`, the continuation's victory and
-     turn). Not a gate for anything; it is the claim a board handed to another machine rests on.
-     `logs/boards/scratch/after_cpu.sh` has both lines after a `pilot.sh` line to delete.
+  2. **Done (22:28): a save is the same game on another processor.** The stock AI's deal 0 on the 5800X3D
+     (`logs/boards/duel-d/cpu-check.jsonl`) against deal 0 of `anchor-t100-deals0-9.jsonl`: every field the
+     two rows share is equal but the seconds (the window's end to the last indicator, the continuation's first
+     war at 114 and Austria's Diplomatic victory at 398). The old row has no `end_point` and no path. One game.
   3. More continuations of Sonnet's eight end saves (`--value-only --save <end save> --continue R
      --first-continuation 1`), no tokens: the played-out value of eight deals at one game each is 3 of 8.
   4. A second entrant on the same eight deals, which needs the user's word again: the same model at a higher
