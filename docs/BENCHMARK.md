@@ -1043,6 +1043,50 @@ won), 11 by Domination (6 won), ending between turn 248 and 437, half by 378. 22
   twelve hours on the one machine. An opening's first turns ask less than a late turn, so this is the upper
   side; no opening window has been priced. By wins the same error would want about a hundred deals.
 
+### The pilot: a model's eight deals (2026-11-19)
+
+The first paid windows, on the user's word that day: Claude Sonnet 5.5 at low effort (`claude-sonnet-5-5`
+through the Claude Code CLI, `scripts/llm_seat_loop.py`, ten-turn instances, no notebook at the start, a seat
+folder of its own for every deal), the 100-turn window of the Celts duel, deals 0 to 7, one continuation each
+(`logs/boards/duel-d/claude-sonnet-t100.jsonl`, streams beside it; `logs/boards/scratch/pilot.sh`).
+
+| deal | the seat against Austria at turn 100 | cities | played out by the stock AI | dollars at list |
+| ---: | :--- | ---: | :--- | ---: |
+| 0 | 463 to 342 | 3 | not won (Diplomatic, 342) | 1.94 |
+| 1 | 549 to 490 | 2 | not won (Diplomatic, 360) | 2.25 |
+| 2 | 455 to 281 | 2 | won (Domination, 271) | 2.17 |
+| 3 | 426 to 526 | 2 | not won (Diplomatic, 338) | 2.12 |
+| 4 | 372 to 590 | 2 | won (Diplomatic, 353) | 2.67 |
+| 5 | 378 to 641 | 2 | not won (Domination, 308) | 2.70 |
+| 6 | 463 to 456 | 3 | won (Diplomatic, 346) | 2.94 |
+| 7 | 526 to 490 | 3 | not won (Diplomatic, 350) | 2.55 |
+
+- **Every window finished**, eight of eight, each the board exactly 100 turns on.
+- **By estimate** (`estimator-t90-110-windows.json`, `board_fit.py --value`): **0.434**, standard error over deals
+  0.087, of the model 0.047. The stock AI's ten deals 0.413 (0.044, 0.054), the scripted loop's eight 0.093
+  (0.011, 0.052). Sonnet less the stock AI **+0.021 with 0.098**: not told apart. Sonnet less the loop **+0.341
+  with 0.107**. **By wins** 3 of 8 (0.375) against the stock AI's 3 of 10 and the loop's 1 of 8.
+- **The entrant's own error is not the 0.05 the cost note gave.** That figure took the stock AI's spread (a
+  standard deviation of 0.14 a deal). Sonnet's deals spread about 0.25: ahead by 121 and by 174 on two deals,
+  behind by 218 and by 263 on two others. Eight deals give 0.087, and 0.05 would want about twenty-five. A
+  model's deals are not the stock AI's deals with a shift.
+- **What it cost**: 19.34 dollars at list for the eight by the CLI's own totals (1.94 to 2.94 a deal, 0.019 to
+  0.029 a turn), not the 50 priced from late turns; a 10-turn opening window before them 0.22 (0.022 a turn);
+  the void play 2.16. A window took 14 to 17 minutes on either processor (the model's seconds, not the
+  game's). No limit of the subscription was met (no refusal in any stream); deal 0 moved its five-hour figure 4 points.
+- **One play is void** (rule 5, the harness's doing; kept in `claude-sonnet-t100-void.jsonl`): deal 1's first
+  play met turn 101 with a window that ended at 100. A leader spoke at the end of turn 99, the answer opened
+  turn 100 with no word of it, and the finish sent for turn 99 ran its orders on turn 100 and ended it. Fixed
+  (d52eb26: the answer names `new_turn` and leaves the turn unseen), and deal 1 was played again. The void play
+  stood behind, 407 to 443, so the second play is a second play of the same dice by an entrant that is not the
+  same twice; it is said here because it is the one place the operator chose.
+- **Two rules came of it the same day, both the user's**: the referee closes the seat on the window's turn
+  (07495ba, seen live from deal 3: the last finish says `window_over`), and time is no part of a result.
+- No file outside its seat folder was read by any instance (every Read, Glob and Grep of the eight deals'
+  streams).
+- Not done: a continuation more than one a deal, the same deals by a second model, and the same game on
+  another processor (the stock AI's deal 0 once more against its stored row).
+
 ### A Science victory, on a board made for it (2026-11-18)
 
 No game in a hundred had ended by a spaceship. The user's lever (2026-11-17): put a science civilization on

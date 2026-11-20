@@ -5,29 +5,32 @@ been played to their end.
 `docs/BENCHMARK.md` now opens with **"Rules, version 1"**, which says what the night changed, and holds every
 number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and #201 a line each.
 
-**Paused at 16:02 on 2026-11-19 for a new processor (the user: a Ryzen 7 5800X3D; "pause the run after this
-game and we'll pick back up"). Six of the pilot's eight deals are in; the machine is to be powered off.**
-- **Where it stands**: `logs/boards/duel-d/claude-sonnet-t100.jsonl` has deals 0 to 5, every window finished at
-  100 turns (14 to 17 minutes, 1.94 to 2.70 dollars a deal at list by the CLI's own totals, 13.85 for the six;
-  with the 10-turn opening and the void play about 16 dollars). At turn 100 the seat stood 463-342, 549-490,
-  455-281, 426-526, 372-590, 378-641 against Austria; played out 2 of 6 won. **By estimate 0.422** (standard
-  error over deals 0.118, of the model 0.042) **against the stock AI's 0.413 and the loop's 0.093**: Sonnet
-  less the stock AI +0.009 with 0.127, less the loop +0.329 with 0.132. Its deals vary twice as much as the
-  stock AI's (a standard deviation near 0.29 against 0.14), so eight deals will not give the 0.05 the cost
-  note promised for an entrant. Not written into BENCHMARK.md yet: with the eight.
-- **The referee's close is seen live** (07495ba, deals 3 to 5): the seat's server ran with
-  `CIV5_UNTIL_TURN=100` (`/proc/<pid>/environ`), deal 3's last finish came back `woke_because:
-  ["window_over"]` with the note, and nothing of it showed in cycles 1 to 9.
-- **To pick up** (cold start: memory `project_cold_start_stack`, then `relaunch_game.sh wait-only` or the
-  launch line under "Mind"): (1) the same game on the new processor: play one stock-AI deal again into a
-  scratch rows file and compare its row with deal 0 of `anchor-t100-deals0-9.jsonl` (`board_run.py --save
-  board-duel-prince-d --turns 100 --runs 1 --continue 1 --last-turn 500 --path 10 --out
-  logs/boards/duel-d/cpu-check.jsonl`: `end`, `end_point` and the continuation's victory and turn must be
-  equal; seconds will not be). (2) `pilot.sh 100 2 1 claude-sonnet-t100` for deals 6 and 7 (the STOP file is
-  removed; the rows file numbers them on). (3) `more_anchor.sh 8` for the stock AI's deals 12 to 19.
-  (4) the handoff's "When the eight are in" line below, and the write-up in BENCHMARK.md.
-- The game was left through `UI.ExitGame()` from the main menu at 16:03; tunerd and Steam were still up.
-  Minutes a game measured before today are of the old processor.
+**The pilot's eight deals are in (2026-11-19, 21:05); the user stopped there for the day ("Stop after 6 and
+7. Will pick back up next session").** `docs/BENCHMARK.md` "The pilot: a model's eight deals" has the table.
+- **Claude Sonnet 5.5 at low effort, the Celts duel at 100 turns**: eight of eight windows finished; by
+  estimate 0.434 (standard error over deals 0.087, of the model 0.047) against the stock AI's 0.413 and the
+  loop's 0.093; less the stock AI +0.021 with 0.098, less the loop +0.341 with 0.107; played out 3 of 8.
+  19.34 dollars at list for the eight (with the opening window and the void play about 21.8). Its deals spread
+  about 0.25 where the stock AI's spread 0.14, so eight deals give 0.087 and not the 0.05 priced.
+- **The machine**: a Ryzen 7 5800X3D since the evening (cold start at 20:00: Steam, `launch_civ5.sh main`,
+  tunerd once port 4318 listened, `relaunch_game.sh wait-only`). The game is at the main menu, about 4 loads
+  old; tunerd on the plain socket; nothing is playing.
+- **Rules changed this day, both the user's**: the referee closes the seat on the window's turn (07495ba, seen
+  live on deals 3 to 7), and time is no part of a result (0263b18).
+- **Next, in this order** (none of it needs tokens except the last):
+  1. `logs/boards/scratch/more_anchor.sh 8`: the stock AI's deals 12 to 19 (the file has 0 to 11), then
+     handoff step 1 below (were deals 0 to 9 a low draw; fit again with all the windows as rows, Sonnet's
+     eight among them, which also puts rows where a model's windows end).
+  2. The same game on another processor, once, in the same batch: `board_run.py --save board-duel-prince-d
+     --turns 100 --runs 1 --continue 1 --last-turn 500 --path 10 --out logs/boards/duel-d/cpu-check.jsonl`
+     against deal 0 of `anchor-t100-deals0-9.jsonl` (`end`, `end_point`, the continuation's victory and
+     turn). Not a gate for anything; it is the claim a board handed to another machine rests on.
+     `logs/boards/scratch/after_cpu.sh` has both lines after a `pilot.sh` line to delete.
+  3. More continuations of Sonnet's eight end saves (`--value-only --save <end save> --continue R
+     --first-continuation 1`), no tokens: the played-out value of eight deals at one game each is 3 of 8.
+  4. A second entrant on the same eight deals, which needs the user's word again: the same model at a higher
+     effort, or another client. About 20 dollars at list by this run.
+  5. Open, proposed and not built: a pick-up after a stop at the subscription's limit (the note below).
 
 **The pilot (2026-11-19, from 13:05): the user's word for paid sessions was given that day** ("use
 Claude", "keep this initial run small", the 50-dollar estimate; resets of the subscription's limit on offer).
