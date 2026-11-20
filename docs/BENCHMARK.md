@@ -1103,8 +1103,8 @@ windows with one continuation each (deals 0 and 1 have five).
 - **So the first ten were not a low draw.** Twenty windows stand at a share of 0.492 (spread 0.049) where the
   59 whole games stand at 0.534 (0.059): 0.043 apart with a standard error of 0.013, 0.004 by permutation. It
   is the seat that is lower (score 448 against 510); Austria is the same (459 against 444).
-- **It is the burn, not the window.** A window and a whole game are one process: the same row, Time off, and
-  deal 29's window was whole game 16 to the last indicator. What the twenty windows share is a burn of 0 to
+- **It goes with the burn, not the window.** A window and a whole game are one process: the same row, Time
+  off, and deal 29's window was whole game 16 to the last indicator. What the twenty windows share is a burn of 0 to
   323 draws. The eleven whole games that burned 29 to 319 stand at 0.492 as well (spread 0.032, won 3 of 10
   decided); the 48 that burned 348 to 1740 stand at 0.544 (won 29 of 48). Those two sets of whole games are
   0.052 apart with 0.013, and no window is in that comparison.
@@ -1122,19 +1122,36 @@ windows with one continuation each (deals 0 and 1 have five).
 - **It is there by turn 10.** Of the ten whole games at burns up to 319 with a read at turn 10, six stand at
   69 to Austria's 73 and the seat is level or ahead in two. Of the 46 at burns from 348 on, three stand at 69
   to 73 and the seat is level or ahead in 43. So whatever the burn decides, it decides in the first ten turns.
-- **Not explained.** A burn only moves the game's random stream, and a stream moved by 17 draws should be as
-  new a game as one moved by 1700. That it is not says the first turns draw little and what they draw is
-  shared between neighbours, or something else that this note does not know. No mechanism is claimed.
-- **What it touches.** Rule 5's unit is the deal, and deals a few draws apart are not shown to be independent
-  games: an error "over deals" may be too small. The board's own value (0.54) and the estimator's rows are
-  mostly games at high burns, the anchor's and every entrant's windows are at low ones. What it does not
-  touch: entrants are set side by side on the same deals, so the same dice. On deals 0 to 7 the pilot's model
-  less the stock AI is +0.062 with 0.112 taken deal by deal (unpaired +0.020 with 0.093 on all twenty), and
-  the two estimates run against each other across those deals (correlation -0.59 on eight).
+- **Neighbours in burn are one game for the first turns** (67 ten-turn windows by `burn_scan.py`, a minute
+  each, `burn-scan-t10.jsonl`). Read on ten indicators of both players at turn 10, burns 1 to 5 end on one
+  position and burns 6 to 30 on another: twenty-five burns, one game. Every fourth burn from 300 to 400 is 26
+  windows and 7 positions, in runs of two to six. Ten windows 2000 draws apart (2000 to 20000) are ten
+  positions. The opening draws few numbers and most of them change nothing, so a stream moved by a few draws
+  hands the opening the same numbers.
+- **And they are still alike at turn 100.** Over the 79 games read at turn 100 (59 whole, 20 windows), two
+  games within 20 draws of each other differ by half the variance two far games differ by (likeness 0.48 on
+  45 pairs), within 80 draws 0.3 to 0.4, from 160 draws on nothing (-0.1 to 0.1). Neighbours in burn differ
+  less than the same games shuffled do (0.008).
+- **So the low burns are a few games' luck, counted many times.** The 31 games at burns up to 323 are not 31
+  draws of the board; with a likeness that reaches about a hundred draws they are a handful (not measured
+  more closely). That they all stand low is what a small sample does, and no burn is worse than another.
+- **A continuation is not touched the same way.** The five games played on from one turn-100 save 29 draws
+  apart (the pilot's deal 0) differ by turn 110 (the seat's score 513, 549, 480, 566, 566): a late turn draws
+  far more. One save, so it is a first look.
+- **What it touches.** Rule 5's unit is the deal, and deals 17 draws apart are not independent games: every
+  error "over deals" given above for the stock AI's windows and the sixty whole games (29 apart) is too small,
+  by how much is not measured. The anchor's twenty deals say less about the board than twenty should. What it
+  does not touch: entrants are set side by side on the same deals, so the same dice. On deals 0 to 7 the
+  pilot's model less the stock AI is +0.062 with 0.112 taken deal by deal (unpaired +0.020 with 0.093 on all
+  twenty), and the two estimates run against each other across those deals (correlation -0.59 on eight). An
+  entrant that makes its own choices from turn 0 leaves the stock AI's opening at once; its eight deals are
+  not shown alike or unlike.
+- **Proposed, not decided**: deals far more draws apart than the likeness reaches (a thousand, where 160 is
+  enough by these games), which changes `DRAWS_A_DEAL` and so which game a deal number is. Rows keep their
+  `burn`, so the games played stay what they are; the anchor would be played again on the new deals.
 - **Being played**: 100-turn windows at burns 340 to 663 (do windows there stand at the whole games' 0.58?),
-  and 10-turn windows at every burn 0 to 30, every fourth 300 to 400 and ten far ones to 20000 (are neighbours
-  one game early on, is there an edge near 330). `logs/boards/scratch/burn_scan.sh`, rows
-  `burn-scan-t100.jsonl`, `burn-scan-t10.jsonl`.
+  then twenty 1009 draws apart (do far deals stand at the whole games' level with no likeness between
+  neighbours). `logs/boards/scratch/burn_scan.sh` and `wide_windows.sh`, rows `burn-scan-t100.jsonl`.
 
 ### A Science victory, on a board made for it (2026-11-18)
 

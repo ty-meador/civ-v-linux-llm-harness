@@ -25,11 +25,16 @@ number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and
   the burn is not a new deal"). The second ten deals read like the first (share 0.491 and 0.493 at turn 100
   against the whole games' 0.534), so the ten were no low draw. The eleven whole games at burns up to 319
   stand at 0.492 too and the 48 from 348 on at 0.544, and it is there by turn 10 (the seat level or ahead in
-  2 of 10 against 43 of 46). Not explained. It touches rule 5's unit (deals a few draws apart are not shown
-  independent) and the estimator's level for windows; entrants set side by side on the same deals are on the
-  same dice. The scan: 10-turn windows at every burn 0 to 30, every fourth 300 to 400 and ten to 20000, then
-  100-turn windows at burns 340 to 663. **Read the scan, then decide how deals are spaced** (a far larger
-  stride, or a deal made another way), before any second entrant is paid for.
+  2 of 10 against 43 of 46). **Explained by the scan (03:27): neighbours in burn are one game early on** (67
+  ten-turn windows: burns 6 to 30 end turn 10 on one position, ten windows 2000 apart on ten), and at turn
+  100 games within 80 draws of each other are still alike (0.3 to 0.5), from 160 on not. So the low burns
+  are a handful of games' luck counted 31 times, and every error "over deals" for the stock AI's windows (17
+  apart) and the whole games (29 apart) is too small. Entrants side by side on the same deals are on the
+  same dice; continuations from a turn-100 save differ by turn 110. **For the user to decide: deals a
+  thousand draws apart** (`DRAWS_A_DEAL` in `board_run.py`, which changes which game a deal number is; the
+  anchor played again), before any second entrant is paid for. Being played: 100-turn windows at burns 340
+  to 663, then Sonnet's deals 1 to 7, then twenty windows 1009 apart (`wide_windows.sh`, which waits for
+  the batch before it by itself).
 - **The user asked (22:05) whether a model is being benchmarked. It is not**: the eight deals were a pilot of
   the design, and 0.434 with 0.087 is no result about Sonnet. Say so wherever the figure is quoted.
 - **Rules changed this day, both the user's**: the referee closes the seat on the window's turn (07495ba, seen
