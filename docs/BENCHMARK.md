@@ -167,7 +167,13 @@ every deal is a window of its tokens, and that, more than machine hours, is what
 - A seat that dies inside the window, or a game lost there, is finished: it was played, and it is worth 0.
 - A run is void and played again only when it was not the entrant's doing: the game process died, the engine
   stalled or did not take the seat, the harness answered with an internal error. The ledger says which.
-- One wall-clock limit a window for every entrant. Tokens are counted, not capped.
+- **Time is no part of a result** (the user, 2026-11-19; this replaces "one wall-clock limit a window for
+  every entrant"). How long a window takes is the machine's and the provider's as much as the entrant's: the
+  game itself runs slower in the background than in focus, a new processor changed every figure the same day,
+  and a model's seconds are its provider's queue. So no window is lost to a clock, nothing is ordered or
+  valued by seconds, and seconds are not compared between machines. The runner keeps a watchdog (`--timeout`,
+  four hours where a window takes a quarter of one) only so that a client that hangs ends: that is a client
+  that died, a DNF as before, and the row says `timeout`. Tokens are counted, not capped.
 - **The entrant is told the turn at which the window is over**, in the same words for all: "the window is over
   when turn N is yours". Told "play 10 turns", Codex ended its tenth turn, got a leader on screen between the
   turns, and stopped there with the board nine turns on; Grok answered the leader and reached the turn (both
@@ -200,7 +206,7 @@ every deal is a window of its tokens, and that, more than machine hours, is what
   less) likely to win than the game's own AI did with the same turns". The same difference with every DNF as
   0 is printed under it.
 - A fitted rating over entrants (Bradley-Terry) only once there are entrants enough; the headline needs none.
-- Always beside it: the share of windows played, tokens and seconds a turn, orders refused ("What can be
+- Always beside it: the share of windows played, tokens a turn, orders refused ("What can be
   measured with no scale at all"). The indicators and the parts of the score are diagnosis, never the ordering.
 - Every row carries the harness version, the runtime version, the board and the deal.
 
@@ -216,8 +222,8 @@ ordering. They explain a value; they do not replace it.
 - *Where the seat stands with the others.* Wars it is in and who declared them, declarations of friendship,
   denouncements given and received, city-state allies, at both ends; cities and units lost; what it gave and
   got in each deal and peace treaty, listed, not scored.
-- *What the play cost.* Tokens and seconds a turn, calls a turn, orders refused by reason, the share of windows
-  played.
+- *What the play cost.* Tokens a turn, calls a turn, orders refused by reason, the share of windows
+  played. Seconds a turn are written down as a fact about the run and its machine, not about the entrant (rule 5).
 
 **8. What would overturn this, to be tested before any model's tokens are spent on it.** Where each test
 stands after the night of 2026-11-17:
