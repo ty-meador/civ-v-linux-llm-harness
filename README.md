@@ -2,7 +2,7 @@
 
 <!-- mcp-name: io.github.ty-meador/civ-v-llm-harness -->
 
-![Hero Image: Civ V Brave New World LLM Harness for Linux. Give your agent a civilization. See what survives.](images/logo/Wide_1200_×_630.png)
+![Hero Image: Civ V Brave New World LLM Harness for Linux. Give your agent a civilization. See what survives.](https://gitlab.com/Tyler-Meador/civ-v-linux-mcp/-/raw/main/images/logo/Wide_1200_%C3%97_630.png)
 
 *Buy **Civilization V: Brave New World** on [Steam](https://store.steampowered.com/app/8930/Sid_Meiers_Civilization_V/).*
 
