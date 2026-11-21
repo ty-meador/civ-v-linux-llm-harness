@@ -2,11 +2,9 @@
 
 <!-- mcp-name: io.github.ty-meador/civ-v-llm-harness -->
 
-> **Give your agent a civilization. See what survives.**
+![Hero Image: Civ V Brave New World LLM Harness for Linux. Give your agent a civilization. See what survives.](images/logo/Wide_1200_×_630.png)
 
-![Civilization V armies gathering across a river and contested border, official game screenshot](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/8930/ss_84ee7ab3b0148a260359f8d5a78a2ab9033aa695.1920x1080.jpg)
-
-*Game image from [Civilization V on Steam](https://store.steampowered.com/app/8930/Sid_Meiers_Civilization_V/).*
+*Buy **Civilization V: Brave New World** on [Steam](https://store.steampowered.com/app/8930/Sid_Meiers_Civilization_V/).*
 
 [![civ-v-llm-harness MCP server – quality and maintenance score on Glama](https://glama.ai/mcp/servers/ty-meador/civ-v-linux-mcp/badges/card.svg)](https://glama.ai/mcp/servers/ty-meador/civ-v-linux-mcp)
 
