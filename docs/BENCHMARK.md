@@ -173,7 +173,8 @@ one are the argument and the measurements; where they differ from a rule, the ru
   (rule 6), a player needs many seeds and few AI finishes a seed (rule 4), and the 100-turn result
   stands on two seeds a side until more are played.
 - The same save and the same AI finish number are the same game to its last turn, so a value can be
-  recomputed by anyone, and new games of a save need new numbers.
+  recomputed by anyone, and new games of a save need new numbers. (One replay on 2026-11-21 was not the same
+  game; see "A replay that was not the same game" under "The baseline on separate seeds". Open until checked.)
 
 **1. A run is worth what the game was worth when the player's turns were over.** A player plays a seat for a
 run of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
@@ -1374,6 +1375,21 @@ minutes an AI finish).
 - **Then four more AI finishes a seed** (`baseline_more_finishes.sh`, finishes 1 to 4 of each end save, rows
   `baseline-t100-separate-more.jsonl`), about twenty-one hours. A file `STOP` in `logs/boards/duel-d` ends either
   batch before its next run.
+- **A replay that was not the same game (2026-11-21).** The machine froze during seed 10's further finishes, with
+  finishes 1 and 2 already played (kept in `logs/boards/duel-d/seed10-finishes-before-freeze.json`). After the reboot
+  seed 10 was played again whole, from the same end save with the same finish numbers and the same skips (2,000,006
+  and 3,000,009). The games were not the same. Finish 1 ended Diplomatic at turn 431 before the freeze and Domination
+  at turn 436 after it; finish 2 ended Domination at turn 388 before and Diplomatic at turn 408 after. Austria won all
+  four. The readings every ten turns agree at turns 100 and 111 of finish 1 and were taken at different turns after
+  that, so they do not say where the games part. This goes against "the same save and the same AI finish number are
+  the same game" (the rules above, and "The same random numbers are the same game, to the end"), which stood on two
+  games played a second time in the same order in a fresh game process. What differed here: before the freeze the game
+  process had already played seeds 8 and 9 (eight finishes) and the machine was minutes from freezing; after it, seed
+  10 was the first load of a fresh process. Which of the two it is has not been checked. **Not touched by this:** each
+  finish is a game of the built-in AI from the same position at turn 100, so the share of finishes won and its error
+  over seeds stand; the rows file holds the four finishes played after the reboot for seed 10. **Open until checked:**
+  that anyone can compute a single value again from the save and the numbers. The check is seed 10's finish 1 played
+  again twice, once in a process that has played other games and once as a fresh process's first load.
 - **What they are for.** (1) The baseline as a share of AI finishes won, with an error over seeds that are separate
   games. (2) The check the ten-turn runs could not give: are seeds next to each other more alike at turn 100 than
   seeds far apart (`scripts/benchmark_seed_likeness.py`: on the old rows, seeds 17 random numbers apart are alike
