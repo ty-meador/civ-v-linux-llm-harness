@@ -91,6 +91,51 @@ named `anchor-...` holds the baseline, `burn-scan-...` the scan of skips, `pilot
 turns. The sections below were written with other words for these things and were reworded on 2026-11-20; their
 figures are unchanged.
 
+## What a new starting save takes (2026-11-20)
+
+The user's question that day: does all of this have to be done again for every map and every kind of benchmark?
+No. Most of what the sections below record was finding out how the engine behaves, and that is found once.
+
+**Found once, true of the engine and of the scripts, whatever the map:**
+
+- How the game's random numbers work and how far apart two seeds have to be ("A skip has to be longer than a game").
+- A save replays the same game on a seed, on any processor.
+- What the engine needs to play a seat by itself: an observer slot, one human seat, a watch for the end of the game
+  ("Autoplay, checked live").
+- The terms a starting save carries (the seat on the AIs' handicap row, no Time victory), put into a save by one
+  command (`--terms`).
+- The runner, the rows and the summary.
+
+**Done again for each starting save.** Another map, civilization, set of opponents, difficulty or number of turns is
+another starting save. All of it is machine time and none of it tokens:
+
+1. The terms: one command.
+2. One batch of the built-in AI: it plays the turns on a number of seeds and finishes each game. The share it wins
+   says whether the save can be used at all (between 0.2 and 0.8, rule 2: one of the five saves screened so far) and
+   is the baseline. On the Celts duel the 100 turns take 3.5 minutes and an AI finish 15.7, so twenty seeds with one
+   finish each are six and a half hours.
+
+Then each player's own runs, which are the only part that costs tokens, and the AI finishes of those runs, which
+are machine time again.
+
+**Full AI games are not a step of their own any more.** A baseline run with its AI finish is a game the built-in AI
+played from the first turn to the end, saved and loaded once on the way (which was not shown to change a game, "Eight
+more full AI games"). Its rows hold what the win-chance formula is fitted on: the figures at turn 100 and who won. So
+the sixty full AI games the formula was first fitted on are not played again for a new starting save, and the question
+left open on 2026-11-20 (full AI games of the starting save started on the same stretches of random numbers as seed
+0's AI finishes) is closed by not playing them.
+
+**The formula is not needed for the number.** The number is defined by AI finishes alone (point 1 above). The formula
+replaces a finish, which is won or lost, by a reading of the figures at turn 100, and so needs fewer games for the
+same error; it brings an error of its own and a known skew (point 2). What the number costs without it is what
+`--summary` prints since 2026-11-20: how much a finish varies from one end of the turns, how much the chance the turns
+leave varies from seed to seed, and the seeds a standard error of 0.05 takes at 1, 5 and 15 finishes a seed. On the
+first trial's rows (seven seeds of five finishes, at the old spacing, so a first look): a finish varies by 0.478, the
+seeds by 0.145 (0 to 0.216 when the seeds are drawn again), and 0.05 takes 100 seeds at one finish, 27 at five, 15 at
+fifteen. A finish is fifteen minutes of the machine and a seed is 100 turns of a player's tokens, so finishes are the
+cheap way to an error and seeds the dear one. The same split on the baseline's new seeds is being played (below, "The
+baseline on separate seeds").
+
 ## Rules, version 1 (2026-11-17)
 
 The user left the rules to be worked out (2026-11-16). These are the rules the measurements so far support. Each
@@ -1291,6 +1336,26 @@ same day, and the words are set out at its top.
   end saves at the old spacing (four more a save, seeds 0 to 6, `claude-sonnet-t100-more.jsonl`): the Celts won 14 of
   35 with the first finishes counted in; seed 7's four were not played. The scripts' options, names and row keys and
   this document were put into plain words on 2026-11-20 (files written before keep their names; see the top).
+
+### The baseline on separate seeds (2026-11-20, being played)
+
+Started 2026-11-20 at 22:37 on the user's word ("run your in-game AI tests now, running as many games as necessary").
+No tokens.
+
+- **The batch** (`logs/boards/scratch/baseline_separate.sh`): the built-in AI plays the 100 turns on seeds 0 to 19 at
+  the new spacing with one AI finish each (`--path 10`, stopped at turn 500), rows
+  `logs/boards/duel-d/baseline-t100-separate.jsonl`. One run a call, a fresh game process after ten.
+- **Then four more AI finishes a seed** (`baseline_more_finishes.sh`, finishes 1 to 4 of each end save, rows
+  `baseline-t100-separate-more.jsonl`), about twenty-one hours. A file `STOP` in `logs/boards/duel-d` ends either
+  batch before its next run.
+- **What they are for.** (1) The baseline as a share of AI finishes won, with an error over seeds that are separate
+  games. (2) The check the ten-turn runs could not give: are seeds next to each other more alike at turn 100 than
+  seeds far apart (`logs/boards/scratch/seed_likeness.py`: on the old rows, seeds 17 random numbers apart are alike
+  at +0.12 and +0.22, which 0.086 and 0.013 of random orderings of the same runs reach). (3) The split of the spread
+  into the part within a seed and the part between seeds, on games that share no random numbers
+  (`--summary ... --later ...`), which is what says how many seeds and how many finishes a player's number takes
+  without the formula. (4) Twenty positions at turn 100 with five outcomes each, to check the formula fitted on the
+  earlier games and to fit it again.
 
 ### A Science victory, on a starting save made for it (2026-11-18)
 
