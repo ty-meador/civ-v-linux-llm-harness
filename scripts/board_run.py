@@ -158,8 +158,19 @@ return {burn = %(burn)d}
 
 STOCK_AI = "stock-ai"
 BOARD = "board"               # the entrant name of a --value-only row: the save itself, played out by the engine
-DRAWS_A_DEAL = 17
-DRAWS_A_CONTINUATION = 29     # continuation m takes 29 (m + 1): never none, so no continuation replays the save as it is
+# Every game has a stretch of the engine's random sequence to itself (2026-11-20, docs/BENCHMARK.md "A skip has to
+# be longer than a game"). The generator is one 32-bit sequence and a skip only moves along it. Runs whose skips are
+# close draw the same numbers for the same purposes from the first barbarian-camp placement on (a loop that draws
+# until a tile is valid takes up the difference), so they are one game or nearly one: skips 6 and 7 shared 1171 of
+# 1179 draws in ten turns. A whole game drew 42,263 numbers (one game, to turn 380), so a stretch is a million. A
+# seed's game starts 16 stretches times the seed along; continuation m starts (m + 1) stretches on from the point
+# its save holds, never none, so no continuation replays the save as it is, and never 16, the next seed's start.
+# Rows before this date were played at 17 draws a seed and 29 a continuation; every row carries its own `burn`.
+DRAWS_A_GAME = 1_000_003
+GAMES_A_SEED = 16
+DRAWS_A_DEAL = DRAWS_A_GAME * GAMES_A_SEED
+DRAWS_A_CONTINUATION = DRAWS_A_GAME
+SEQUENCE = 2 ** 32            # the generator's period: past it a skip is back on stretches already used
 TO_THE_END = 1000             # turns asked of the engine in a continuation: more than any game has left
 
 
@@ -293,6 +304,9 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
 
     With `path_every` N the game keeps its path: every player's indicators where it starts and at the first poll
     of every N turns after. A path with the game's outcome is what a win estimator is fitted on (rule 1)."""
+    if not 0 <= m < GAMES_A_SEED - 1:
+        raise Refused(f"continuation {m} would start on another seed's stretch of the random sequence: a save has "
+                      f"continuations 0 to {GAMES_A_SEED - 2}")
     loaded = g.load_save(save)
     if not loaded.get("ok"):
         raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -680,7 +694,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--last-turn", type=int, default=None, metavar="T",
                     help="a continuation with no victory by game turn T is stopped there and counts as not decided")
     ap.add_argument("--first-continuation", type=int, default=0, metavar="M",
-                    help="number the continuations from M. Continuation m takes 29 (m + 1) draws and a save replays the "
+                    help="number the continuations from M. Continuation m skips (m + 1) million draws and a save replays the "
                          "same game on the same draws, so M past the ones already played gives new games of one save")
     ap.add_argument("--path", type=int, default=0, metavar="N",
                     help="keep each continuation's path: every player's indicators at its start and every N turns "
@@ -736,6 +750,10 @@ def main(argv: list[str] | None = None) -> int:
     for n in range(done, done + a.runs):
         print(f"{name} deal {n}: loading {a.save!r}", flush=True)
         burn = DRAWS_A_DEAL * n if a.burn == "run" else 0
+        if burn + DRAWS_A_DEAL > SEQUENCE:
+            print(f"seed {n} is past the end of the random sequence ({SEQUENCE // DRAWS_A_DEAL} seeds fit); "
+                  f"nothing more was done", file=sys.stderr)
+            return 2
         end_save = f"{a.save}--{''.join(c if c.isalnum() else '-' for c in name)}-deal{n}-end" if a.continuations else None
         try:
             if a.value_only:

@@ -441,8 +441,21 @@ class Continuations(unittest.TestCase):
         self.assertEqual((c["end_reason"], c["won"]), ("stalled", False))
         self.assertIsNone(board_run.value_of({"end_reason": "window_played"}, [c]))
 
+    def test_no_game_starts_on_another_games_stretch_of_the_random_sequence(self):
+        # a seed's game, its continuations and the next seed's game start a whole stretch apart, and a stretch is
+        # many times the 42,263 draws a whole game took (live 2026-11-20)
+        starts = sorted([board_run.DRAWS_A_DEAL * n for n in range(3)]
+                        + [board_run.DRAWS_A_DEAL * n + board_run.DRAWS_A_CONTINUATION * (m + 1)
+                           for n in range(3) for m in range(board_run.GAMES_A_SEED - 1)])
+        self.assertEqual(len(set(starts)), len(starts))
+        self.assertGreaterEqual(min(b - a for a, b in zip(starts, starts[1:])), 20 * 42_263)
+        g = FakeGame([read()], polls=[poll(330, 1, winner=1)])
+        with self.assertRaises(board_run.Refused):
+            self.go(g, m=board_run.GAMES_A_SEED - 1)
+        self.assertEqual(g.sent, [])                      # refused before the save is loaded
+
     def test_every_continuation_takes_draws_and_asks_for_more_turns_than_a_game_has(self):
-        for m, draws in ((0, 29), (1, 58), (19, 580)):
+        for m, draws in ((0, 1_000_003), (1, 2_000_006), (14, 15_000_045)):
             g = FakeGame([read()], polls=[poll(330, 1, winner=1)])
             self.assertEqual(self.go(g, m=m)["burn"], draws)
             start = next(s for s in g.sent if "SetAIAutoPlay" in s)

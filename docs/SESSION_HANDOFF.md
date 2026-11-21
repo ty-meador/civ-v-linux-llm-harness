@@ -30,11 +30,29 @@ number. Plan on GitLab: tracking #210; #195 has the night's note, #194, #198 and
   100 games within 80 draws of each other are still alike (0.3 to 0.5), from 160 on not. So the low burns
   are a handful of games' luck counted 31 times, and every error "over deals" for the stock AI's windows (17
   apart) and the whole games (29 apart) is too small. Entrants side by side on the same deals are on the
-  same dice; continuations from a turn-100 save differ by turn 110. **For the user to decide: deals a
-  thousand draws apart** (`DRAWS_A_DEAL` in `board_run.py`, which changes which game a deal number is; the
-  anchor played again), before any second entrant is paid for. Being played: 100-turn windows at burns 340
-  to 663, then Sonnet's deals 1 to 7, then twenty windows 1009 apart (`wide_windows.sh`, which waits for
-  the batch before it by itself).
+  same dice; continuations from a turn-100 save differ by turn 110. The proposal made then (deals a thousand draws
+  apart) was a guess and is withdrawn; see the next point.
+- **2026-11-20, late morning: the seed spacing is fixed, and the words changed.** The user could not follow the
+  coined words ("be literal, I'm not following your poker terms"), was impatient with days of games played on an
+  uncertain idea, and said what the benchmark is for: **an honest number for each player, not telling players
+  apart**. Literal words from here on: starting save, the Celts, player, seed and run, skip (random numbers
+  thrown away before play), the 100 turns, AI finish, baseline, win-chance formula, full AI games.
+  `docs/BENCHMARK.md` "A skip has to be longer than a game" has it all: the engine's own draw log
+  (`RandLog = 1` in `config.ini`, off again now) shows runs at skips 6 and 7 giving the same generator state to
+  the same purpose from draw 38 on, pulled together by the barbarian-camp placement loop; a whole game drew
+  42,263 numbers; **`board_run.py` now gives every game a stretch of 1,000,003 draws to itself** (seed n at
+  16 stretches times n, AI finish m at (m + 1) stretches, m 0 to 14). The engine's reseed option works too
+  (frozen into a save) and was not needed. Scratch scripts: `logs/boards/scratch/randlog_runs.py`,
+  `reseed_probe.py`. Stopped and not played: the twenty windows 1009 apart, and seed 7 of Sonnet's extra AI
+  finishes (seeds 0 to 6 are in: the Celts won 14 of 35 with the first finishes counted in).
+  Played at the new spacing: seven 10-turn baseline runs (`logs/boards/scratch/seedcheck-t10.jsonl`), all
+  played; seeds 1 and 3 end turn 10 on the same figures, which is the turn-10 figures taking few values (seed 2
+  ends on old skips 6 to 30's set) and not shared draws, so ten turns cannot show two runs are separate games
+  and the 100-turn baseline has to (neighbouring seeds against far ones). The game was not running at 22:00.
+  **Next, no tokens**: the baseline on the new seeds (100 turns and AI finishes), the win-chance formula fitted
+  again on separate games, and `docs/BENCHMARK.md` and the scripts' option names rewritten in the literal words
+  around the four things an honest number needs (a defined quantity, an unskewed measurement, a true
+  uncertainty, a plain statement of scope). A second paid player still needs the user's word.
 - **The user asked (22:05) whether a model is being benchmarked. It is not**: the eight deals were a pilot of
   the design, and 0.434 with 0.087 is no result about Sonnet. Say so wherever the figure is quoted.
 - **Rules changed this day, both the user's**: the referee closes the seat on the window's turn (07495ba, seen

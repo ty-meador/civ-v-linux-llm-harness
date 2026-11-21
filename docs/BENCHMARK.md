@@ -1146,12 +1146,68 @@ windows with one continuation each (deals 0 and 1 have five).
   twenty), and the two estimates run against each other across those deals (correlation -0.59 on eight). An
   entrant that makes its own choices from turn 0 leaves the stock AI's opening at once; its eight deals are
   not shown alike or unlike.
-- **Proposed, not decided**: deals far more draws apart than the likeness reaches (a thousand, where 160 is
-  enough by these games), which changes `DRAWS_A_DEAL` and so which game a deal number is. Rows keep their
-  `burn`, so the games played stay what they are; the anchor would be played again on the new deals.
-- **Being played**: 100-turn windows at burns 340 to 663 (do windows there stand at the whole games' 0.58?),
-  then twenty 1009 draws apart (do far deals stand at the whole games' level with no likeness between
-  neighbours). `logs/boards/scratch/burn_scan.sh` and `wide_windows.sh`, rows `burn-scan-t100.jsonl`.
+- **Played after this was written**: twenty 100-turn windows at burns 340 to 663 (`burn-scan-t100.jsonl`) stand
+  at a share of 0.550 at turn 100 (spread 0.050) where the twenty at burns 0 to 323 stand at 0.492: the windows
+  there read like the whole games there, as a few games' luck counted many times would have it. The proposal made
+  here, deals a thousand draws apart, was a guess and is withdrawn; the twenty windows 1009 apart were not
+  played. What a skip does was read from the engine's own log instead (the next section).
+
+### A skip has to be longer than a game (2026-11-20)
+
+Written in literal words (the user, 2026-11-20: "be literal"). A **seed** is what the sections above call a deal,
+a **skip** a burn (random numbers drawn and thrown away before play), **the 100 turns** a window, an **AI finish**
+a continuation, the **baseline** the anchor (the game's built-in AI playing the Celts), a **player** an entrant.
+
+- **The generator, read from the engine's log** (`RandLog = 1` in the game's `config.ini` writes every draw to
+  `Logs/RandCalls.csv` with the generator's state; switched off again after). Every chance decision of the game
+  comes from one generator whose state is 32 bits: next state = 1103515245 x state + 12345 modulo 2^32, checked on
+  1178 of 1178 consecutive draws. A skip of N moves the state N steps along that one sequence and does nothing
+  else. How many steps lie between two states can be computed exactly.
+- **Why close skips are one game.** Two 10-turn baseline runs at skips 6 and 7: for the first 38 draws of turn 0
+  each run gives a state to a different purpose than the other, and from there on the two give the same state to
+  the same purpose, 1171 of 1179 draws, and end on one position. What takes up the difference is the placing of
+  a barbarian camp: the engine draws a tile again and again until one is valid, 1 to 194 draws a placement, so two
+  runs that enter that loop a few steps apart leave it on the same state. It is 813 of the 1179 draws of ten
+  turns and comes back every few turns of a game, so runs at close skips are pulled together again and again.
+  That is the likeness measured above, seen directly and no longer inferred.
+- **A whole game draws 42,263 numbers** (one full game of the built-in AI with the log on, to a Diplomatic
+  victory at turn 380): 717 by turn 10, 6,705 by turn 100, 22,132 by turn 250. One game, so the size of it and
+  not a bound.
+- **The rule now in `scripts/board_run.py`: every game has a stretch of the sequence to itself.** A stretch is
+  1,000,003 draws, more than twenty times that game. Seed n starts 16 stretches times n along
+  (`DRAWS_A_DEAL` = 16,000,048); AI finish m of a save starts (m + 1) stretches on from the state the save holds,
+  and m is 0 to 14, so no finish reaches the next seed's start (a finish 15 is refused before the save is
+  loaded). Two games that never draw the same state cannot be pulled together by any loop. 268 seeds fit in the
+  sequence; a seed past that is refused. A skip costs little: 4,000,000 draws took 0.2 seconds.
+  Before this date a seed was 17 draws and a finish 29; every row carries its own `burn`, so the games played stay
+  what they are.
+- **The engine's own reseed, tried and not used.** The game option "new random seed"
+  (`GAMEOPTION_NEW_RANDOM_SEED`, off in the starting save) set with `Game.SetOption` and saved: each load of that
+  save starts on a new state (two loads, 2.37 and 3.57 thousand million steps from the starting save's). It
+  seeds from a clock, so a load is not repeatable; with the option switched off again and saved, the new state
+  is held by the file (two loads, the same eight numbers). It works and would mean one save file a seed. The long
+  skip gives the same from a number alone, with no files to keep, so it is the one used.
+- **What the benchmark is for** (the user, 2026-11-20): a number for each player that is defined and carries a
+  true uncertainty, not a way of telling players apart; two players that come out the same are a result. The
+  number is the chance that the player, given the Celts on this starting save for 100 turns, has the game won
+  against the built-in AI, measured by AI finishes (wins counted) or by the win-chance formula (cheaper, with
+  its own error given beside it). Seeds that are separate games are what makes the uncertainty true. The spread
+  of a player's runs is a fact about the player and the game; how many runs to pay for is a choice of cost.
+- **Played at the new spacing, ten turns each** (`logs/boards/scratch/seedcheck-t10.jsonl`): the baseline on seeds
+  0 to 5 and at seed 19's skip (304,000,912). All seven played. They end turn 10 on six different sets of
+  figures: seeds 1 and 3 end on the same 31 (fifteen a player and the turn). That is not the two sharing draws,
+  which they cannot (their stretches start 32 million draws apart and ten turns draw about 700). The figures at
+  turn 10 take few values: seed 2 ends on the set the old skips 6 to 30 ended on, seed 19's skip on old skip
+  14000's, and among the 67 old ten-turn runs skips 352 to 360 and skip 16000 share one. So ten turns show that
+  the long skip loads and plays, and cannot show that two runs are separate games; the baseline's 100 turns
+  can (are seeds next to each other more alike than seeds far apart, as they were at 17 draws a seed).
+  The skip of 304 million draws added about 17 seconds to the load (65.8 seconds a run against 47.5 to 49.9),
+  so the last seed that fits would add about four minutes; no skip longer than seed 19's has been tried.
+- **Not done**: the baseline on the new seeds (its twenty runs at 17 draws a seed are fewer than twenty games);
+  the win-chance formula fitted again; AI finishes at the new spacing. The AI finishes of the pilot's end saves
+  at the old spacing (four more a save, seeds 0 to 6, `claude-sonnet-t100-more.jsonl`): the Celts won 14 of 35
+  with the first finishes counted in; seed 7's four were not played. The docs above this section and the
+  scripts' option names still use the old words.
 
 ### A Science victory, on a board made for it (2026-11-18)
 
