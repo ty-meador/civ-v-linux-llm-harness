@@ -6,8 +6,8 @@ in the seat directory, play N game turns through the civ5 MCP tools, write a rep
 reports/, stop. When the process exits the loop starts the next cycle. A file named STOP in the
 seat directory ends the loop after the current cycle; STOP_NOW kills the current cycle too.
 
-A referee's window (`--until-turn N`, docs/BENCHMARK.md rule 5): every instance is told that turn, the loop
-reads the board before each cycle and ends when it is there, and the seat's server is handed the turn as
+A benchmark run's last turn (`--until-turn N`, docs/BENCHMARK.md rule 5): every instance is told that turn, the loop
+reads the game before each cycle and ends when it is there, and the seat's server is handed the turn as
 `CIV5_UNTIL_TURN`, on which it refuses every order and every finish. That variable reaches the server through
 the CLI's own environment (grok and claude pass it on; codex needs it forwarded in the seat's config, as the
 ledger's two are).
@@ -59,7 +59,7 @@ CYCLE, CYCLE_END = "seat_loop.cycle", "seat_loop.cycle_end"
 PROMPT = """Read AGENTS.md in this directory first: it says who you are and how the civ5 tools work.
 
 This is one instance of a long game; your context will be reset after this instance. Play your
-seat until {window}, then stop:
+seat until {stop_at}, then stop:
 
 1. Call `turn(action="briefing", since="turn")` first. Your notes from earlier instances
    (`notebook(action="recall")`, and the `assignments` shown in the briefing) are the memory that
@@ -67,7 +67,7 @@ seat until {window}, then stop:
 2. Each turn: act on the briefing's decisions and `status.todo`, give a unit a standing order where
    a plan spans turns, `notebook(action="remember")` what future-you must know, then
    `turn(action="finish")`. `reference(book="playbook")` says how to pass quiet turns cheaply.
-3. The instance is over when {window}: the status that `turn(action="finish")` returns reads that
+3. The instance is over when {stop_at}: the status that `turn(action="finish")` returns reads that
    turn. Stop there and leave that turn unplayed. Until then keep going: a finish that comes back
    on the same turn (a `gate`, a leader on screen, something still to answer) has not ended it, so
    answer what is asked and finish again. If the game ends, or a tool reports the game or the
@@ -86,10 +86,10 @@ Play to win.
 """
 
 
-def window_words(turns: int, until: int | None = None) -> str:
+def stop_words(turns: int, until: int | None = None) -> str:
     """The end of an instance, as the turn that is the seat's when it is over. A count of turns ended is not
-    the same thing: Codex stopped after its tenth `finish` with a leader on screen and the board nine turns on
-    (live 2026-11-16), so the entrant is told the turn and that a finish on the same turn has not ended it."""
+    the same thing: Codex stopped after its tenth `finish` with a leader on screen and the game nine turns on
+    (live 2026-11-16), so the player is told the turn and that a finish on the same turn has not ended it."""
     if until is None:
         return f"turn T0+{turns} is yours"
     return (f"turn T0+{turns} or turn {until} is yours, whichever comes first (with T0 at {until} or later there "
@@ -97,29 +97,29 @@ def window_words(turns: int, until: int | None = None) -> str:
 
 
 def prompt_for(turns: int, stamp: str, until: int | None = None) -> str:
-    return PROMPT.format(window=window_words(turns, until), stamp=stamp)
+    return PROMPT.format(stop_at=stop_words(turns, until), stamp=stamp)
 
 
-WINDOW = "return {turn = Game.GetGameTurn(), winner = Game.GetWinner(), alive = Players[%d]:IsAlive()}"
+TURN_READ = "return {turn = Game.GetGameTurn(), winner = Game.GetWinner(), alive = Players[%d]:IsAlive()}"
 
 
-def read_window(seat: int) -> dict:
+def read_turn(seat: int) -> dict:
     """The operator's own read of the game between two instances (the plain tunerd; no seat sees it)."""
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from harness.game import Game
-    return Game().q(WINDOW % seat)
+    return Game().q(TURN_READ % seat)
 
 
-def window_over(until: int, seat: int, read=read_window) -> str:
-    """Why a referee's window wants no further instance, or "" while it does. An instance is told the turn and
-    stops there, but the loop only counted cycles: ten cycles of ten turns leave a 100-turn window short when
+def last_turn_reached(until: int, seat: int, read=read_turn) -> str:
+    """Why a benchmark run wants no further instance, or "" while it does. An instance is told the turn and
+    stops there, but the loop only counted cycles: ten cycles of ten turns leave a 100-turn run short when
     one instance stops a turn early, and a cycle more than needed starts a client that has nothing to play.
-    So with `--until-turn` the loop reads the turn before every cycle and ends by the board. A read that
+    So with `--until-turn` the loop reads the turn before every cycle and ends by the game. A read that
     fails says nothing (no game in play, the bridge down): the loop goes on as it did, and backs off."""
     try:
         now = read(seat)
     except Exception as e:                                     # whatever the bridge raised
-        print(f"window read failed ({type(e).__name__}: {e}); going on", file=sys.stderr, flush=True)
+        print(f"turn read failed ({type(e).__name__}: {e}); going on", file=sys.stderr, flush=True)
         return ""
     if not isinstance(now, dict) or "turn" not in now:
         return ""
@@ -128,7 +128,7 @@ def window_over(until: int, seat: int, read=read_window) -> str:
     if now.get("alive") is False:
         return "the seat is dead"
     if now["turn"] >= until:
-        return f"the window is over (turn {now['turn']} of {until})"
+        return f"the turns are over (turn {now['turn']} of {until})"
     return ""
 
 
@@ -299,8 +299,8 @@ def main() -> int:
     ap.add_argument("--effort", default="low")
     ap.add_argument("--turns", type=int, default=20)
     ap.add_argument("--until-turn", type=int, default=None, metavar="N",
-                    help="a referee's window: every instance is also told to stop when game turn N is the seat's, and the "
-                         "loop ends when the board is there (or the game is decided, or the seat dead)")
+                    help="a benchmark run's last turn: every instance is also told to stop when game turn N is the seat's, and the "
+                         "loop ends when the game is there (or the game is decided, or the seat dead)")
     ap.add_argument("--cycles", type=int, default=0, help="0 = until STOP")
     ap.add_argument("--cycle-timeout", type=int, default=4 * 3600, help="seconds before a cycle is killed")
     ap.add_argument("--log-dir", default=str(Path(__file__).resolve().parent.parent / "logs" / "night"))
@@ -333,7 +333,7 @@ def main() -> int:
             log("cycle budget spent, loop ends")
             return 0
         if args.until_turn is not None:
-            over = window_over(args.until_turn, args.seat)
+            over = last_turn_reached(args.until_turn, args.seat)
             if over:
                 log(f"{over}, loop ends")
                 return 0
@@ -351,7 +351,7 @@ def main() -> int:
         env.setdefault("CIV5_CLIENT", f"{args.agent}/{args.model}")
         env.setdefault("CIV5_CALL_LOG", str(Path(__file__).resolve().parent.parent / "logs" / "calls.jsonl"))
         if args.until_turn is not None:
-            # the referee closes the seat on the window's turn (harness/mcp_server.py window_until): the seat's
+            # the seat's server closes the seat on that turn (harness/mcp_server.py until_turn): the seat's
             # server refuses orders there and no finish ends it. Reaches the server as the ledger's variables do.
             env["CIV5_UNTIL_TURN"] = str(args.until_turn)
         if args.agent == "claude":

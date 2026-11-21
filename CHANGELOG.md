@@ -16,70 +16,81 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
-- **A board played by the game's own AI (2026-11-16; the benchmark's first tool).** `scripts/board_run.py --save
+- **The benchmark in plain words, and seeds that are separate games (2026-11-20).** `scripts/board_run.py` and
+  `board_fit.py` are now `scripts/benchmark_run.py` and `benchmark_fit.py`. Options: `--player` (was `--label`),
+  `--skip none|seed` (was `--burn none|run`), `--ai-finishes R` (was `--continue R`), `--first-ai-finish M`,
+  `--finish-only` (was `--value-only`), and `{seed}` in a command (was `{deal}`). Rows are written with `player`,
+  `skip` and `ai_finishes`, the end reasons `all_turns_played`, `turns_not_played` and `finish_only`, the result
+  `did_not_finish`, and the built-in AI's rows under the name `built-in-ai`; rows written before are read in the
+  same words and their files are not touched. The reply a seat gets on the last turn of a benchmark run carries
+  `last_turn_reached` (was `window_over`) and its note reads "your turns are over". Every game now has a stretch of
+  1,000,003 random numbers to itself: seed n skips 16,000,048 n and AI finish m of a save (m + 1) times 1,000,003,
+  m from 0 to 14. Before, a seed was 17 random numbers and an AI finish 29, and the engine's own log of its random
+  numbers (`RandLog = 1`) showed runs that close to be one game or nearly one. `docs/BENCHMARK.md` opens with what
+  the number is and the four things that make it honest. The entries below are in the same words; where they say
+  17 or 29 random numbers they describe the spacing of their day.
+- **A starting save played by the game's own AI (2026-11-16; the benchmark's first tool).** `scripts/benchmark_run.py --save
   <save> --turns N --runs K --out <rows.jsonl>` loads a save, reads every major civilization's indicators (score,
   technologies, policies, cities, population, military, land, gold, science, happiness), hands the one human
   seat to the engine for N turns (`Game.SetAIAutoPlay`), reads again, writes one row and leaves for the main
   menu; `--summary <rows>` prints per indicator the mean, the spread and the spread against the gain. No tokens.
   Operator-side: it sends Lua text and reads every player, so it runs on the plain tunerd only and is no part of
-  the nine tools. It refuses a board with no observer slot beside the seat (the engine would destroy the seat,
-  seen live) and a board with two human seats, and it ends a run itself on a win, a dead seat or 15 minutes
-  without a new turn. Live on the Maya t242 board: 2 turns in 76 s, score 604 to 610; the same run again ended
-  on the same ten values, so a save replays the same game and `--burn run` (the default) takes draws from the
+  the nine tools. It refuses a starting save with no observer slot beside the seat (the engine would destroy the seat,
+  seen live) and a starting save with two human seats, and it ends a run itself on a win, a dead seat or 15 minutes
+  without a new turn. Live on the Maya t242 starting save: 2 turns in 76 s, score 604 to 610; the same run again ended
+  on the same ten values, so a save replays the same game and `--skip seed` (the default) takes random numbers from the
   game's random stream first. `docs/BENCHMARK.md`, "Autoplay, checked live" and "The runner".
-- **Any entrant on a board (2026-11-16).** `scripts/board_run.py ... --label <entrant> -- <command>` runs a
-  command between the same two reads in place of the engine: a seat loop, or `scripts/play_loop.py`. An
-  entrant's nth run is deal n (17 n draws from the random stream before anyone plays, the same dice for every
-  entrant); `--notebook FILE` or `none` is what the seat starts with, the entrant's notebook at the end is kept
-  beside the rows and the one on disk is put back; `--claim-wait`, `--timeout`, `{deal}` and `{turns}` in the
-  command. `--turns` is the window for every entrant: a command that ends with the board fewer turns on is a
-  row that says `window_not_played` (the scripted loop gave up at a World Congress proposal four turns into
-  ten, three deals alike, and the first version wrote those as played).
-- **A run's value, and DNF (2026-11-16; #193).** `--continue R` saves the game at the end of a played window
-  (the quick save, copied under the run's name) and lets the engine play it out R times, each on its own draws;
-  `value` is the share of those games the seat's team wins. `--value-only` values a save as it is. Every row
-  has a `result`: `finished`, `dnf` (the entrant did not bring the seat to the window's end: no value, counted
-  beside the value, below every finished run in an ordering; the user's suggestion) or `void` (the engine
-  stalled or did not take the seat). The runner leaves a game the engine is still playing by asking the game
-  itself: the seat's exit answers "this seat is not active" under autoplay, and a run that ended on a win left
-  its game playing to turn 400.
-  `--summary` lists each entrant and puts those that played the same window side by side. Ten runs of the AI on
-  the Maya t242 board, 10 turns: score 604 to 633.3 with sd 0.7. Live with the scripted loop, 2 turns: 604 to
-  609, the notebook on disk the same bytes afterwards.
-- **The terms the engine plays a seat on (2026-11-17; #195).** Every real AI plays on `HANDICAP_AI_DEFAULT` at
-  any difficulty; a human seat handed to the engine keeps the human's Prince row and lost every whole game on
-  two Prince boards. `scripts/board_run.py --row ai` puts the seat on the AIs' row in the call that hands it to
-  the engine (the stock AI's window and every continuation; an entrant's own window is untouched), `--time off`
-  switches the Time victory off and clears the turn limit (the victory flag alone still ended the game at turn
-  330), `--last-turn T` stops a continuation at turn T as undecided, with no value. Decided and stopped
-  continuations keep every player's final score, technologies and cities. Live on the Prince duel: eight whole
-  games, the seat won 4 of the 7 decided (Diplomatic three times, Culture once), lost 3 by Domination, one
-  undecided at turn 500. `docs/BENCHMARK.md`, "The seat's row, and the Time victory".
-- **A board that carries its terms (2026-11-17; #194, #195).** A save keeps the seat's row and the cleared turn
-  limit (read back after a reload), so `scripts/board_run.py --save <hosted> --terms <board>` loads a hosted
-  save, puts the seat on the AIs' row, switches Time off and saves it as the board. Every window on that board,
-  an entrant's included, and every continuation are then played on the same terms with no lever at the
-  hand-over. `--summary` also prints the decided games as one pool (won W of N, with the standard error) and
-  the continuations the stop turn left undecided.
-- **New games of one save, and none lost to a crash (2026-11-17).** A continuation is its number's draws: a
-  second run of eight whole games replayed the first run's games turn for turn. `board_run.py
-  --first-continuation M` numbers them from M. Each finished continuation is written to `<rows>.partial` as it
-  comes in (the game process died about 45 loads into one process and took two finished games with it), and a
-  continuation records the turn the seat is first at war and the most cities it held.
-- **The deal is the unit, and the scripted loop no longer gives up beside a barbarian ship (2026-11-18).**
-  `board_run.py --summary` gives a value's standard error over its deals and no longer one over games: one
-  window's two deals were 0 of 5 and 5 of 5 with the seat the same in both, so the games of one deal are not
+- **Any player on a starting save (2026-11-16).** `scripts/benchmark_run.py ... --player <player> -- <command>` runs
+  a command between the same two reads in place of the engine: a seat loop, or `scripts/play_loop.py`. A player's nth
+  run is seed n (17 n random numbers from the random stream before anyone plays, the same random numbers for every
+  player); `--notebook FILE` or `none` is what the seat starts with, the player's notebook at the end is kept beside
+  the rows and the one on disk is put back; `--claim-wait`, `--timeout`, `{seed}` and `{turns}` in the command.
+  `--turns` is the run for every player: a command that ends with the game fewer turns on is a row that says
+  `turns_not_played` (the scripted loop gave up at a World Congress proposal four turns into ten, three seeds alike,
+  and the first version wrote those as played).
+- **A run's value, and did not finish (2026-11-16; #193).** `--ai-finishes R` saves the game at the end of a played
+  run (the quick save, copied under the run's name) and lets the engine play it out R times, each on its own random
+  numbers; `value` is the share of those games the seat's team wins. `--finish-only` values a save as it is. Every row
+  has a `result`: `finished`, `did_not_finish` (the player did not bring the seat to the end of the turns: no value,
+  counted beside the value, below every finished run in an ordering; the user's suggestion) or `void` (the engine
+  stalled or did not take the seat). The runner leaves a game the engine is still playing by asking the game itself:
+  the seat's exit answers "this seat is not active" under autoplay, and a run that ended on a win left its game
+  playing to turn 400. `--summary` lists each player and puts those that played the same run side by side. Ten runs of
+  the AI on the Maya t242 starting save, 10 turns: score 604 to 633.3 with sd 0.7. Live with the scripted loop, 2
+  turns: 604 to 609, the notebook on disk the same bytes afterwards.
+- **The terms the engine plays a seat on (2026-11-17; #195).** Every real AI plays on `HANDICAP_AI_DEFAULT` at any
+  difficulty; a human seat handed to the engine keeps the human's Prince row and lost every full AI game on two Prince
+  starting saves. `scripts/benchmark_run.py --row ai` puts the seat on the AIs' row in the call that hands it to the
+  engine (the built-in AI's turns and every AI finish; a player's own turns is untouched), `--time off` switches the
+  Time victory off and clears the turn limit (the victory flag alone still ended the game at turn 330), `--last-turn
+  T` stops an AI finish at turn T as undecided, with no value. Decided and stopped AI finishes keep every player's
+  final score, technologies and cities. Live on the Prince duel: eight full AI games, the seat won 4 of the 7 decided
+  (Diplomatic three times, Culture once), lost 3 by Domination, one undecided at turn 500. `docs/BENCHMARK.md`, "The
+  seat's row, and the Time victory".
+- **A starting save that carries its terms (2026-11-17; #194, #195).** A save keeps the seat's row and the cleared
+  turn limit (read back after a reload), so `scripts/benchmark_run.py --save <hosted> --terms <board>` loads a hosted
+  save, puts the seat on the AIs' row, switches Time off and saves it as the starting save. Every run on that starting
+  save, a player's included, and every AI finish are then played on the same terms with no lever at the hand-over.
+  `--summary` also prints the decided games as one pool (won W of N, with the standard error) and the AI finishes the
+  stop turn left undecided.
+- **New games of one save, and none lost to a crash (2026-11-17).** An AI finish is its number's random numbers: a
+  second run of eight full AI games replayed the first run's games turn for turn. `benchmark_run.py
+  --first-ai-finish M` numbers them from M. Each finished AI finish is written to `<rows>.partial` as it
+  comes in (the game process died about 45 loads into one process and took two finished games with it), and an AI finish records the turn the seat is first at war and the most cities it held.
+- **The seed is the unit, and the scripted loop no longer gives up beside a barbarian ship (2026-11-18).**
+  `benchmark_run.py --summary` gives a value's standard error over its seeds and no longer one over games: one
+  run's two seeds were 0 of 5 and 5 of 5 with the seat the same in both, so the games of one seed are not
   independent trials. `scripts/play_loop.py` reads the answer to its skip: a Warrior whose standing move the
   harness held back (a barbarian ship beside it) blocked the end of the turn, MISSION_SKIP was refused as "does
-  not block end_turn", and the loop asked sixteen times and stopped, on seven deals of eight between turn 38
+  not block end_turn", and the loop asked sixteen times and stopped, on seven seeds of eight between turn 38
   and turn 64. A refused skip is now a fortify, or a sleep where that is refused too. The refusal itself
   contradicts the hold's own note ("MISSION_SKIP ... drops the path") and is filed.
-- **The window's last turn, in the command and in the prompt (2026-11-17; #201).** `{until}` in a board_run
-  command is the turn at which the window is over; `scripts/llm_seat_loop.py --until-turn N` puts it in the
+- **The run's last turn, in the command and in the prompt (2026-11-17; #201).** `{until}` in a board_run
+  command is the turn at which the run is over; `scripts/llm_seat_loop.py --until-turn N` puts it in the
   prompt, which now ends an instance on a turn ("turn T0+N is yours") and not on a count of turn ends, and says
   that a finish coming back on the same turn has not ended it.
 - **The scripted loop makes a World Congress proposal (2026-11-17; #198).** `scripts/play_loop.py` answered
-  every blocker but `ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS` and gave up at turn 246 of the Maya t242 board
+  every blocker but `ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS` and gave up at turn 246 of the Maya t242 save
   three times. It now proposes the first thing the league read offers (an enactment, else a repeal). Unit
   tests only so far; the live turn is still to be played.
 

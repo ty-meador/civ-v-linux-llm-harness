@@ -34,7 +34,7 @@ def _with_next(g, out):
     proposed embassies at the end of turn 99, the finish came back `ended: true, turn: 99` at that gate, the
     round finished inside the accept, and the arrival run here made turn 100 one of ours had met while the
     reply named no turn; the finish that followed, sent for turn 99 with its orders, ran them on turn 100 and
-    ended it, and the entrant met turn 101 with a window that ended at 100). The reply says `new_turn`, and the
+    ended it, and the player met turn 101 in a benchmark run that ended at 100). The reply says `new_turn`, and the
     turn stays unseen, so the next finish hands it back unended with none of its orders run (Game.unseen_turn)."""
     if not (isinstance(out, dict) and out.get("ok")):
         return out

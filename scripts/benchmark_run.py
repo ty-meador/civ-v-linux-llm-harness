@@ -1,46 +1,47 @@
 #!/usr/bin/env python3
-"""Play one board with the game's own AI on the seat, several times, and write what came of each run.
+"""Play one starting save with the game's own AI on the seat, several times, and write what came of each run.
 
-A board is a save file and a seat (docs/BENCHMARK.md). This loads the save, reads every major civilization's
+A starting save is a save file and a seat (docs/BENCHMARK.md). This loads the save, reads every major civilization's
 indicators, hands the seat to the engine for `--turns` turns (`Game.SetAIAutoPlay`, the call of the game's
 debug panel), reads the indicators again when the seat comes back, writes one JSON row and leaves for the main
-menu. It costs no tokens. The rows are the stock-AI anchor of a board and say how much a board's result
+menu. It costs no tokens. The rows are the built-in AI baseline of a starting save and say how much a starting save's result
 varies from run to run.
 
-    scripts/board_run.py --save "Pacal_0242 maya-t242-before-185-check" --turns 10 --runs 10 \
-        --out logs/boards/maya-t242/anchor.jsonl
-    scripts/board_run.py --summary logs/boards/maya-t242/anchor.jsonl
+    scripts/benchmark_run.py --save "Pacal_0242 maya-t242-before-185-check" --turns 10 --runs 10 \
+        --out logs/boards/maya-t242/baseline.jsonl
+    scripts/benchmark_run.py --summary logs/boards/maya-t242/baseline.jsonl
 
-An entrant other than the game's AI is a command after `--`: the same two reads, with the command between
+A player other than the game's AI is a command after `--`: the same two reads, with the command between
 them in place of the engine. The command plays the seat (a seat loop, `scripts/play_loop.py`) and ends;
-`--label` names the entrant in the row, and `--turns` is the window the board must have moved on.
+`--player` names the player in the row, and `--turns` is the turns the starting save must have moved on.
 
-    scripts/board_run.py --save "Pacal_0242 maya-t242-before-185-check" --turns 10 --label codex/gpt-6.1-sol \
+    scripts/benchmark_run.py --save "Pacal_0242 maya-t242-before-185-check" --turns 10 --player codex/gpt-6.1-sol \
         --notebook logs/bench191/notebook-before.json --claim-wait 200 --out logs/boards/maya-t242/rows.jsonl \
         -- scripts/llm_seat_loop.py --agent codex --seat 0 --dir ~/projects/grok-desk-seat --model gpt-6.1-sol \
-           --turns {turns} --until-turn {until} --cycles 1 --log-dir logs/boards/maya-t242/codex-{deal}
+           --turns {turns} --until-turn {until} --cycles 1 --log-dir logs/boards/maya-t242/codex-{seed}
 
-`{deal}`, `{turns}` and `{until}` in the command are the deal's number, the window, and the game turn that is the
-seat's when the window is over (the save's turn plus the window): the entrant is told that turn.
+`{seed}`, `{turns}` and `{until}` in the command are the seed's number, the turns, and the game turn that is the
+seat's when its turns are over (the save's turn plus the turns asked): the player is told that turn.
 
-Deals, as in duplicate bridge: an entrant's nth run on a board is deal n and takes 17 n draws from the game's
-random stream before anyone plays, so deal n is the same dice for every entrant and two deals are not one game
-(a save replays the same game otherwise). The seat's notebook is the one given (`--notebook FILE`, or `none`
-for a seat that takes the board over cold), the one the entrant leaves is kept beside the rows, and the one
+Seeds: a player's nth run on a starting save is seed n. Before anyone plays, 16,000,048 n random numbers are
+generated and thrown away (the skip), so seed n is the same game for every player and two seeds share no random
+numbers (a save replays the same game otherwise). The seat's notebook is the one given (`--notebook FILE`, or `none`
+for a seat that takes the starting save over cold), the one the player leaves is kept beside the rows, and the one
 that was on disk before the run is put back after it.
 
 Operator-side only: it sends Lua text to the game, which a seat's connection may not (it needs the plain tunerd,
 no seat table), and it reads every player, which no seat may. Nothing here is reachable from the nine tools.
 
-What became of a run is `result`: `finished` (the window played, or the game decided inside it), `dnf` (the
-entrant did not bring the seat to the window's end: it stopped, or ran out of time) or `void` (the engine
-stalled or did not take the seat: not the entrant's doing, played again). With `--continue R` a finished run is
-valued: the game is saved at the window's end and played out R times by the engine, and `value` is the share
-the seat's team wins. A DNF has no value; it is counted beside the value and stands below every finished run.
+What became of a run is `result`: `finished` (the turns played, or the game decided inside them), `did_not_finish` (the
+player did not bring the seat to the end of its turns: it stopped, or ran out of time) or `void` (the engine
+stalled or did not take the seat: not the player's doing, played again). With `--ai-finishes R` a finished run is
+valued: the game is saved at the end of the turns and the engine's AI finishes it R times, and `value` is the share
+the seat's team wins. A run that did not finish has no value; it is counted beside the value and stands below every
+finished run.
 
 What it will not do (each seen live 2026-11-16, docs/BENCHMARK.md "Autoplay, checked live"):
 
-- Start on a board with no observer slot beside the seat. The engine then makes the seat itself the observer
+- Start on a starting save with no observer slot beside the seat. The engine then makes the seat itself the observer
   and destroys its units, with no error.
 - Start with more than one human seat: autoplay is unseen in hotseat.
 - Trust the game to stop. A win does not end the run and a dead seat leaves the game playing turns by itself,
@@ -48,12 +49,12 @@ What it will not do (each seen live 2026-11-16, docs/BENCHMARK.md "Autoplay, che
 
 The engine plays the seat with the AI bonuses of the save's difficulty (at Prince nearly none) on the human's
 own handicap row; `handicap` is in every row for that reason. Every real AI plays on another row
-(HANDICAP_AI_DEFAULT), so a board is made to carry its terms before anyone plays it:
+(HANDICAP_AI_DEFAULT), so a starting save is made to carry its terms before anyone plays it:
 
-    scripts/board_run.py --save board-duel-prince-a-t0 --terms board-duel-prince-a-t0-airow
+    scripts/benchmark_run.py --save board-duel-prince-a-t0 --terms board-duel-prince-a-t0-airow
 
 loads the hosted save, puts the seat on the AIs' row, switches the Time victory off, and saves it under the new
-name. A save keeps both, so every window on that board and every continuation are played on the same terms.
+name. A save keeps both, so every player's turns on that starting save and every AI finish are played on the same terms.
 `--row ai` and `--time off` do the same at the hand-over, for a save that was not made that way.
 """
 from __future__ import annotations
@@ -110,9 +111,9 @@ end
 return out
 """
 
-# The draws move the game's random stream before the engine plays, so two runs of one save need not be one run.
+# The skip moves the game's random sequence on before the engine plays, so two runs of one save need not be one run.
 START = """
-for _ = 1, %(burn)d do Game.Rand(100, "board_run") end
+for _ = 1, %(skip)d do Game.Rand(100, "benchmark_run") end
 %(terms)sGame.SetAIAutoPlay(%(turns)d, %(seat)d)
 return {auto = Game.GetAIAutoPlay(), active = Game.GetActivePlayer(), slot = PreGame.GetSlotStatus(%(seat)d),
   human = Players[%(seat)d]:IsHuman(), units = Players[%(seat)d]:GetNumUnits(), cities = Players[%(seat)d]:GetNumCities(),
@@ -122,7 +123,7 @@ return {auto = Game.GetAIAutoPlay(), active = Game.GetActivePlayer(), slot = Pre
 
 # The terms the engine plays on (docs/BENCHMARK.md, "The seat's row"). A real AI never plays on the human's difficulty
 # row: at any difficulty it has HANDICAP_AI_DEFAULT (base happiness 15 against Prince's 9, research at 85%, policies at
-# 75%). An engine-played seat keeps the human's row and lost every whole game on the first two Prince boards. With
+# 75%). An engine-played seat keeps the human's row and lost every full AI game on the first two Prince starting saves. With
 # `ai` the seat is put on the AIs' row in the call that hands it over; the values a player caches (happiness, policy
 # cost) follow within the first turns (live 2026-11-17: all equal to the AIs' by turn 12). The setup screen cannot do
 # it: a human hosted on HANDICAP_AI_DEFAULT starts on Chieftain, and so does the game.
@@ -133,9 +134,9 @@ ROW_AI = "PreGame.SetHandicap(%(seat)d, GameInfo.HandicapInfos.HANDICAP_AI_DEFAU
 TIME_OFF = "Game.SetVictoryValid(GameInfoTypes.VICTORY_TIME, false)\nPreGame.SetMaxTurns(0)\n"
 
 
-def start_chunk(burn: int, turns: int, seat: int, row: str = "own", time: str = "on") -> str:
+def start_chunk(skip: int, turns: int, seat: int, row: str = "own", time: str = "on") -> str:
     terms = (ROW_AI % {"seat": seat} if row == "ai" else "") + (TIME_OFF if time == "off" else "")
-    return START % {"burn": burn, "turns": turns, "seat": seat, "terms": terms}
+    return START % {"skip": skip, "turns": turns, "seat": seat, "terms": terms}
 
 POLL = """
 return {turn = Game.GetGameTurn(), auto = Game.GetAIAutoPlay(), winner = Game.GetWinner(), state = Game.GetGameState(),
@@ -151,27 +152,27 @@ return {turn = Game.GetGameTurn(), auto = Game.GetAIAutoPlay(), winner = Game.Ge
   end)()}
 """
 
-BURN = """
-for _ = 1, %(burn)d do Game.Rand(100, "board_run") end
-return {burn = %(burn)d}
+SKIP = """
+for _ = 1, %(skip)d do Game.Rand(100, "benchmark_run") end
+return {skip = %(skip)d}
 """
 
-STOCK_AI = "stock-ai"
-BOARD = "board"               # the entrant name of a --value-only row: the save itself, played out by the engine
+BUILT_IN_AI = "built-in-ai"
+THE_SAVE = "save"               # the player name of a --finish-only row: the save itself, finished by the engine's AI
 # Every game has a stretch of the engine's random sequence to itself (2026-11-20, docs/BENCHMARK.md "A skip has to
 # be longer than a game"). The generator is one 32-bit sequence and a skip only moves along it. Runs whose skips are
-# close draw the same numbers for the same purposes from the first barbarian-camp placement on (a loop that draws
+# close use the same numbers for the same purposes from the first barbarian-camp placement on (a loop that generates numbers
 # until a tile is valid takes up the difference), so they are one game or nearly one: skips 6 and 7 shared 1171 of
-# 1179 draws in ten turns. A whole game drew 42,263 numbers (one game, to turn 380), so a stretch is a million. A
-# seed's game starts 16 stretches times the seed along; continuation m starts (m + 1) stretches on from the point
-# its save holds, never none, so no continuation replays the save as it is, and never 16, the next seed's start.
-# Rows before this date were played at 17 draws a seed and 29 a continuation; every row carries its own `burn`.
-DRAWS_A_GAME = 1_000_003
+# 1179 random numbers in ten turns. A full AI game used 42,263 numbers (one game, to turn 380), so a stretch is a million. A
+# seed's game starts 16 stretches times the seed along; AI finish m starts (m + 1) stretches on from the point
+# its save holds, never none, so no AI finish replays the save as it is, and never 16, the next seed's start.
+# Rows before this date were played at 17 random numbers a seed and 29 an AI finish; every row carries its own `skip`.
+NUMBERS_A_GAME = 1_000_003
 GAMES_A_SEED = 16
-DRAWS_A_DEAL = DRAWS_A_GAME * GAMES_A_SEED
-DRAWS_A_CONTINUATION = DRAWS_A_GAME
+NUMBERS_A_SEED = NUMBERS_A_GAME * GAMES_A_SEED
+NUMBERS_AN_AI_FINISH = NUMBERS_A_GAME
 SEQUENCE = 2 ** 32            # the generator's period: past it a skip is back on stretches already used
-TO_THE_END = 1000             # turns asked of the engine in a continuation: more than any game has left
+TO_THE_END = 1000             # turns asked of the engine in an AI finish: more than any game has left
 
 
 LEAVE = """
@@ -184,7 +185,7 @@ def leave(g) -> None:
     """Leave the loaded game for the main menu. The harness's own exit is a seat's: while the engine plays the seat
     the observer is the active player and the exit answers "this seat is not active". A run that ended on a win
     left its game up that way and the engine played on past turn 380 (live 2026-11-16, the user watching). The
-    referee is no seat and asks the game itself."""
+    runner is no seat and asks the game itself."""
     reply = g.leave_to_main_menu()
     if isinstance(reply, dict) and reply.get("ok") is False:
         try:
@@ -194,25 +195,25 @@ def leave(g) -> None:
 
 
 class Refused(Exception):
-    """The board cannot be run as asked; nothing was changed in the game."""
+    """The starting save cannot be run as asked; nothing was changed in the game."""
 
 
 def find_seat(read: dict, seat: int | None) -> int:
     """The seat to hand over: the one named, else the only human. More than one human is refused."""
     humans = [p["id"] for p in read["players"] if p["human"]]
     if len(humans) != 1:
-        raise Refused(f"the board has {len(humans)} human seats ({humans}); autoplay is checked with one")
+        raise Refused(f"the starting save has {len(humans)} human seats ({humans}); autoplay is checked with one")
     if seat is not None and seat != humans[0]:
-        raise Refused(f"seat {seat} is not the human seat of this board ({humans[0]})")
+        raise Refused(f"seat {seat} is not the human seat of this starting save ({humans[0]})")
     return humans[0]
 
 
 def check_observer_slot(read: dict, seat: int) -> None:
-    """Refuse a board with no observer slot beside the seat: the engine would make the seat the observer and
+    """Refuse a starting save with no observer slot beside the seat: the engine would make the seat the observer and
     destroy its units and cities in the same call."""
     if not any(s == SS_OBSERVER for i, s in enumerate(read["slots"]) if i != seat):
         raise Refused("no slot of this game is an observer slot (status 4): autoplay would destroy the seat. "
-                      "Host the board from the single-player setup screen with its unused slots as it leaves them")
+                      "Host the starting save from the single-player setup screen with its unused slots as it leaves them")
 
 
 def seat_view(read: dict, seat: int) -> dict:
@@ -266,9 +267,9 @@ return {seat_row = GameInfo.HandicapInfos[Players[%(seat)d]:GetHandicapType()].T
 
 def with_terms(g, save: str, new: str, seat: int | None = None, row: str = "ai", time_victory: str = "off",
                save_game=save_as) -> dict:
-    """A board that carries its terms: `save` loaded, the seat put on the AIs' row and the Time victory switched off,
-    and the game saved as `new`. A save keeps both (live 2026-11-17: read back after a reload), so on such a board
-    every entrant's window, the stock AI's and every continuation are played on the same terms with no lever at
+    """A starting save that carries its terms: `save` loaded, the seat put on the AIs' row and the Time victory switched off,
+    and the game saved as `new`. A save keeps both (live 2026-11-17: read back after a reload), so on such a starting save
+    every player's turns, the built-in AI's and every AI finish are played on the same terms with no lever at
     the hand-over. Says what the game reads after the change."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
@@ -286,8 +287,8 @@ def with_terms(g, save: str, new: str, seat: int | None = None, row: str = "ai",
 
 
 def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
-    """The position a played window ended on, saved for its continuations (rule 1)."""
-    if not name or row.get("end_reason") != "window_played":
+    """The position the played turns ended on, saved for the AI finishes (rule 1)."""
+    if not name or row.get("end_reason") != "all_turns_played":
         return
     try:
         row["end_save"] = save_game(g, name, sleep=sleep, clock=clock)
@@ -295,18 +296,18 @@ def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
         row["end_save"], row["end_save_error"] = None, str(e)
 
 
-def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.0, stall: float = 900.0,
-                 row: str = "own", time_victory: str = "on", stop_turn: int | None = None, path_every: int = 0,
-                 sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
+def ai_finish(g, save: str, m: int, seat: int | None = None, poll: float = 3.0, stall: float = 900.0,
+              row: str = "own", time_victory: str = "on", stop_turn: int | None = None, path_every: int = 0,
+              sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
     """One game played on from `save` to its end by the game's own AI on every seat. Says whether the seat's team
     took the victory. It ends on a victory, on the seat's death (a game lost, whoever wins it later) or on a stall,
     and leaves for the main menu, since the engine would play on past all three.
 
     With `path_every` N the game keeps its path: every player's indicators where it starts and at the first poll
-    of every N turns after. A path with the game's outcome is what a win estimator is fitted on (rule 1)."""
+    of every N turns after. A path with the game's outcome is what the win-chance formula is fitted on (rule 1)."""
     if not 0 <= m < GAMES_A_SEED - 1:
-        raise Refused(f"continuation {m} would start on another seed's stretch of the random sequence: a save has "
-                      f"continuations 0 to {GAMES_A_SEED - 2}")
+        raise Refused(f"AI finish {m} would start on another seed's stretch of the random sequence: a save has "
+                      f"AI finishes 0 to {GAMES_A_SEED - 2}")
     loaded = g.load_save(save)
     if not loaded.get("ok"):
         raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -317,13 +318,13 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
     except Refused:
         leave(g)
         raise
-    burn = DRAWS_A_CONTINUATION * (m + 1)
+    skip = NUMBERS_AN_AI_FINISH * (m + 1)
     t0 = clock()
-    out: dict = {"m": m, "burn": burn, "seat": seat, "from_turn": before["turn"], "end_reason": None, "won": False}
+    out: dict = {"m": m, "skip": skip, "seat": seat, "from_turn": before["turn"], "end_reason": None, "won": False}
     if path_every:
         out["path"] = [path_point(before)]
     try:
-        started = g.q(start_chunk(burn, TO_THE_END, seat, row, time_victory))
+        started = g.q(start_chunk(skip, TO_THE_END, seat, row, time_victory))
         out.update(seat_row=started.get("seat_row"), time_victory=started.get("time_victory"))
         if started["slot"] != SS_COMPUTER or started["active"] == seat:
             out["end_reason"] = "not_handed_over"
@@ -337,7 +338,7 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
                     out["path"].append(path_point(g.q(READ)))
                 last_turn, last_change = now["turn"], clock()
                 if now["turn"] % 25 == 0:
-                    say(f"    continuation {m}: turn {now['turn']}  +{clock() - t0:.0f}s")
+                    say(f"    AI finish {m}: turn {now['turn']}  +{clock() - t0:.0f}s")
             # beside the result, never in it: when the seat was first at war with a major, and the most cities it held
             if now.get("wars") and "first_war_turn" not in out:
                 out["first_war_turn"] = now["turn"]
@@ -349,7 +350,7 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
             elif now["auto"] == 0:
                 out["end_reason"] = "count_out"
             elif stop_turn is not None and now["turn"] >= stop_turn:
-                out["end_reason"] = "turn_limit"      # no victory by the turn the referee stops at: not decided
+                out["end_reason"] = "turn_limit"      # no victory by the turn the runner stops at: not decided
             elif clock() - last_change > stall:
                 out["end_reason"] = "stalled"
             if out["end_reason"]:
@@ -365,30 +366,30 @@ def continuation(g, save: str, m: int, seat: int | None = None, poll: float = 3.
 
 def path_point(read: dict) -> dict:
     """One point of a game's path: the turn it was read on (the engine plays on while it is read, so the turn is the
-    read's own) and every player's indicators and standing on the routes. A window's row keeps the point it ends on
-    (`end_point`): what an estimator values the window by."""
+    read's own) and every player's indicators and standing on the routes. A run's row keeps the point its turns end on
+    (`end_point`): what the win-chance formula values the run by."""
     return {"turn": read["turn"],
             "players": [{k: p[k] for k in ("id", "alive", *INDICATORS, *ROUTES)} for p in read["players"]]}
 
 
 DECIDED = ("victory", "seat_dead")
-# What became of a run (rule 5). DNF is a result of its own, as in a race: the entrant did not bring the seat to the
-# end of the window. It has no value, it is counted and shown, and in any ordering it stands below every finished
-# run, so that stopping never does better than playing. Void is not the entrant's doing and is played again.
-FINISHED = ("window_played", "game_won", "seat_dead", "value_only")
-DNF = ("window_not_played", "timeout")
+# What became of a run (rule 5). Did-not-finish is a result of its own: the player did not bring the seat to the
+# end of the turns. It has no value, it is counted and shown, and in any ordering it stands below every finished
+# run, so that stopping never does better than playing. Void is not the player's doing and is played again.
+FINISHED = ("all_turns_played", "game_won", "seat_dead", "finish_only")
+NOT_FINISHED = ("turns_not_played", "timeout")
 VOID = ("stalled", "not_handed_over")
 
 
 def result_of(row: dict) -> str:
     reason = row.get("end_reason")
-    return "finished" if reason in FINISHED else "dnf" if reason in DNF else "void"
+    return "finished" if reason in FINISHED else "did_not_finish" if reason in NOT_FINISHED else "void"
 
 
-def value_of(row: dict, continuations: list[dict]) -> float | None:
-    """Rule 1. Only a finished run has a value. A game decided inside the window is 1 for the seat's team and 0
-    otherwise, a seat that died in it 0. A played window (or a save valued as it is) is the share of its decided
-    continuations the seat won; none decided is no value."""
+def value_of(row: dict, ai_finishes: list[dict]) -> float | None:
+    """Rule 1. Only a finished run has a value. A game decided inside the turns is 1 for the seat's team and 0
+    otherwise, a seat that died in them 0. Played turns (or a save valued as it is) are worth the share of the decided
+    AI finishes the seat won; none decided is no value."""
     reason = row.get("end_reason")
     if result_of(row) != "finished":
         return None
@@ -396,14 +397,14 @@ def value_of(row: dict, continuations: list[dict]) -> float | None:
         return 1.0 if row.get("winner") == (row.get("end") or {}).get("team") else 0.0
     if reason == "seat_dead":
         return 0.0
-    decided = [c for c in continuations if c.get("end_reason") in DECIDED]
+    decided = [c for c in ai_finishes if c.get("end_reason") in DECIDED]
     return round(sum(1 for c in decided if c["won"]) / len(decided), 4) if decided else None
 
 
-def run_once(g, save: str, turns: int, seat: int | None = None, burn: int = 0, poll: float = 3.0, stall: float = 900.0,
+def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, poll: float = 3.0, stall: float = 900.0,
              end_save: str | None = None, save_game=save_as, row: str = "own", time_victory: str = "on",
              sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
-    """One run of the board by the game's own AI. Loads `save` (the game must be at the main menu), hands the seat over, watches, reads,
+    """One run of the starting save by the game's own AI. Loads `save` (the game must be at the main menu), hands the seat over, watches, reads,
     and leaves for the main menu whatever happened once the seat was handed over."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
@@ -416,8 +417,8 @@ def run_once(g, save: str, turns: int, seat: int | None = None, burn: int = 0, p
         leave(g)
         raise
     t0 = clock()
-    started = g.q(start_chunk(burn, turns, seat, row, time_victory))
-    row: dict = {"entrant": STOCK_AI, "save": save, "seat": seat, "turns_asked": turns, "burn": burn,
+    started = g.q(start_chunk(skip, turns, seat, row, time_victory))
+    row: dict = {"player": BUILT_IN_AI, "save": save, "seat": seat, "turns_asked": turns, "skip": skip,
                  "handicap": before["handicap"], "speed": before["speed"], "start": seat_view(before, seat),
                  "seat_row": started.get("seat_row"), "time_victory": started.get("time_victory"),
                  "end_reason": None, "win_turn": None}
@@ -440,7 +441,7 @@ def run_once(g, save: str, turns: int, seat: int | None = None, burn: int = 0, p
             elif now["winner"] >= 0:
                 row["end_reason"] = "game_won"
             elif now["auto"] == 0:
-                row["end_reason"] = "window_played"
+                row["end_reason"] = "all_turns_played"
             elif clock() - last_change > stall:
                 row["end_reason"] = "stalled"
             if row["end_reason"]:
@@ -462,15 +463,15 @@ def notebook_path(g, seat: int) -> Path:
     return g.notebook().path
 
 
-def run_entrant(g, save: str, command: list[str], label: str, turns: int, seat: int | None = None, burn: int = 0,
-                notebook: str | None = None, keep_notebook: Path | None = None, claim_wait: float = 0.0,
-                timeout: float = 4 * 3600.0, settle: float = 120.0, poll: float = 3.0, run=subprocess.run,
-                end_save: str | None = None, save_game=save_as,
-                path_of=notebook_path, sleep=time.sleep, clock=time.monotonic) -> dict:
-    """One run of the board by a command that plays the seat and ends. Loads `save`, reads, puts the entrant's
+def run_player(g, save: str, command: list[str], label: str, turns: int, seat: int | None = None, skip: int = 0,
+               notebook: str | None = None, keep_notebook: Path | None = None, claim_wait: float = 0.0,
+               timeout: float = 4 * 3600.0, settle: float = 120.0, poll: float = 3.0, run=subprocess.run,
+               end_save: str | None = None, save_game=save_as,
+               path_of=notebook_path, sleep=time.sleep, clock=time.monotonic) -> dict:
+    """One run of the starting save by a command that plays the seat and ends. Loads `save`, reads, puts the player's
     notebook in place, runs the command, reads, and leaves for the main menu with the notebook that was on disk
-    before put back. The command's own exit code is in the row and decides nothing: the run played its window
-    when the board is `turns` turns on, whatever the command said (a scripted loop gave up at a World Congress
+    before put back. The command's own exit code is in the row and decides nothing: the run played its turns
+    when the game is `turns` turns on, whatever the command said (a scripted loop gave up at a World Congress
     proposal four turns into ten and its row read like any other, live 2026-11-16)."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
@@ -485,9 +486,9 @@ def run_entrant(g, save: str, command: list[str], label: str, turns: int, seat: 
         raise
     nb = path_of(g, seat)
     standing = nb.read_bytes() if nb.exists() else None
-    # the turn that is the seat's when the window is over (rule 5: the entrant is told the turn, not a count)
+    # the turn that is the seat's when its turns are over (rule 5: the player is told the turn, not a count)
     command = [part.replace("{until}", str(before["turn"] + turns)) for part in command]
-    row: dict = {"entrant": label, "command": command, "save": save, "seat": seat, "turns_asked": turns, "burn": burn,
+    row: dict = {"player": label, "command": command, "save": save, "seat": seat, "turns_asked": turns, "skip": skip,
                  "notebook": notebook or "standing", "handicap": before["handicap"], "speed": before["speed"],
                  "start": seat_view(before, seat), "end_reason": None, "rc": None}
     try:
@@ -496,8 +497,8 @@ def run_entrant(g, save: str, command: list[str], label: str, turns: int, seat: 
         elif notebook:
             nb.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(notebook, nb)
-        if burn:
-            g.q(BURN % {"burn": burn})
+        if skip:
+            g.q(SKIP % {"skip": skip})
         sleep(claim_wait)
         t0 = clock()
         try:
@@ -520,7 +521,7 @@ def run_entrant(g, save: str, command: list[str], label: str, turns: int, seat: 
         elif after["winner"] >= 0:
             row["end_reason"] = "game_won"
         elif row["end_reason"] is None:
-            row["end_reason"] = "window_played" if after["turn"] - before["turn"] == turns else "window_not_played"
+            row["end_reason"] = "all_turns_played" if after["turn"] - before["turn"] == turns else "turns_not_played"
         row.update(end=end, winner=after["winner"], victory=after["victory"], turns_played=after["turn"] - before["turn"],
                    players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],
                    end_point=path_point(after))
@@ -543,17 +544,17 @@ def mean_sd(xs: list[float]) -> tuple[float, float]:
     return m, (math.sqrt(sum((x - m) ** 2 for x in xs) / (len(xs) - 1)) if len(xs) > 1 else 0.0)
 
 
-def entrant_of(row: dict) -> str:
-    return row.get("entrant") or STOCK_AI
+def player_of(row: dict) -> str:
+    return row.get("player") or BUILT_IN_AI
 
 
-def summarise_entrant(name: str, rows: list[dict]) -> list[str]:
-    """One entrant on one board. Per indicator: the seat's value at the start, and over the runs that played
-    their window the value at the end as mean, standard deviation, least and most, then the spread as a share
+def summarise_player(name: str, rows: list[dict]) -> list[str]:
+    """One player on one starting save. Per indicator: the seat's value at the start, and over the runs that played
+    their turns the value at the end as mean, standard deviation, least and most, then the spread as a share
     of the mean gain."""
-    done = [r for r in rows if r.get("end_reason") == "window_played"]
-    lines = [f"{name}: {len(rows)} runs, {len(done)} played their window"
-             + "".join(f", {n} {why}" for why in ("seat_dead", "game_won", *DNF, *VOID)
+    done = [r for r in rows if r.get("end_reason") == "all_turns_played"]
+    lines = [f"{name}: {len(rows)} runs, {len(done)} played their turns"
+             + "".join(f", {n} {why}" for why in ("seat_dead", "game_won", *NOT_FINISHED, *VOID)
                        if (n := sum(1 for r in rows if r.get("end_reason") == why)))]
     if not done:
         return lines + value_lines(rows)
@@ -580,15 +581,15 @@ def summarise_entrant(name: str, rows: list[dict]) -> list[str]:
 
 
 def pooled_lines(rows: list[dict], games: list[dict]) -> list[str]:
-    """Every decided continuation as one game: the share the seat won; and the continuations the stop turn left
-    undecided, which are in no share and are counted here. No error is given over games: the games of one deal go
-    together (live 2026-11-18, one window's two deals were 0 of 5 and 5 of 5 with the seat the same in both), so
-    the error of a value is the one over deals, on the line above."""
+    """Every decided AI finish as one game: the share the seat won; and the AI finishes the stop turn left
+    undecided, which are in no share and are counted here. No error is given over games: the games of one seed go
+    together (live 2026-11-18, two seeds were 0 of 5 and 5 of 5 with the seat the same in both), so
+    the error of a value is the one over seeds, on the line above."""
     lines = []
     if games:
         won = sum(1 for c in games if c.get("won"))
         lines.append(f"games: the seat won {won} of {len(games)} decided, {won / len(games):.3f}")
-    undecided = [c for r in rows for c in r.get("continuations", []) if c.get("end_reason") == "turn_limit"]
+    undecided = [c for r in rows for c in r.get("ai_finishes", []) if c.get("end_reason") == "turn_limit"]
     if undecided:
         lines.append(f"not decided by the stop turn: {len(undecided)} "
                      f"(turn {', '.join(str(c.get('turn')) for c in undecided)}), in no share")
@@ -596,55 +597,55 @@ def pooled_lines(rows: list[dict], games: list[dict]) -> list[str]:
 
 
 def value_lines(rows: list[dict]) -> list[str]:
-    """The entrant's value over its finished runs, each run's own, and its DNF as a count of their own: beside the
-    value, never inside its mean. The last figure is the value with every DNF as 0, what an ordering uses."""
+    """The player's value over its finished runs, each run's own, and its runs that did not finish as a count of their own: beside
+    the value, never inside its mean. The last figure is the value with each of those as 0, what an ordering uses."""
     values = [r["value"] for r in rows if r.get("value") is not None]
-    dnf = [r for r in rows if result_of(r) == "dnf"]
+    not_finished = [r for r in rows if result_of(r) == "did_not_finish"]
     lines = []
     if values:
         m, sd = mean_sd(values)
-        games = [c for r in rows for c in r.get("continuations", []) if c.get("end_reason") in DECIDED]
+        games = [c for r in rows for c in r.get("ai_finishes", []) if c.get("end_reason") in DECIDED]
         how = sorted({c.get("victory") or "seat_dead" for c in games})
         minutes = f", {mean_sd([c['seconds'] for c in games])[0] / 60:.1f} min each" if games else ""
-        lines.append(f"value: {m:.3f} (sd {sd:.3f}) over {len(values)} finished runs and {len(games)} continuations{minutes}; "
+        lines.append(f"value: {m:.3f} (sd {sd:.3f}) over {len(values)} finished runs and {len(games)} AI finishes{minutes}; "
                      f"by run: {', '.join(f'{v:.2f}' for v in values)}" + (f"; ended by {', '.join(how)}" if how else ""))
         if len(values) > 1:
-            lines.append(f"deals: {len(values)} finished, the value's standard error over them {sd / math.sqrt(len(values)):.3f} "
-                         "(the deal is the unit: its games are not independent trials)")
+            lines.append(f"seeds: {len(values)} finished, the value's standard error over them {sd / math.sqrt(len(values)):.3f} "
+                         "(the seed is the unit: its games are not independent trials)")
         lines.extend(pooled_lines(rows, games))
-    if dnf and (values or any("continuations" in r or "value" in r for r in rows)):
-        why = ", ".join(sorted({r["end_reason"] for r in dnf}))
-        lines.append(f"DNF: {len(dnf)} of {len(dnf) + len(values)} runs ({why}), below every finished run in an ordering"
-                     + (f"; with DNF as 0 the value is {sum(values) / (len(values) + len(dnf)):.3f}" if values else ""))
+    if not_finished and (values or any("ai_finishes" in r or "value" in r for r in rows)):
+        why = ", ".join(sorted({r["end_reason"] for r in not_finished}))
+        lines.append(f"not finished: {len(not_finished)} of {len(not_finished) + len(values)} runs ({why}), below every finished run in an ordering"
+                     + (f"; with not finished as 0 the value is {sum(values) / (len(values) + len(not_finished)):.3f}" if values else ""))
     return lines
 
 
 def summarise(rows: list[dict]) -> list[str]:
-    """Every entrant of a rows file by itself, then the entrants side by side when there are two or more: the
-    mean at the end of the window and its spread, over the runs that played the window. Only runs of the same
+    """Every player of a rows file by itself, then the players side by side when there are two or more: the
+    mean at the end of the turns and its spread, over the runs that played the turns. Only runs of the same
     number of turns stand side by side."""
-    names = list(dict.fromkeys(entrant_of(r) for r in rows))
+    names = list(dict.fromkeys(player_of(r) for r in rows))
     lines: list[str] = []
     for name in names:
-        lines += ([""] if lines else []) + summarise_entrant(name, [r for r in rows if entrant_of(r) == name])
-    played = {name: [r for r in rows if entrant_of(r) == name and r.get("end_reason") == "window_played"] for name in names}
+        lines += ([""] if lines else []) + summarise_player(name, [r for r in rows if player_of(r) == name])
+    played = {name: [r for r in rows if player_of(r) == name and r.get("end_reason") == "all_turns_played"] for name in names}
     played = {name: rs for name, rs in played.items() if rs}
-    windows = {r.get("turns_played", r.get("turns_asked")) for rs in played.values() for r in rs}
+    turns = {r.get("turns_played", r.get("turns_asked")) for rs in played.values() for r in rs}
     if len(played) < 2:
         return lines
-    if len(windows) > 1:
-        return [*lines, "", f"not side by side: the runs played {', '.join(str(w) for w in sorted(windows))} turns"]
-    lines += ["", f"side by side, {windows.pop()} turns, mean (sd) at the end:",
+    if len(turns) > 1:
+        return [*lines, "", f"not side by side: the runs played {', '.join(str(w) for w in sorted(turns))} turns"]
+    lines += ["", f"side by side, {turns.pop()} turns, mean (sd) at the end:",
               f"{'':12}" + "".join(f"{f'{name} x{len(rs)}':>24}" for name, rs in played.items())]
     for k in INDICATORS:
         cells = [mean_sd([r["end"]["values"][k] for r in rs]) for rs in played.values()]
         lines.append(f"{k:12}" + "".join(f"{f'{m:.1f} ({sd:.1f})':>24}" for m, sd in cells))
-    valued = {name: [r["value"] for r in rows if entrant_of(r) == name and r.get("value") is not None] for name in played}
+    valued = {name: [r["value"] for r in rows if player_of(r) == name and r.get("value") is not None] for name in played}
     if all(valued.values()):
         lines.append(f"{'value':12}" + "".join(f"{'{:.3f} ({:.3f})'.format(*mean_sd(vs)):>24}" for vs in valued.values()))
-        dnf = [sum(1 for r in rows if entrant_of(r) == name and result_of(r) == "dnf") for name in played]
-        if any(dnf):
-            lines.append(f"{'DNF':12}" + "".join(f"{f'{n} of {n + len(vs)}':>24}" for n, vs in zip(dnf, valued.values())))
+        not_finished = [sum(1 for r in rows if player_of(r) == name and result_of(r) == "did_not_finish") for name in played]
+        if any(not_finished):
+            lines.append(f"{'not finished':12}" + "".join(f"{f'{n} of {n + len(vs)}':>24}" for n, vs in zip(not_finished, valued.values())))
     return lines
 
 
@@ -659,56 +660,79 @@ def wait_main_menu(g, seconds: float = 120.0) -> None:
     raise Refused("the game did not come back to the main menu; a game may still be running, look at it")
 
 
+# Rows written before 2026-11-20 name things by the words the scripts then used. They are read in today's words; the
+# files stay as they were written.
+EARLIER_KEYS = {"entrant": "player", "burn": "skip", "continuations": "ai_finishes"}
+EARLIER_VALUES = {"stock-ai": BUILT_IN_AI, "board": THE_SAVE, "window_played": "all_turns_played",
+                  "window_not_played": "turns_not_played", "value_only": "finish_only", "dnf": "did_not_finish"}
+
+
+def in_todays_words(x):
+    """A row, or any part of one, with the earlier keys renamed and the earlier names of a player, an end reason and
+    a result replaced. Everything else is as it was written."""
+    if isinstance(x, list):
+        return [in_todays_words(v) for v in x]
+    if not isinstance(x, dict):
+        return x
+    out = {EARLIER_KEYS.get(k, k): in_todays_words(v) for k, v in x.items()}
+    for k in ("player", "end_reason", "result"):
+        if isinstance(out.get(k), str):
+            out[k] = EARLIER_VALUES.get(out[k], out[k])
+    return out
+
+
 def read_rows(path: Path) -> list[dict]:
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
+    if not path.exists():
+        return []
+    return [in_todays_words(json.loads(line)) for line in path.read_text().splitlines() if line.strip()]
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--save", help="the save's bare name, no path and no .Civ5Save")
     ap.add_argument("--turns", type=int, default=10,
-                    help="the window (default 10): turns the engine plays the seat, and the turns a command's run must "
-                         "have moved the board on to count as played")
+                    help="turns to play (default 10): the turns the engine plays the seat, and the turns a command's run must "
+                         "have moved the game on to count as played")
     ap.add_argument("--runs", type=int, default=1)
-    ap.add_argument("--seat", type=int, default=None, help="default: the board's one human seat")
+    ap.add_argument("--seat", type=int, default=None, help="default: the starting save's one human seat")
     ap.add_argument("--out", type=Path, help="JSON lines, one row a run, appended")
-    ap.add_argument("--burn", choices=("none", "run"), default="run",
-                    help="draws taken from the game's random stream before anyone plays: none, or 17 times the "
-                         "deal's number (default; an entrant's nth run is deal n), so that runs of one save differ")
+    ap.add_argument("--skip", choices=("none", "seed"), default="seed",
+                    help="random numbers generated and thrown away before anyone plays: none, or 16,000,048 times the "
+                         "seed's number (default; a player's nth run is seed n), so that runs of one save are separate games")
     ap.add_argument("--stall", type=float, default=900.0, help="seconds without a new turn before a run is given up")
-    ap.add_argument("--label", help="the entrant's name in the row, needed with a command")
-    ap.add_argument("--notebook", help="the notebook the entrant starts with: a file, or `none`; default the one on disk")
+    ap.add_argument("--player", dest="label", help="the player's name in the row, needed with a command")
+    ap.add_argument("--notebook", help="the notebook the player starts with: a file, or `none`; default the one on disk")
     ap.add_argument("--claim-wait", type=float, default=0.0,
                     help="seconds to wait before the command; 200 after another client played the seat (its turn claim)")
     ap.add_argument("--timeout", type=float, default=4 * 3600.0, help="seconds before the command is given up")
-    ap.add_argument("--continue", dest="continuations", type=int, default=0, metavar="R",
-                    help="value the run (rule 1): save at the window's end and let the engine play the game out R times "
+    ap.add_argument("--ai-finishes", dest="ai_finishes", type=int, default=0, metavar="R",
+                    help="value the run (rule 1): save at the end of the turns and let the engine's AI finish the game R times "
                          "from there; the value is the share the seat's team wins")
     ap.add_argument("--row", choices=("own", "ai"), default=None,
                     help="the difficulty row the seat has while the engine plays it: its own (the default: nothing is "
                          "changed), or the AIs' (HANDICAP_AI_DEFAULT, what every real AI plays on). Set at the hand-over, "
-                         "so an entrant's own window is not touched; a board made with --terms carries it for everyone")
+                         "so a player's own turns are not touched; a starting save made with --terms carries it for everyone")
     ap.add_argument("--time", choices=("on", "off"), default=None,
                     help="off: the Time victory is switched off when the engine takes the seat, so a game runs to a real "
                          "victory (default on: nothing is changed)")
     ap.add_argument("--last-turn", type=int, default=None, metavar="T",
-                    help="a continuation with no victory by game turn T is stopped there and counts as not decided")
-    ap.add_argument("--first-continuation", type=int, default=0, metavar="M",
-                    help="number the continuations from M. Continuation m skips (m + 1) million draws and a save replays the "
-                         "same game on the same draws, so M past the ones already played gives new games of one save")
+                    help="an AI finish with no victory by game turn T is stopped there and counts as not decided")
+    ap.add_argument("--first-ai-finish", type=int, default=0, metavar="M",
+                    help="number the AI finishes from M. AI finish m skips (m + 1) million random numbers and a save replays the "
+                         "same game on the same random numbers, so M past the ones already played gives new games of one save")
     ap.add_argument("--path", type=int, default=0, metavar="N",
-                    help="keep each continuation's path: every player's indicators at its start and every N turns "
-                         "after, in the row. A path with its game's outcome is what a win estimator is fitted on")
-    ap.add_argument("--value-only", action="store_true",
-                    help="no window: value --save itself by --continue R continuations (a board's own worth)")
+                    help="keep each AI finish's path: every player's indicators at its start and every N turns "
+                         "after, in the row. A path with its game's outcome is what the win-chance formula is fitted on")
+    ap.add_argument("--finish-only", action="store_true",
+                    help="no turns played: value --save itself by R AI finishes (--ai-finishes R), a starting save's own worth")
     ap.add_argument("--terms", metavar="NEW",
-                    help="make a board that carries its terms and do nothing else: --save loaded, the seat put on the AIs' "
-                         "row and Time switched off (unless --row own, --time on), saved as NEW. Every window and every "
-                         "continuation on NEW is then played on the same terms, an entrant's included")
+                    help="make a starting save that carries its terms and do nothing else: --save loaded, the seat put on the AIs' "
+                         "row and Time switched off (unless --row own, --time on), saved as NEW. Every player's turns and every "
+                         "AI finish on NEW is then played on the same terms, a player's included")
     ap.add_argument("--summary", type=Path, metavar="ROWS", help="print the summary of a rows file and do nothing else")
     ap.add_argument("command", nargs=argparse.REMAINDER,
-                    help="after `--`: the entrant, a command that plays the seat and ends; {deal}, {turns} and {until} "
-                         "in it are the deal's number, the window and the game turn at which the window is over")
+                    help="after `--`: the player, a command that plays the seat and ends; {seed}, {turns} and {until} "
+                         "in it are the seed's number, the turns and the game turn at which the turns are over")
     a = ap.parse_args(argv)
     if a.summary:
         print("\n".join(summarise(read_rows(a.summary))))
@@ -723,7 +747,7 @@ def main(argv: list[str] | None = None) -> int:
             print("a game is loaded: leave it for the main menu first (session main_menu); nothing was done", file=sys.stderr)
             return 2
         try:
-            # the levers' defaults are for a run (nothing changed); a board made to carry terms carries both
+            # the levers' defaults are for a run (nothing changed); a starting save made to carry terms carries both
             made = with_terms(g, a.save, a.terms, seat=a.seat, row=a.row or "ai", time_victory=a.time or "off")
         except Refused as e:
             print(f"refused: {e}", file=sys.stderr)
@@ -732,54 +756,54 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if not a.save or not a.out:
         ap.error("--save and --out are needed for a run")
-    if command and not a.label or a.label == STOCK_AI:
-        ap.error("a command needs --label, the entrant's name (not stock-ai)")
+    if command and not a.label or a.label == BUILT_IN_AI:
+        ap.error("a command needs --player, the player's name (not built-in-ai)")
     if a.label and not command:
-        ap.error("--label names a command's entrant; give the command after --")
-    if a.value_only and (command or a.continuations < 1):
-        ap.error("--value-only takes --continue R and no command")
+        ap.error("--player names a command's player; give the command after --")
+    if a.finish_only and (command or a.ai_finishes < 1):
+        ap.error("--finish-only takes --ai-finishes R and no command")
     from harness.game import Game
     g = Game()
     if g.has_state("InGame"):
         print("a game is loaded: leave it for the main menu first (session main_menu); nothing was done", file=sys.stderr)
         return 2
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    name = BOARD if a.value_only else a.label or STOCK_AI
+    name = THE_SAVE if a.finish_only else a.label or BUILT_IN_AI
     say = lambda line: print(line, flush=True)
-    done = sum(1 for r in read_rows(a.out) if entrant_of(r) == name)
+    done = sum(1 for r in read_rows(a.out) if player_of(r) == name)
     for n in range(done, done + a.runs):
-        print(f"{name} deal {n}: loading {a.save!r}", flush=True)
-        burn = DRAWS_A_DEAL * n if a.burn == "run" else 0
-        if burn + DRAWS_A_DEAL > SEQUENCE:
-            print(f"seed {n} is past the end of the random sequence ({SEQUENCE // DRAWS_A_DEAL} seeds fit); "
+        print(f"{name} seed {n}: loading {a.save!r}", flush=True)
+        skip = NUMBERS_A_SEED * n if a.skip == "seed" else 0
+        if skip + NUMBERS_A_SEED > SEQUENCE:
+            print(f"seed {n} is past the end of the random sequence ({SEQUENCE // NUMBERS_A_SEED} seeds fit); "
                   f"nothing more was done", file=sys.stderr)
             return 2
-        end_save = f"{a.save}--{''.join(c if c.isalnum() else '-' for c in name)}-deal{n}-end" if a.continuations else None
+        end_save = f"{a.save}--{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-end" if a.ai_finishes else None
         try:
-            if a.value_only:
-                row = {"entrant": name, "save": a.save, "seat": a.seat, "turns_asked": 0, "turns_played": 0, "burn": 0,
-                       "end_reason": "value_only", "end_save": a.save}
+            if a.finish_only:
+                row = {"player": name, "save": a.save, "seat": a.seat, "turns_asked": 0, "turns_played": 0, "skip": 0,
+                       "end_reason": "finish_only", "end_save": a.save}
             elif command:
-                keep = a.out.with_name(f"{a.out.stem}-{''.join(c if c.isalnum() else '-' for c in name)}-deal{n}-notebook.json")
-                words = [part.replace("{deal}", str(n)).replace("{turns}", str(a.turns)) for part in command]
-                row = run_entrant(g, a.save, words, name, a.turns, seat=a.seat, burn=burn, notebook=a.notebook,
-                                  keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save)
+                keep = a.out.with_name(f"{a.out.stem}-{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-notebook.json")
+                words = [part.replace("{seed}", str(n)).replace("{turns}", str(a.turns)) for part in command]
+                row = run_player(g, a.save, words, name, a.turns, seat=a.seat, skip=skip, notebook=a.notebook,
+                                 keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save)
             else:
-                row = run_once(g, a.save, a.turns, seat=a.seat, burn=burn, stall=a.stall, end_save=end_save, say=say,
+                row = run_once(g, a.save, a.turns, seat=a.seat, skip=skip, stall=a.stall, end_save=end_save, say=say,
                                row=a.row or "own", time_victory=a.time or "on")
-            if a.continuations:
-                row["continuations"] = []
+            if a.ai_finishes:
+                row["ai_finishes"] = []
                 partial = a.out.with_name(a.out.name + ".partial")
-                for m in range(a.first_continuation, a.first_continuation + a.continuations) if row.get("end_save") else ():
+                for m in range(a.first_ai_finish, a.first_ai_finish + a.ai_finishes) if row.get("end_save") else ():
                     wait_main_menu(g)
-                    c = continuation(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row or "own",
-                                     time_victory=a.time or "on", stop_turn=a.last_turn, path_every=a.path)
-                    row["continuations"].append(c)
+                    c = ai_finish(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row or "own",
+                                  time_victory=a.time or "on", stop_turn=a.last_turn, path_every=a.path)
+                    row["ai_finishes"].append(c)
                     partial.write_text(json.dumps(row) + "\n")   # a game that dies under a later one loses none of these
-                    print(f"  continuation {m}: {c['end_reason']}, {'won' if c['won'] else 'not won'}"
+                    print(f"  AI finish {m}: {c['end_reason']}, {'won' if c['won'] else 'not won'}"
                           f"{' by ' + c['victory'] if c.get('victory') else ''}, turn {c.get('turn')}, {c.get('seconds')} s",
                           flush=True)
-                row["value"] = value_of(row, row["continuations"])
+                row["value"] = value_of(row, row["ai_finishes"])
             row["result"] = result_of(row)
         except Refused as e:
             print(f"refused: {e}", file=sys.stderr)
@@ -788,7 +812,7 @@ def main(argv: list[str] | None = None) -> int:
         with a.out.open("a") as f:
             f.write(json.dumps(row) + "\n")
         a.out.with_name(a.out.name + ".partial").unlink(missing_ok=True)
-        print(f"{name} deal {n}: {row['end_reason']}, {row.get('turns_played')} turns in {row.get('seconds')} s, score "
+        print(f"{name} seed {n}: {row['end_reason']}, {row.get('turns_played')} turns in {row.get('seconds')} s, score "
               f"{row.get('start', {}).get('values', {}).get('score')} -> {row.get('end', {}).get('values', {}).get('score')}"
               + (f", value {row['value']}" if row.get("value") is not None else ""), flush=True)
         wait_main_menu(g)

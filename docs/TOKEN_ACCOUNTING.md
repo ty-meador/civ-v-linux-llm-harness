@@ -85,5 +85,5 @@ between cycles like any Python edit. 3 and 4 are the feature. 5 is the first use
 2. `--agent claude` in the seat loop runs on the subscription, as Codex and Grok do. Cost columns for all three are
    therefore list-price estimates of tokens spent, never money paid.
 3. Stage 5's sessions are played by agents the user starts. The shape that serves this milestone and the benchmark
-   pilot at once (`docs/BENCHMARK.md`): every client plays the same seat from a copy of the same save, alone, under
+   first trial at once (`docs/BENCHMARK.md`): every client plays the same seat from a copy of the same save, alone, under
    the seat loop, after stage 2 has landed.

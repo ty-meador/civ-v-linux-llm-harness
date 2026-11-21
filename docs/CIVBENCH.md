@@ -32,7 +32,7 @@ Civilization V", arXiv 2604.07733v1 (April 2026), read in full text that day.
 | Game | Vox Populi mod, modified DLL, Windows | stock Brave New World, Linux, no mod, through the tuner port |
 | What the LLM controls | strategy weights, research, policy | everything a human seat does: every unit, city, deal, vote |
 | Information | a report compiled by the mod, with analysis from the AI | what the seat's screen shows, enforced (tunerd seat binding) |
-| Opponents | 8 players, LLM strategists and AI | stock AI, and other LLMs as hotseat seats |
+| Opponents | 8 players, LLM strategists and AI | the built-in AI, and other LLMs as hotseat seats |
 | Pace | about 15 s per turn; hundreds of games | minutes per turn late in a game; a handful of games |
 | Agent | their own loop and prompts | any MCP client as it ships (Claude Code, Codex, Grok) |
 
@@ -50,7 +50,7 @@ second question open, and the paper's design explicitly leaves tactics and diplo
    reads it.
 2. **A short-horizon protocol.** Full control is too slow for 300 games of 400 turns. Progress-based scoring is
    what makes a slow player measurable: start every model from the same saved positions, play K turns, score the
-   *change* in estimated standing against the stock AI playing the same seat from the same save
+   *change* in estimated standing against the built-in AI playing the same seat from the same save
    (`Game.SetAIAutoPlay` gives that baseline for no tokens). The paper allows savegame starts. The saves, the
    seat, K and the settings would be the benchmark's definition.
 3. **A full-control condition next to Simple and Briefed.** The same rating scale, a third kind of agent. This
@@ -92,8 +92,7 @@ second question open, and the paper's design explicitly leaves tactics and diplo
   harness's own premise: the agent sits in a human seat, can do only what a human can do, sees only what a human
   sees, and has to play anyway. That is a better foundation for a long-horizon benchmark than setting a strategy
   for a rule-based AI to carry out.
-- What is borrowed from CivBench is method (progress instead of win/loss, ratings fitted over games, the stock AI
-  as the anchor), not code or data. The design sketch and its open problem, how to make scores comparable across
+- What is borrowed from CivBench is method (progress instead of win/loss, ratings fitted over games, the built-in AI as the baseline), not code or data. The design sketch and its open problem, how to make scores comparable across
   maps, civilizations and victory types, are in `docs/BENCHMARK.md`.
 
 Still open: how much unattended machine time for AI-only games is acceptable.

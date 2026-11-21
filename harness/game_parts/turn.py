@@ -252,23 +252,23 @@ class TurnMixin:
                     and not ts.get("discussion_pending") and not ts.get("hand_off_pending")
                     and self._arrived_at != (ts.get("turn"), self.seat))
 
-    #: A referee's window (docs/BENCHMARK.md rule 5): the game turn that is the seat's when the window is over.
-    #: The seat's server sets it from CIV5_UNTIL_TURN; None is a game with no window.
-    window_until: int | None = None
+    #: A benchmark run's last turn (docs/BENCHMARK.md rule 5): the game turn that is the seat's when its turns are over.
+    #: The seat's server sets it from CIV5_UNTIL_TURN; None is a game with no last turn.
+    until_turn: int | None = None
 
-    def window_over(self, ts) -> dict | None:
-        """`{until, turn, note}` when the board has reached the window's turn, else None. That turn is not
-        played: the referee reads the position there and the engine plays on from it, so the seat's server
-        refuses every order on it and no finish ends it. The entrant is told the turn all the same; this is what
+    def last_turn_reached(self, ts) -> dict | None:
+        """`{until, turn, note}` when the game has reached the run's last turn, else None. That turn is not
+        played: the benchmark runner reads the position there and the engine plays on from it, so the seat's server
+        refuses every order on it and no finish ends it. The player is told the turn all the same; this is what
         makes a count gone wrong (a run of quiet turns asked too long, a turn that began unseen) end on the
-        window's turn and not one past it, where the run had no value (the user, 2026-11-19: overshooting is the
+        last turn and not one past it, where the run had no value (the user, 2026-11-19: overshooting is the
         benchmark's to handle)."""
-        until = self.window_until
+        until = self.until_turn
         turn = ts.get("turn") if isinstance(ts, dict) else None
         if not isinstance(until, int) or isinstance(until, bool) or not isinstance(turn, int) or turn < until:
             return None
         return {"until": until, "turn": turn,
-                "note": f"the window is over: turn {until} is yours and is not played. Nothing more is asked of "
+                "note": f"your turns are over: turn {until} is yours and is not played. Nothing more is asked of "
                         "this seat in this game: stop here"}
 
     def unseen_turn(self, ts) -> bool:
@@ -739,16 +739,16 @@ class TurnMixin:
                 # the new turn blind): the wait below presses Continue and hands it back instead.
                 mine = (ts.get("active_player") == self.seat and ts.get("my_turn") and not ts.get("processing")
                         and not (ts.get("hotseat") and ts.get("hand_off_pending")))
-                over = self.window_over(ts) if mine else None
+                over = self.last_turn_reached(ts) if mine else None
                 if over:
-                    # The referee's window: this turn is not ended, by a first finish or by a run of quiet turns
+                    # A benchmark run's last turn: this turn is not ended, by a first finish or by a run of quiet turns
                     # that reached it (the quiet branch below returns before it comes here; this is the backstop).
                     if ended_any:
                         return {"ok": True, "ended": True, "turn": ts.get("turn"), "status": ts, "digest": merged,
-                                "turns_skipped": max(0, skipped - 1), "woke_because": ["window_over"],
-                                "window_over": over, "hint": over["note"]}
+                                "turns_skipped": max(0, skipped - 1), "woke_because": ["last_turn_reached"],
+                                "last_turn_reached": over, "hint": over["note"]}
                     return {"ok": False, "ended": False, "turn": ts.get("turn"), "err": over["note"],
-                            "window_over": over, "status": ts, "turns_skipped": skipped}
+                            "last_turn_reached": over, "status": ts, "turns_skipped": skipped}
                 if mine and not ended_any and self.unseen_turn(ts):
                     # The turn began while nothing of ours was looking (unseen_turn): ending it here would end an
                     # unplayed turn blind -- live t147 only research-unset refused it. Open it instead (arrival,
@@ -861,11 +861,11 @@ class TurnMixin:
                     out[flag] = True
                     out["woke_because"] = [flag]
                     return out
-            over = self.window_over(ts)
+            over = self.last_turn_reached(ts)
             if over:
-                # The turn that came back is the window's: it is handed over with its digest and the word that
+                # The turn that came back is the run's last: it is handed over with its digest and the word that
                 # nothing more is asked, whatever the quiet-turn budget says.
-                out.update({"window_over": over, "woke_because": ["window_over"], "hint": over["note"]})
+                out.update({"last_turn_reached": over, "woke_because": ["last_turn_reached"], "hint": over["note"]})
                 return out
             reasons = self._wake_reasons(ts, digest, wake_words)
             if skipped >= skip_quiet_turns or reasons:

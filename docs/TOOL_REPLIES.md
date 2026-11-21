@@ -51,10 +51,10 @@ then call this again) or tech_popup_pending=true (order(to="empire", action="res
 An answer that outlasts the AI round says so itself: its reply carries `new_turn: {turn, note}` and leaves that
 turn unopened, so the finish after it hands the turn back unended as above.
 
-In a referee's window (a benchmark run: the seat's server is started with `CIV5_UNTIL_TURN`, the turn that is
-the seat's when the window is over) that turn is not played. The finish that brings it says
-`window_over: {until, turn, note}` with `woke_because: ["window_over"]`, a run of quiet turns stops on it
-whatever its budget, and on it every order and every finish is refused with the same `window_over`. Reads, the
+In a benchmark run (the seat's server is started with `CIV5_UNTIL_TURN`, the turn that is
+the seat's when its turns are over) that turn is not played. The finish that brings it says
+`last_turn_reached: {until, turn, note}` with `woke_because: ["last_turn_reached"]`, a run of quiet turns stops on it
+whatever its budget, and on it every order and every finish is refused with the same `last_turn_reached`. Reads, the
 notebook and an answer to a leader on screen stay open. Stop there.
 
 `args={"skip_quiet_turns": N}`: keep ending turns, up to N more, while nothing needs me -- no unit awaiting orders, no

@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
-"""Fit a win estimator on games the engine played by itself, and value a window by one read of where it ends.
+"""Fit the win-chance formula on games the engine played by itself, and value a player's turns by one read of where they end.
 
 Rule 1 of docs/BENCHMARK.md values a position by the seat's chance to win from it. Playing that out costs about
-ten deals a side to tell 0.3 from 0.0 and every deal is a window of a model's tokens. The engine's own games
-cost none: `scripts/board_run.py --path N` keeps every player's indicators every N turns of a continuation, and
+ten seeds a side to tell 0.3 from 0.0 and every seed is 100 turns of a model's tokens. The engine's own games
+cost none: `scripts/benchmark_run.py --path N` keeps every player's indicators every N turns of an AI finish, and
 each such point with the game's outcome is a row here. The fit is a logistic regression of "the seat's team won"
 on the seat's share of the living players' total in each named indicator, less an even share (so 0 is parity).
 
-    scripts/board_fit.py --fit logs/boards/duel-d/whole-path.jsonl --features score techs delegates \
-        --model logs/boards/duel-d/estimator.json
-    scripts/board_fit.py --model logs/boards/duel-d/estimator.json --value logs/boards/duel-d/floor2-t100.jsonl
+    scripts/benchmark_fit.py --fit logs/boards/duel-d/whole-path.jsonl --features score techs delegates \
+        --model logs/boards/duel-d/win-chance.json
+    scripts/benchmark_fit.py --model logs/boards/duel-d/win-chance.json --value logs/boards/duel-d/floor2-t100.jsonl
 
 `--turns LO HI` fits on the points read in those turns only. What decides a game changes as it goes (on the
-Celts duel delegates say nothing before turn 200 and most of it after 260), so a model meant for windows that
-end by turn 100 is fitted on the turns such windows end in, and `--value` says when a window ended outside them.
+Celts duel delegates say nothing before turn 200 and most of it after 260), so a model meant for runs that
+end by turn 100 is fitted on the turns such runs end in, and `--value` says when a run ended outside them.
 
-A feature is an indicator or a route of board_run (`score`, `delegates`), the same times the turn in hundreds
+A feature is an indicator or a route of benchmark_run (`score`, `delegates`), the same times the turn in hundreds
 (`score*t`: a lead late is worth more than a lead early), or `t` alone. With no `--features` a few sets are
 compared.
 
 The game is the unit, not the point: a game's thirty points are one outcome. Every figure of merit is taken
 leaving one game out (fitted on the others, scored on its points) and stands beside the same figure for the
-base rate alone, which is what the estimator has to beat. A window's row gives one point per decided
-continuation, all at the position the window ended on, and those are left out together. A fit is of the boards
+base rate alone, which is what the win-chance formula has to beat. A run's row gives one point per decided
+AI finish, all at the position its turns ended on, and those are left out together. A fit is of the starting saves
 it was fitted on: the intercept is the seat's own edge there.
 
-`--value` reads the point each played window ended on (`end_point`, or the seat's shares in a row older than
-that) and gives the estimate beside the played-out value where the row has one, by entrant, with the standard
-error over deals. That error is the spread of the entrant's positions, not the model's own error, which is
+`--value` reads the point each run's turns ended on (`end_point`, or the seat's shares in a row older than
+that) and gives the estimate beside the share of AI finishes won where the row has one, by player, with the standard
+error over seeds. That error is the spread of the player's positions, not the model's own error, which is
 given beside it: a jackknife over the fit's games (the estimate under each fit that leaves one game out, their
 spread scaled up by the number of games). The range of those fits is not an error and is not printed: on nineteen
-games it ran from 0.36 to 0.44 for windows that forty more games put at 0.49. Two entrants valued in one call
+games it ran from 0.36 to 0.44 for runs that forty more games put at 0.49. Two players valued in one call
 also get their difference, whose model error is taken on the difference itself, since one fit values both. The
-estimate is as good as the fit, and continuations are what check it.
+estimate is as good as the fit, and AI finishes are what check it.
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from board_run import DECIDED, INDICATORS, ROUTES, entrant_of, mean_sd, read_rows
+from benchmark_run import DECIDED, INDICATORS, ROUTES, player_of, mean_sd, read_rows
 
 KEYS = INDICATORS + ROUTES
 SETS = (("score",), ("score", "score*t"), ("score", "techs", "cities"), ("score", "delegates", "allies"),
@@ -67,15 +67,15 @@ def shares_of(players: list[dict], seat: int) -> tuple[dict, int] | None:
 
 
 def seat_of(row: dict, c: dict | None = None, seat: int | None = None) -> int | None:
-    """The seat a game was played for: the continuation's own, else the row's (a row that only values a save names
+    """The seat a game was played for: the AI finish's own, else the row's (a row that only values a save names
     none), else the one given by hand for rows older than both."""
     found = (c or {}).get("seat", row.get("seat"))
     return seat if found is None else found
 
 
-def window_point(row: dict) -> tuple[dict, int, int] | None:
-    """Where a window ended: the seat's shares, the living, the turn. From the row's `end_point`, else from the
-    seat's own view in a row older than that (the indicators only). None for a row with no window or a dead seat."""
+def end_point_of(row: dict) -> tuple[dict, int, int] | None:
+    """Where a run's turns ended: the seat's shares, the living, the turn. From the row's `end_point`, else from the
+    seat's own view in a row older than that (the indicators only). None for a row with no turns played or a dead seat."""
     if row.get("end_point"):
         got = shares_of(row["end_point"]["players"], row["seat"])
         return (*got, row["end_point"]["turn"]) if got else None
@@ -86,11 +86,11 @@ def window_point(row: dict) -> tuple[dict, int, int] | None:
 
 
 def points_of(rows: list[dict], name: str = "", seat: int | None = None) -> list[dict]:
-    """Every position with an outcome in the rows: each point of a decided continuation's path, or, for a
-    continuation that kept none, the position its window ended on. `group` is what is left out together."""
+    """Every position with an outcome in the rows: each point of a decided AI finish's path, or, for an
+    AI finish that kept none, the position the run's turns ended on. `group` is what is left out together."""
     out = []
     for i, row in enumerate(rows):
-        for c in row.get("continuations") or ():
+        for c in row.get("ai_finishes") or ():
             if c.get("end_reason") not in DECIDED:
                 continue
             if c.get("path"):
@@ -100,7 +100,7 @@ def points_of(rows: list[dict], name: str = "", seat: int | None = None) -> list
                         out.append({"group": f"{name}:{i}:{c['m']}", "turn": pt["turn"], "share": got[0], "n": got[1],
                                     "won": bool(c["won"])})
             else:
-                got = window_point(row)
+                got = end_point_of(row)
                 if got:
                     out.append({"group": f"{name}:{i}", "turn": got[2], "share": got[0], "n": got[1], "won": bool(c["won"])})
     return out
@@ -240,16 +240,16 @@ def jackknife(values: list[float]) -> float:
     return math.sqrt((n - 1) / n * sum((v - mean) ** 2 for v in values))
 
 
-def windows_of(model: dict, rows: list[dict]) -> dict[str, dict]:
-    """Each entrant's played windows as the model sees them: the features of the point each ended on, the estimate
-    there, the same mean under every fit that left a game out, and the played-out value where the row has one."""
+def runs_of(model: dict, rows: list[dict]) -> dict[str, dict]:
+    """Each player's runs as the model sees them: the features of the point each ended on, the estimate
+    there, the same mean under every fit that left a game out, and the share of AI finishes won where the row has one."""
     features = tuple(model["features"])
     lo, hi = model.get("turns") or (0, 10_000)
     out = {}
-    for name in dict.fromkeys(entrant_of(r) for r in rows):
+    for name in dict.fromkeys(player_of(r) for r in rows):
         w = {"xs": [], "est": [], "played": [], "outside": 0}
-        for row in (r for r in rows if entrant_of(r) == name):
-            got = window_point(row) if row.get("end_reason") == "window_played" else None   # a DNF has no value
+        for row in (r for r in rows if player_of(r) == name):
+            got = end_point_of(row) if row.get("end_reason") == "all_turns_played" else None   # a run that did not finish has no value
             x = features_of({"share": got[0], "n": got[1], "turn": got[2]}, features) if got else None
             if x is None:
                 continue
@@ -265,21 +265,21 @@ def windows_of(model: dict, rows: list[dict]) -> dict[str, dict]:
 
 
 def value_lines(model: dict, rows: list[dict]) -> list[str]:
-    """Each entrant's windows valued by the model at the point they ended on, beside the played-out value."""
+    """Each player's runs valued by the model at the point their turns ended on, beside the share of AI finishes won."""
     lo, hi = model.get("turns") or (0, 10_000)
     lines = []
-    for name, w in windows_of(model, rows).items():
+    for name, w in runs_of(model, rows).items():
         est, played = w["est"], w["played"]
         if not est:
-            lines.append(f"{name}: no window with every feature of the model")
+            lines.append(f"{name}: no run with every feature of the model")
             continue
         mean, sd = mean_sd(est)
-        line = f"{name}: estimate {mean:.3f} over {len(est)} deals (standard error over deals {sd / math.sqrt(len(est)):.3f}"
+        line = f"{name}: estimate {mean:.3f} over {len(est)} seeds (standard error over seeds {sd / math.sqrt(len(est)):.3f}"
         if len(w["left_out"]) > 1:
             line += f", of the model {jackknife(w['left_out']):.3f} by a jackknife over its {len(w['left_out'])} games"
         line += ")"
         if played:
-            line += (f"; played out {sum(v for _, v in played) / len(played):.3f} on {len(played)} of them, "
+            line += (f"; AI finishes won {sum(v for _, v in played) / len(played):.3f} on {len(played)} of them, "
                      f"estimated {sum(e for e, _ in played) / len(played):.3f} there")
         if w["outside"]:
             line += f"; {w['outside']} ended outside turns {lo} to {hi}, which the model was fitted on"
@@ -287,20 +287,20 @@ def value_lines(model: dict, rows: list[dict]) -> list[str]:
     return lines
 
 
-def difference_lines(windows: dict[str, dict]) -> list[str]:
-    """Each pair of entrants: the difference of their estimates, its error over deals and the model's error, which
+def difference_lines(runs: dict[str, dict]) -> list[str]:
+    """Each pair of players: the difference of their estimates, its error over seeds and the model's error, which
     is taken on the difference (one fit values both, so the two estimates move together) and then both together."""
-    names = [n for n, w in windows.items() if w["est"]]
+    names = [n for n, w in runs.items() if w["est"]]
     lines = []
     for i, a in enumerate(names):
         for b in names[i + 1:]:
-            wa, wb = windows[a], windows[b]
+            wa, wb = runs[a], runs[b]
             (ma, sa), (mb, sb) = mean_sd(wa["est"]), mean_sd(wb["est"])
-            deals = math.sqrt(sa ** 2 / len(wa["est"]) + sb ** 2 / len(wb["est"]))
-            line = f"{a} less {b}: {ma - mb:+.3f} (standard error over deals {deals:.3f}"
+            seeds = math.sqrt(sa ** 2 / len(wa["est"]) + sb ** 2 / len(wb["est"]))
+            line = f"{a} less {b}: {ma - mb:+.3f} (standard error over seeds {seeds:.3f}"
             if len(wa["left_out"]) > 1:
                 fit_se = jackknife([x - y for x, y in zip(wa["left_out"], wb["left_out"])])
-                line += f", of the model {fit_se:.3f}, together {math.hypot(deals, fit_se):.3f}"
+                line += f", of the model {fit_se:.3f}, together {math.hypot(seeds, fit_se):.3f}"
             lines.append(line + ")")
     return lines
 
@@ -313,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--turns", nargs=2, type=int, metavar=("LO", "HI"), help="fit on the points read in these turns only")
     ap.add_argument("--ridge", type=float, default=1.0, help="the penalty on the scaled coefficients (default 1)")
     ap.add_argument("--model", type=Path, help="with --fit the file the best fit is written to; with --value the one read")
-    ap.add_argument("--value", nargs="+", type=Path, metavar="ROWS", help="rows files whose windows the model values")
+    ap.add_argument("--value", nargs="+", type=Path, metavar="ROWS", help="rows files whose runs the model values")
     a = ap.parse_args(argv)
     if not a.fit and not (a.value and a.model):
         ap.error("give --fit ROWS, or --model FILE --value ROWS")
@@ -339,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
             rows = read_rows(f)
             print(f"{f}:")
             print("\n".join("  " + line for line in value_lines(model, rows)))
-            for name, w in windows_of(model, rows).items():
+            for name, w in runs_of(model, rows).items():
                 seen[f"{name} ({f.stem})" if name in seen else name] = w
         for line in difference_lines(seen):
             print(line)

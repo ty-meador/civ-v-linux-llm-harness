@@ -1,5 +1,5 @@
-"""scripts/board_run.py against a fake Game: what it refuses, when a run ends, what a row says, and the notebook
-an entrant's command plays with.
+"""scripts/benchmark_run.py against a fake Game: what it refuses, when a run ends, what a row says, and the notebook
+a player's command plays with.
 
 Live 2026-11-16 (docs/BENCHMARK.md, "Autoplay, checked live"): `Game.SetAIAutoPlay` on a duel whose unused slots
 were closed made the seat the observer and destroyed its Settler and Warrior in the same call, with no error; a
@@ -23,16 +23,16 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-_spec = importlib.util.spec_from_file_location("board_run", ROOT / "scripts" / "board_run.py")
-board_run = importlib.util.module_from_spec(_spec)
+_spec = importlib.util.spec_from_file_location("benchmark_run", ROOT / "scripts" / "benchmark_run.py")
+benchmark_run = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
-_spec.loader.exec_module(board_run)
+_spec.loader.exec_module(benchmark_run)
 
 
 def player(pid, human=False, alive=True, **kw):
     row = {"id": pid, "civ": f"civ{pid}", "alive": alive, "human": human}
-    row.update({k: 10 for k in board_run.INDICATORS})
-    row.update({k: 0 for k in board_run.ROUTES})
+    row.update({k: 10 for k in benchmark_run.INDICATORS})
+    row.update({k: 0 for k in benchmark_run.ROUTES})
     row.update(kw)
     return row
 
@@ -64,8 +64,8 @@ class FakeGame:
             return self.handed
         if "players = {}" in code:
             return self.reads.pop(0) if len(self.reads) > 1 else self.reads[0]   # the last read stands for any later one
-        if "return {burn" in code:
-            return {"burn": 0}
+        if "return {skip" in code:
+            return {"skip": 0}
         if "ExitToMainMenu" in code:
             return {"ok": True}
         return self.polls.pop(0)
@@ -105,46 +105,46 @@ def poll(turn, auto, winner=-1, alive=True, turn_active=True, victory=""):
 
 def run(g, **kw):
     clock = Clock()
-    return board_run.run_once(g, "board", 10, sleep=clock.sleep, clock=clock, **kw)
+    return benchmark_run.run_once(g, "save", 10, sleep=clock.sleep, clock=clock, **kw)
 
 
 class Refusals(unittest.TestCase):
-    def test_a_board_with_no_observer_slot_is_refused_before_the_engine_is_asked_anything(self):
+    def test_a_save_with_no_observer_slot_is_refused_before_the_engine_is_asked_anything(self):
         g = FakeGame([read(slots=(3, 1, 2, 2))])
-        with self.assertRaisesRegex(board_run.Refused, "observer slot"):
+        with self.assertRaisesRegex(benchmark_run.Refused, "observer slot"):
             run(g)
         self.assertFalse(any("SetAIAutoPlay" in s for s in g.sent), "the call that destroys the seat was sent")
-        self.assertEqual(g.left, 1, "the loaded board was left on screen")
+        self.assertEqual(g.left, 1, "the loaded game was left on screen")
 
     def test_the_seats_own_slot_does_not_count_as_the_observer_slot(self):
-        with self.assertRaises(board_run.Refused):
-            board_run.check_observer_slot(read(slots=(4, 1, 2)), 0)
-        board_run.check_observer_slot(read(slots=(3, 1, 4)), 0)
+        with self.assertRaises(benchmark_run.Refused):
+            benchmark_run.check_observer_slot(read(slots=(4, 1, 2)), 0)
+        benchmark_run.check_observer_slot(read(slots=(3, 1, 4)), 0)
 
     def test_two_human_seats_are_refused(self):
         g = FakeGame([read(players=[player(0, human=True), player(1, human=True)])])
-        with self.assertRaisesRegex(board_run.Refused, "2 human seats"):
+        with self.assertRaisesRegex(benchmark_run.Refused, "2 human seats"):
             run(g)
         self.assertEqual(g.left, 1)
 
-    def test_a_seat_that_is_not_the_boards_human_is_refused(self):
-        with self.assertRaisesRegex(board_run.Refused, "seat 1 is not"):
-            board_run.find_seat(read(), 1)
-        self.assertEqual(board_run.find_seat(read(), None), 0)
+    def test_a_seat_that_is_not_the_saves_human_is_refused(self):
+        with self.assertRaisesRegex(benchmark_run.Refused, "seat 1 is not"):
+            benchmark_run.find_seat(read(), 1)
+        self.assertEqual(benchmark_run.find_seat(read(), None), 0)
 
     def test_a_save_that_does_not_load_is_refused(self):
-        g = FakeGame([], loaded={"ok": False, "err": "no save named 'board'"})
-        with self.assertRaisesRegex(board_run.Refused, "no save named"):
+        g = FakeGame([], loaded={"ok": False, "err": "no save named 'save'"})
+        with self.assertRaisesRegex(benchmark_run.Refused, "no save named"):
             run(g)
 
 
 class Runs(unittest.TestCase):
-    def test_a_window_played_out_gives_the_seat_before_and_after(self):
+    def test_turns_played_to_their_end_give_the_seat_before_and_after(self):
         after = read(turn=252, players=[player(0, human=True, score=140, cities=3), player(1, score=310)])
         g = FakeGame([read(), after], polls=[poll(243, 9), poll(243, 9), poll(251, 1), poll(252, 0)])
         said: list[str] = []
         row = run(g, say=said.append)
-        self.assertEqual(row["end_reason"], "window_played")
+        self.assertEqual(row["end_reason"], "all_turns_played")
         self.assertEqual((row["turns_played"], row["seat"], row["handicap"]), (10, 0, "HANDICAP_EMPEROR"))
         self.assertEqual((row["start"]["values"]["score"], row["end"]["values"]["score"]), (100, 140))
         self.assertEqual(row["end"]["values"]["cities"], 3)
@@ -153,18 +153,18 @@ class Runs(unittest.TestCase):
         self.assertEqual(len(said), 3, "one line a new turn, none for a poll that saw the same turn")
         self.assertEqual(g.left, 1, "the game was not left for the main menu")
         self.assertEqual((row["end_point"]["turn"], [p["score"] for p in row["end_point"]["players"]]), (252, [140, 310]),
-                         "every player where the window ends: what an estimator values it by")
-        self.assertEqual(set(row["end_point"]["players"][1]), {"id", "alive", *board_run.INDICATORS, *board_run.ROUTES})
+                         "every player where the turns ends: what a win-chance formula values it by")
+        self.assertEqual(set(row["end_point"]["players"][1]), {"id", "alive", *benchmark_run.INDICATORS, *benchmark_run.ROUTES})
         json.dumps(row)
 
-    def test_the_draws_come_before_the_handover_and_the_seat_is_the_one_found(self):
+    def test_the_skip_comes_before_the_handover_and_the_seat_is_the_one_found(self):
         g = FakeGame([read(), read(turn=252)], polls=[poll(252, 0)])
-        run(g, burn=34)
+        run(g, skip=34)
         start = next(s for s in g.sent if "SetAIAutoPlay" in s)
         self.assertIn("for _ = 1, 34 do Game.Rand(", start)
         self.assertLess(start.index("Game.Rand("), start.index("Game.SetAIAutoPlay(10, 0)"))
 
-    def test_the_windows_own_terms_are_in_the_row(self):
+    def test_the_runs_own_terms_are_in_the_row(self):
         g = FakeGame([read(), read(turn=252)], polls=[poll(252, 0)])
         g.handed = dict(g.handed, seat_row="HANDICAP_AI_DEFAULT", time_victory=True)
         row = run(g, row="ai")
@@ -203,7 +203,7 @@ class Runs(unittest.TestCase):
         self.assertEqual(g.left, 1)
 
 
-class Entrant(unittest.TestCase):
+class APlayersRun(unittest.TestCase):
     """A command plays the seat between the two reads. The notebook is the one asked for while it plays and the
     one that stood on disk again afterwards."""
 
@@ -216,7 +216,7 @@ class Entrant(unittest.TestCase):
         self.given.write_text("given")
         self.seen: list = []
 
-    def command(self, g, writes="left by the entrant", raises=None):
+    def command(self, g, writes="left by the player", raises=None):
         def run(cmd, timeout, check):
             g.sent.append("command")
             self.seen.append((cmd, self.nb.read_text() if self.nb.exists() else None, timeout, check))
@@ -230,7 +230,7 @@ class Entrant(unittest.TestCase):
     def go(self, g, **kw):
         clock = Clock()
         kw.setdefault("run", self.command(g))
-        return board_run.run_entrant(g, "board", ["loop", "--turns", "10"], "codex/x", 10, sleep=clock.sleep, clock=clock,
+        return benchmark_run.run_player(g, "save", ["loop", "--turns", "10"], "codex/x", 10, sleep=clock.sleep, clock=clock,
                                      path_of=lambda _g, _seat: self.nb, **kw)
 
     def game(self, after=None, polls=None, **kw):
@@ -240,7 +240,7 @@ class Entrant(unittest.TestCase):
     def test_the_row_is_the_two_reads_around_the_command(self):
         g = self.game()
         row = self.go(g, keep_notebook=self.dir / "rows" / "kept.json")
-        self.assertEqual((row["entrant"], row["end_reason"], row["rc"], row["turns_played"]), ("codex/x", "window_played", 3, 10))
+        self.assertEqual((row["player"], row["end_reason"], row["rc"], row["turns_played"]), ("codex/x", "all_turns_played", 3, 10))
         self.assertEqual((row["start"]["values"]["score"], row["end"]["values"]["score"]), (100, 150))
         self.assertTrue(row["end"]["turn_active"])
         self.assertEqual(self.seen[0][0], ["loop", "--turns", "10"])
@@ -255,7 +255,7 @@ class Entrant(unittest.TestCase):
         row = self.go(g, notebook=str(self.given), keep_notebook=self.dir / "rows" / "kept.json")
         self.assertEqual(self.seen[0][1], "given")
         self.assertEqual(self.nb.read_text(), "standing")
-        self.assertEqual((self.dir / "rows" / "kept.json").read_text(), "left by the entrant")
+        self.assertEqual((self.dir / "rows" / "kept.json").read_text(), "left by the player")
         self.assertEqual(row["notebook_after"], str(self.dir / "rows" / "kept.json"))
 
     def test_none_is_a_seat_with_no_notebook(self):
@@ -272,24 +272,24 @@ class Entrant(unittest.TestCase):
         self.nb.unlink()
         self.go(self.game(), keep_notebook=self.dir / "kept.json")
         self.assertFalse(self.nb.exists())
-        self.assertEqual((self.dir / "kept.json").read_text(), "left by the entrant")
+        self.assertEqual((self.dir / "kept.json").read_text(), "left by the player")
 
     def test_a_notebook_file_that_is_not_there_is_refused_before_the_command(self):
         g = self.game()
-        with self.assertRaisesRegex(board_run.Refused, "no notebook file"):
+        with self.assertRaisesRegex(benchmark_run.Refused, "no notebook file"):
             self.go(g, notebook=str(self.dir / "absent.json"))
         self.assertEqual((self.seen, g.left, self.nb.read_text()), ([], 1, "standing"))
 
-    def test_the_deals_draws_are_taken_before_the_command(self):
+    def test_the_seeds_skip_is_made_before_the_command(self):
         g = self.game()
-        self.go(g, burn=34)
-        burn = next(i for i, s in enumerate(g.sent) if "for _ = 1, 34 do Game.Rand(" in s)
-        self.assertLess(burn, g.sent.index("command"))
+        self.go(g, skip=34)
+        skip = next(i for i, s in enumerate(g.sent) if "for _ = 1, 34 do Game.Rand(" in s)
+        self.assertLess(skip, g.sent.index("command"))
         g = self.game()
         self.go(g)
-        self.assertFalse(any("Game.Rand(" in s for s in g.sent), "deal 0 takes no draw")
+        self.assertFalse(any("Game.Rand(" in s for s in g.sent), "seed 0 skips no random number")
 
-    def test_a_command_that_does_not_end_is_given_up_and_the_board_is_still_read_and_left(self):
+    def test_a_command_that_does_not_end_is_given_up_and_the_save_is_still_read_and_left(self):
         g = self.game()
         row = self.go(g, run=self.command(g, raises=subprocess.TimeoutExpired("loop", 5)), notebook=str(self.given), timeout=5)
         self.assertEqual((row["end_reason"], row["rc"], self.seen[0][2]), ("timeout", None, 5))
@@ -311,39 +311,39 @@ class Entrant(unittest.TestCase):
         won = read(turn=247, winner=0, victory="VICTORY_SPACE_RACE")
         self.assertEqual(self.go(self.game(after=won))["end_reason"], "game_won")
 
-    def test_the_command_is_told_the_turn_at_which_the_window_is_over(self):
-        """Rule 5. Live 2026-11-16: told to end ten turns, Codex stopped with the board nine turns on."""
+    def test_the_command_is_told_the_turn_at_which_its_turns_are_over(self):
+        """Rule 5. Live 2026-11-16: told to end ten turns, Codex stopped with the game nine turns on."""
         g = self.game()
         clock = Clock()
-        row = board_run.run_entrant(g, "board", ["loop", "--until-turn", "{until}"], "codex/x", 10, sleep=clock.sleep,
+        row = benchmark_run.run_player(g, "save", ["loop", "--until-turn", "{until}"], "codex/x", 10, sleep=clock.sleep,
                                     clock=clock, path_of=lambda _g, _seat: self.nb, run=self.command(g))
         self.assertEqual(self.seen[0][0], ["loop", "--until-turn", "252"])
         self.assertEqual(row["command"], ["loop", "--until-turn", "252"])
 
     def test_a_command_needs_no_observer_slot(self):
-        self.assertEqual(self.go(self.game(slots=(3, 1, 2, 2)))["end_reason"], "window_played")
+        self.assertEqual(self.go(self.game(slots=(3, 1, 2, 2)))["end_reason"], "all_turns_played")
 
-    def test_a_command_that_ends_before_the_window_is_out_did_not_play_it(self):
+    def test_a_command_that_ends_before_its_turns_are_played_did_not_finish(self):
         short = read(turn=246, players=[player(0, human=True, score=110, turn_active=True), player(1, score=310)])
         row = self.go(self.game(after=short, polls=[poll(246, 0)]))
-        self.assertEqual((row["end_reason"], row["turns_asked"], row["turns_played"], row["rc"]), ("window_not_played", 10, 4, 3))
-        self.assertIn("codex/x: 1 runs, 0 played their window, 1 window_not_played", board_run.summarise([row]))
+        self.assertEqual((row["end_reason"], row["turns_asked"], row["turns_played"], row["rc"]), ("turns_not_played", 10, 4, 3))
+        self.assertIn("codex/x: 1 runs, 0 played their turns, 1 turns_not_played", benchmark_run.summarise([row]))
 
     def test_the_command_line_wants_a_label_with_a_command_and_a_command_with_a_label(self):
-        for argv in (["--save", "b", "--out", "x.jsonl", "--", "loop"], ["--save", "b", "--out", "x.jsonl", "--label", "codex"],
-                     ["--save", "b", "--out", "x.jsonl", "--label", "stock-ai", "--", "loop"],
-                     ["--save", "b", "--out", "x.jsonl", "--value-only"],
-                     ["--save", "b", "--out", "x.jsonl", "--value-only", "--continue", "3", "--label", "c", "--", "loop"]):
+        for argv in (["--save", "b", "--out", "x.jsonl", "--", "loop"], ["--save", "b", "--out", "x.jsonl", "--player", "codex"],
+                     ["--save", "b", "--out", "x.jsonl", "--player", "built-in-ai", "--", "loop"],
+                     ["--save", "b", "--out", "x.jsonl", "--finish-only"],
+                     ["--save", "b", "--out", "x.jsonl", "--finish-only", "--ai-finishes", "3", "--player", "c", "--", "loop"]):
             with self.subTest(argv), self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
-                board_run.main(argv)
+                benchmark_run.main(argv)
 
 
-class Continuations(unittest.TestCase):
-    """Rule 1: the game played out from the window's end by the engine, and the share of those games the seat won."""
+class AiFinishes(unittest.TestCase):
+    """Rule 1: the game finished by the engine's AI from the end of the turns, and the share of those games the seat won."""
 
     def go(self, g, m=0, **kw):
         clock = Clock()
-        return board_run.continuation(g, "board--end", m, sleep=clock.sleep, clock=clock, **kw)
+        return benchmark_run.ai_finish(g, "save--end", m, sleep=clock.sleep, clock=clock, **kw)
 
     def test_a_victory_of_the_seats_team_is_a_game_won(self):
         g = FakeGame([read(turn=252)], polls=[poll(300, 950), poll(318, 932, winner=0, victory="VICTORY_SPACE_RACE"), poll(319, 0)])
@@ -352,7 +352,7 @@ class Continuations(unittest.TestCase):
                          ("victory", True, "VICTORY_SPACE_RACE", 318, 252))
         self.assertEqual((len(g.polls), g.left), (1, 1), "the engine plays on past a victory: the game is left")
 
-    def test_a_game_the_engine_still_plays_is_left_by_the_referee_itself(self):
+    def test_a_game_the_engine_still_plays_is_left_by_the_runner_itself(self):
         """Live 2026-11-16: the seat's exit answered "this seat is not active" after a win under autoplay, and the
         game played on to turn 380 with the row already written."""
         g = FakeGame([read()], polls=[poll(331, 69, winner=1, victory="VICTORY_TIME")])
@@ -373,7 +373,7 @@ class Continuations(unittest.TestCase):
         self.assertNotIn("first_war_turn", quiet)
 
     def test_a_path_is_every_players_indicators_at_the_start_and_every_n_turns(self):
-        """The estimator's rows (rule 1): positions the stock AI played from, with the game's outcome beside them."""
+        """The win-chance formula's rows (rule 1): positions the built-in AI played from, with the game's outcome beside them."""
         two = [player(0, human=True, score=100), player(1, score=140)]
         reads = [read(turn=95, players=two), read(turn=101, players=two), read(turn=112, players=two),
                  read(turn=130, winner=1, victory="VICTORY_DOMINATION", players=two)]
@@ -382,7 +382,7 @@ class Continuations(unittest.TestCase):
         c = self.go(FakeGame(reads, polls=polls), path_every=10)
         self.assertEqual([pt["turn"] for pt in c["path"]], [95, 101, 112], "the start, then the first poll of each ten turns")
         self.assertEqual(c["path"][0]["players"][1],
-                         {"id": 1, "alive": True, **{k: two[1][k] for k in board_run.INDICATORS + board_run.ROUTES}})
+                         {"id": 1, "alive": True, **{k: two[1][k] for k in benchmark_run.INDICATORS + benchmark_run.ROUTES}})
         self.assertEqual((c["end_reason"], c["won"], [p["score"] for p in c["players"]]), ("victory", False, [100, 140]),
                          "the poll that brings the winner is the end, not a point")
         self.assertEqual(c["seat"], 0, "a save valued as it is names no seat in its row: the game says whose it was")
@@ -400,7 +400,7 @@ class Continuations(unittest.TestCase):
         self.assertNotIn("players", stalled)
 
     def test_the_seat_is_put_on_the_ais_row_and_time_switched_off_in_the_call_that_hands_it_over(self):
-        """Live 2026-11-17: the seat on the human's Prince row lost every whole game of two boards; set in play, the
+        """Live 2026-11-17: the seat on the human's Prince row lost every full AI game of two starting saves; set in play, the
         AIs' row is the seat's own by turn 12."""
         g = FakeGame([read()], polls=[poll(330, 1, winner=1)])
         g.handed = dict(g.handed, seat_row="HANDICAP_AI_DEFAULT", time_victory=False)
@@ -425,7 +425,7 @@ class Continuations(unittest.TestCase):
         c = self.go(g, time_victory="off", stop_turn=600)
         self.assertEqual((c["end_reason"], c["won"], c["turn"], len(g.polls), g.left), ("turn_limit", False, 600, 1, 1))
         self.assertIn("players", c)
-        self.assertIsNone(board_run.value_of({"end_reason": "window_played"}, [c]))
+        self.assertIsNone(benchmark_run.value_of({"end_reason": "all_turns_played"}, [c]))
 
     def test_another_teams_victory_is_a_game_not_won(self):
         c = self.go(FakeGame([read()], polls=[poll(330, 900, winner=1, victory="VICTORY_TIME")]))
@@ -439,53 +439,53 @@ class Continuations(unittest.TestCase):
     def test_a_stall_is_no_result(self):
         c = self.go(FakeGame([read()], polls=[poll(260, 990)] * 6), poll=3.0, stall=10.0)
         self.assertEqual((c["end_reason"], c["won"]), ("stalled", False))
-        self.assertIsNone(board_run.value_of({"end_reason": "window_played"}, [c]))
+        self.assertIsNone(benchmark_run.value_of({"end_reason": "all_turns_played"}, [c]))
 
     def test_no_game_starts_on_another_games_stretch_of_the_random_sequence(self):
-        # a seed's game, its continuations and the next seed's game start a whole stretch apart, and a stretch is
-        # many times the 42,263 draws a whole game took (live 2026-11-20)
-        starts = sorted([board_run.DRAWS_A_DEAL * n for n in range(3)]
-                        + [board_run.DRAWS_A_DEAL * n + board_run.DRAWS_A_CONTINUATION * (m + 1)
-                           for n in range(3) for m in range(board_run.GAMES_A_SEED - 1)])
+        # a seed's game, its AI finishes and the next seed's game start a whole stretch apart, and a stretch is
+        # many times the 42,263 random numbers a full AI game took (live 2026-11-20)
+        starts = sorted([benchmark_run.NUMBERS_A_SEED * n for n in range(3)]
+                        + [benchmark_run.NUMBERS_A_SEED * n + benchmark_run.NUMBERS_AN_AI_FINISH * (m + 1)
+                           for n in range(3) for m in range(benchmark_run.GAMES_A_SEED - 1)])
         self.assertEqual(len(set(starts)), len(starts))
         self.assertGreaterEqual(min(b - a for a, b in zip(starts, starts[1:])), 20 * 42_263)
         g = FakeGame([read()], polls=[poll(330, 1, winner=1)])
-        with self.assertRaises(board_run.Refused):
-            self.go(g, m=board_run.GAMES_A_SEED - 1)
+        with self.assertRaises(benchmark_run.Refused):
+            self.go(g, m=benchmark_run.GAMES_A_SEED - 1)
         self.assertEqual(g.sent, [])                      # refused before the save is loaded
 
-    def test_every_continuation_takes_draws_and_asks_for_more_turns_than_a_game_has(self):
-        for m, draws in ((0, 1_000_003), (1, 2_000_006), (14, 15_000_045)):
+    def test_every_ai_finish_skips_numbers_and_asks_for_more_turns_than_a_game_has(self):
+        for m, numbers in ((0, 1_000_003), (1, 2_000_006), (14, 15_000_045)):
             g = FakeGame([read()], polls=[poll(330, 1, winner=1)])
-            self.assertEqual(self.go(g, m=m)["burn"], draws)
+            self.assertEqual(self.go(g, m=m)["skip"], numbers)
             start = next(s for s in g.sent if "SetAIAutoPlay" in s)
-            self.assertIn(f"for _ = 1, {draws} do Game.Rand(", start)
+            self.assertIn(f"for _ = 1, {numbers} do Game.Rand(", start)
             self.assertIn("Game.SetAIAutoPlay(1000, 0)", start)
 
     def test_a_save_with_no_observer_slot_is_refused_and_left(self):
         g = FakeGame([read(slots=(3, 1, 2))])
-        with self.assertRaisesRegex(board_run.Refused, "observer slot"):
+        with self.assertRaisesRegex(benchmark_run.Refused, "observer slot"):
             self.go(g)
         self.assertEqual((g.left, any("SetAIAutoPlay" in s for s in g.sent)), (1, False))
 
     def test_the_value_is_the_share_of_decided_games_won(self):
         games = [{"end_reason": "victory", "won": True}, {"end_reason": "victory", "won": False},
                  {"end_reason": "seat_dead", "won": False}, {"end_reason": "stalled", "won": False}]
-        self.assertEqual(board_run.value_of({"end_reason": "window_played"}, games), round(1 / 3, 4))
-        self.assertEqual(board_run.value_of({"end_reason": "value_only"}, games[:2]), 0.5)
+        self.assertEqual(benchmark_run.value_of({"end_reason": "all_turns_played"}, games), round(1 / 3, 4))
+        self.assertEqual(benchmark_run.value_of({"end_reason": "finish_only"}, games[:2]), 0.5)
 
     def test_a_run_that_did_not_finish_has_no_value_and_is_a_result_of_its_own(self):
         won = [{"end_reason": "victory", "won": True}]
-        for reason, result in (("window_not_played", "dnf"), ("timeout", "dnf"), ("stalled", "void"), ("not_handed_over", "void")):
-            self.assertIsNone(board_run.value_of({"end_reason": reason}, won), reason)
-            self.assertEqual(board_run.result_of({"end_reason": reason}), result)
+        for reason, result in (("turns_not_played", "did_not_finish"), ("timeout", "did_not_finish"), ("stalled", "void"), ("not_handed_over", "void")):
+            self.assertIsNone(benchmark_run.value_of({"end_reason": reason}, won), reason)
+            self.assertEqual(benchmark_run.result_of({"end_reason": reason}), result)
 
-    def test_a_game_ended_inside_the_window_is_finished_and_all_or_nothing(self):
-        self.assertEqual(board_run.value_of({"end_reason": "game_won", "winner": 0, "end": {"team": 0}}, []), 1.0)
-        self.assertEqual(board_run.value_of({"end_reason": "game_won", "winner": 1, "end": {"team": 0}}, []), 0.0)
-        self.assertEqual(board_run.value_of({"end_reason": "seat_dead"}, []), 0.0)
-        for reason in ("window_played", "game_won", "seat_dead", "value_only"):
-            self.assertEqual(board_run.result_of({"end_reason": reason}), "finished")
+    def test_a_game_ended_inside_the_turns_is_finished_and_worth_one_or_nothing(self):
+        self.assertEqual(benchmark_run.value_of({"end_reason": "game_won", "winner": 0, "end": {"team": 0}}, []), 1.0)
+        self.assertEqual(benchmark_run.value_of({"end_reason": "game_won", "winner": 1, "end": {"team": 0}}, []), 0.0)
+        self.assertEqual(benchmark_run.value_of({"end_reason": "seat_dead"}, []), 0.0)
+        for reason in ("all_turns_played", "game_won", "seat_dead", "finish_only"):
+            self.assertEqual(benchmark_run.result_of({"end_reason": reason}), "finished")
 
 
 class EndSave(unittest.TestCase):
@@ -498,12 +498,12 @@ class EndSave(unittest.TestCase):
         g.quick_file = self.dir / "quick" / "QuickSave.Civ5Save"
         return g
 
-    def test_a_played_window_is_saved_under_its_name_before_the_game_is_left(self):
+    def test_the_end_of_played_turns_is_saved_under_its_name_before_the_game_is_left(self):
         g = self.game()
         clock = Clock()
-        row = board_run.run_once(g, "board", 10, end_save="board--stock-ai-deal0-end", sleep=clock.sleep, clock=clock)
-        self.assertEqual(row["end_save"], "board--stock-ai-deal0-end")
-        self.assertTrue((self.dir / "board--stock-ai-deal0-end.Civ5Save").read_text().startswith("save "))
+        row = benchmark_run.run_once(g, "save", 10, end_save="save--built-in-ai-seed0-end", sleep=clock.sleep, clock=clock)
+        self.assertEqual(row["end_save"], "save--built-in-ai-seed0-end")
+        self.assertTrue((self.dir / "save--built-in-ai-seed0-end.Civ5Save").read_text().startswith("save "))
         self.assertEqual(g.left, 1)
 
     def test_an_old_quick_save_is_not_taken_for_the_new_one(self):
@@ -511,7 +511,7 @@ class EndSave(unittest.TestCase):
         g.quick_file.parent.mkdir()
         g.quick_file.write_text("an older game")
         clock = Clock()
-        board_run.save_as(g, "kept", sleep=clock.sleep, clock=clock)
+        benchmark_run.save_as(g, "kept", sleep=clock.sleep, clock=clock)
         self.assertNotEqual((self.dir / "kept.Civ5Save").read_text(), "an older game")
 
     def test_a_quick_save_that_is_refused_or_never_written_is_said_in_the_row(self):
@@ -520,44 +520,44 @@ class EndSave(unittest.TestCase):
         unwritten.quick_file = None
         for g, why in ((refused, "refused"), (unwritten, "not written")):
             clock = Clock()
-            row = board_run.run_once(g, "board", 10, end_save="kept", sleep=clock.sleep, clock=clock)
-            self.assertEqual((row["end_reason"], row["end_save"]), ("window_played", None))
+            row = benchmark_run.run_once(g, "save", 10, end_save="kept", sleep=clock.sleep, clock=clock)
+            self.assertEqual((row["end_reason"], row["end_save"]), ("all_turns_played", None))
             self.assertIn(why, row["end_save_error"])
             self.assertEqual(g.left, 1)
 
-    def test_a_window_that_was_not_played_is_not_saved(self):
+    def test_turns_that_were_not_all_played_are_not_saved(self):
         g = FakeGame([read(), read(turn=246, winner=1, players=[player(0, human=True, alive=False), player(1)])],
                      polls=[poll(246, 6, winner=1, alive=False)])
         clock = Clock()
-        row = board_run.run_once(g, "board", 10, end_save="kept", sleep=clock.sleep, clock=clock)
+        row = benchmark_run.run_once(g, "save", 10, end_save="kept", sleep=clock.sleep, clock=clock)
         self.assertNotIn("end_save", row)
         self.assertNotIn("quick_save", g.sent)
 
 
 class Terms(unittest.TestCase):
     """Live 2026-11-17: a save made after the seat was put on the AIs' row and Time switched off reads both back
-    after a reload, so a board can carry its terms and every window on it is played on them."""
+    after a reload, so a starting save can carry its terms and every run on it is played on them."""
 
     TOLD = {"seat_row": "HANDICAP_AI_DEFAULT", "time_victory": False, "max_turns": 0}
 
     def make(self, g, **kw):
         saved = []
-        out = board_run.with_terms(g, "board-t0", "board-t0-terms", save_game=lambda _g, name: saved.append(name) or name, **kw)
+        out = benchmark_run.with_terms(g, "save-t0", "save-t0-terms", save_game=lambda _g, name: saved.append(name) or name, **kw)
         return out, saved
 
     @staticmethod
     def sent_terms(g):
         return next(c for c in g.sent if "seat_row" in c and "SetAIAutoPlay" not in c and "players = {}" not in c)
 
-    def test_the_board_is_changed_then_saved_under_the_new_name_and_left(self):
+    def test_the_save_is_changed_then_saved_under_the_new_name_and_left(self):
         g = FakeGame([read(turn=0)], polls=[dict(self.TOLD)])
         out, saved = self.make(g)
         chunk = self.sent_terms(g)
         self.assertIn("PreGame.SetHandicap(0, GameInfo.HandicapInfos.HANDICAP_AI_DEFAULT.ID)", chunk)
         self.assertIn("PreGame.SetMaxTurns(0)", chunk)
         self.assertFalse(any("SetAIAutoPlay" in c for c in g.sent))          # nobody plays a turn
-        self.assertEqual(saved, ["board-t0-terms"])
-        self.assertEqual(out, {**self.TOLD, "save": "board-t0-terms", "made_from": "board-t0", "seat": 0, "turn": 0})
+        self.assertEqual(saved, ["save-t0-terms"])
+        self.assertEqual(out, {**self.TOLD, "save": "save-t0-terms", "made_from": "save-t0", "seat": 0, "turn": 0})
         self.assertEqual(g.left, 1)
 
     def test_either_term_can_be_left_as_hosted(self):
@@ -567,9 +567,9 @@ class Terms(unittest.TestCase):
         self.assertNotIn("SetHandicap", chunk)
         self.assertIn("PreGame.SetMaxTurns(0)", chunk)
 
-    def test_a_board_with_no_observer_slot_is_refused_unchanged_and_left(self):
+    def test_a_save_with_no_observer_slot_is_refused_unchanged_and_left(self):
         g = FakeGame([read(slots=(3, 1, 2, 2))])
-        with self.assertRaises(board_run.Refused):
+        with self.assertRaises(benchmark_run.Refused):
             self.make(g)
         self.assertFalse(any("SetHandicap" in c for c in g.sent))
         self.assertEqual(g.left, 1)
@@ -583,19 +583,19 @@ class Terms(unittest.TestCase):
 
         game = mock.Mock()
         game.has_state.return_value = False
-        with mock.patch.object(board_run, "with_terms", fake), mock.patch("harness.game.Game", return_value=game), \
+        with mock.patch.object(benchmark_run, "with_terms", fake), mock.patch("harness.game.Game", return_value=game), \
                 contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(board_run.main(["--save", "a", "--terms", "b"]), 0)
+            self.assertEqual(benchmark_run.main(["--save", "a", "--terms", "b"]), 0)
             self.assertEqual(seen, {"save": "a", "new": "b", "row": "ai", "time": "off"})
-            self.assertEqual(board_run.main(["--save", "a", "--terms", "b", "--time", "on"]), 0)
+            self.assertEqual(benchmark_run.main(["--save", "a", "--terms", "b", "--time", "on"]), 0)
             self.assertEqual(seen["time"], "on")
 
 
 class NewGamesOfOneSave(unittest.TestCase):
-    """Live 2026-11-17: eight whole games of one save were asked for twice, and the second run replayed the first
+    """Live 2026-11-17: eight full AI games of one save were asked for twice, and the second run replayed the first
     two game for game (Diplomatic at turn 342, Culture at 272) before the game process died with nothing written."""
 
-    def value_only(self, out, *more, die_at=None):
+    def finish_only(self, out, *more, die_at=None):
         seen = []
 
         def fake(_g, save, m, **_kw):
@@ -606,124 +606,124 @@ class NewGamesOfOneSave(unittest.TestCase):
 
         game = mock.Mock()
         game.has_state.return_value = False
-        with mock.patch.object(board_run, "continuation", fake), mock.patch.object(board_run, "wait_main_menu"), \
+        with mock.patch.object(benchmark_run, "ai_finish", fake), mock.patch.object(benchmark_run, "wait_main_menu"), \
                 mock.patch("harness.game.Game", return_value=game), contextlib.redirect_stdout(io.StringIO()):
             try:
-                board_run.main(["--save", "a", "--value-only", "--continue", "3", "--out", str(out), *more])
+                benchmark_run.main(["--save", "a", "--finish-only", "--ai-finishes", "3", "--out", str(out), *more])
             except RuntimeError:
                 pass
         return seen
 
-    def test_the_continuations_are_numbered_from_the_one_named(self):
+    def test_the_ai_finishes_are_numbered_from_the_one_named(self):
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "rows.jsonl"
-            self.assertEqual(self.value_only(out), [0, 1, 2])
-            self.assertEqual(self.value_only(out, "--first-continuation", "8"), [8, 9, 10])
-            self.assertEqual([c["m"] for c in board_run.read_rows(out)[1]["continuations"]], [8, 9, 10])
+            self.assertEqual(self.finish_only(out), [0, 1, 2])
+            self.assertEqual(self.finish_only(out, "--first-ai-finish", "8"), [8, 9, 10])
+            self.assertEqual([c["m"] for c in benchmark_run.read_rows(out)[1]["ai_finishes"]], [8, 9, 10])
             self.assertFalse(Path(str(out) + ".partial").exists())
 
     def test_the_games_played_before_a_crash_are_kept_beside_the_rows(self):
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "rows.jsonl"
-            self.assertEqual(self.value_only(out, die_at=2), [0, 1])
+            self.assertEqual(self.finish_only(out, die_at=2), [0, 1])
             self.assertFalse(out.exists())
             kept = json.loads(Path(str(out) + ".partial").read_text())
-            self.assertEqual([c["m"] for c in kept["continuations"]], [0, 1])
+            self.assertEqual([c["m"] for c in kept["ai_finishes"]], [0, 1])
 
 
 class Views(unittest.TestCase):
     def test_shares_are_of_the_living_and_the_place_is_by_score(self):
         r = read(players=[player(0, human=True, score=100, techs=30), player(1, score=300, techs=50),
                           player(2, score=50, techs=20), player(3, alive=False, score=900, techs=99)])
-        v = board_run.seat_view(r, 0)
+        v = benchmark_run.seat_view(r, 0)
         self.assertEqual((v["place"], v["of"]), (2, 3))
         self.assertEqual(v["share"]["techs"], 0.3)
         self.assertEqual(v["share"]["score"], round(100 / 450, 4))
 
     def test_a_negative_value_counts_as_nothing_in_a_share(self):
         r = read(players=[player(0, human=True, happiness=-4), player(1, happiness=8)])
-        self.assertEqual(board_run.seat_view(r, 0)["share"]["happiness"], 0.0)
+        self.assertEqual(benchmark_run.seat_view(r, 0)["share"]["happiness"], 0.0)
 
 
-def row(score, reason="window_played", start=100, **kw):
-    values = {k: 10 for k in board_run.INDICATORS}
-    return {**kw, "save": "board", "seat": 0, "handicap": "HANDICAP_EMPEROR", "turns_asked": 10, "seconds": 300.0,
+def row(score, reason="all_turns_played", start=100, **kw):
+    values = {k: 10 for k in benchmark_run.INDICATORS}
+    return {**kw, "save": "save", "seat": 0, "handicap": "HANDICAP_EMPEROR", "turns_asked": 10, "seconds": 300.0,
             "end_reason": reason, "start": {"values": dict(values, score=start)},
-            "end": {"values": dict(values, score=score), "share": {k: 0.1 for k in board_run.INDICATORS},
+            "end": {"values": dict(values, score=score), "share": {k: 0.1 for k in benchmark_run.INDICATORS},
                     "place": 2, "of": 12}}
 
 
 class Summary(unittest.TestCase):
     def test_the_spread_is_set_against_the_gain(self):
-        lines = board_run.summarise([row(130), row(140), row(150), row(0, reason="seat_dead")])
-        self.assertIn("4 runs, 3 played their window, 1 seat_dead", lines[0])
+        lines = benchmark_run.summarise([row(130), row(140), row(150), row(0, reason="seat_dead")])
+        self.assertIn("4 runs, 3 played their turns, 1 seat_dead", lines[0])
         score = next(line for line in lines if line.startswith("score"))
         self.assertEqual(score.split()[:7], ["score", "100", "140.0", "10.0", "130", "150", "0.25"])
         self.assertFalse(any("replays the same game" in line for line in lines))
 
     def test_runs_that_all_end_alike_are_said_to_be_one_game(self):
-        lines = board_run.summarise([row(140), row(140)])
+        lines = benchmark_run.summarise([row(140), row(140)])
         self.assertTrue(any("replays the same game" in line for line in lines))
-        self.assertFalse(any("replays the same game" in line for line in board_run.summarise([row(140)])))
+        self.assertFalse(any("replays the same game" in line for line in benchmark_run.summarise([row(140)])))
 
-    def test_rows_with_no_entrant_are_the_stock_ais(self):
-        self.assertTrue(board_run.summarise([row(140)])[0].startswith("stock-ai: 1 runs"))
+    def test_rows_with_no_player_are_the_built_in_ais(self):
+        self.assertTrue(benchmark_run.summarise([row(140)])[0].startswith("built-in-ai: 1 runs"))
 
-    def test_two_entrants_stand_side_by_side_on_runs_that_played_the_window(self):
+    def test_two_players_stand_side_by_side_on_runs_that_played_their_turns(self):
         rows = [row(130, turns_played=10), row(150, turns_played=10),
-                row(180, entrant="codex/x", turns_played=10),
-                row(0, reason="timeout", entrant="codex/x", turns_played=4)]
-        lines = board_run.summarise(rows)
-        self.assertIn("codex/x: 2 runs, 1 played their window, 1 timeout", lines)
+                row(180, player="codex/x", turns_played=10),
+                row(0, reason="timeout", player="codex/x", turns_played=4)]
+        lines = benchmark_run.summarise(rows)
+        self.assertIn("codex/x: 2 runs, 1 played their turns, 1 timeout", lines)
         head = lines.index("side by side, 10 turns, mean (sd) at the end:")
-        self.assertEqual(lines[head + 1].split(), ["stock-ai", "x2", "codex/x", "x1"])
+        self.assertEqual(lines[head + 1].split(), ["built-in-ai", "x2", "codex/x", "x1"])
         self.assertEqual(lines[head + 2].split(), ["score", "140.0", "(14.1)", "180.0", "(0.0)"])
 
-    def test_runs_of_different_windows_do_not_stand_side_by_side(self):
-        lines = board_run.summarise([row(130, turns_played=10), row(180, entrant="codex/x", turns_played=7)])
+    def test_runs_of_different_lengths_do_not_stand_side_by_side(self):
+        lines = benchmark_run.summarise([row(130, turns_played=10), row(180, player="codex/x", turns_played=7)])
         self.assertEqual(lines[-1], "not side by side: the runs played 7, 10 turns")
         self.assertFalse(any(line.startswith("side by side") for line in lines))
 
     def test_the_value_has_its_own_line_and_its_row_side_by_side(self):
         games = [{"end_reason": "victory", "won": True, "victory": "VICTORY_TIME", "seconds": 600.0}] * 2
-        rows = [row(130, turns_played=10, value=0.5, continuations=games), row(150, turns_played=10, value=0.3, continuations=games),
-                row(180, entrant="codex/x", turns_played=10, value=0.7, continuations=games),
-                row(0, reason="window_not_played", entrant="codex/x", turns_played=4, value=None)]
-        lines = board_run.summarise(rows)
-        self.assertIn("value: 0.400 (sd 0.141) over 2 finished runs and 4 continuations, 10.0 min each; by run: 0.50, 0.30; "
+        rows = [row(130, turns_played=10, value=0.5, ai_finishes=games), row(150, turns_played=10, value=0.3, ai_finishes=games),
+                row(180, player="codex/x", turns_played=10, value=0.7, ai_finishes=games),
+                row(0, reason="turns_not_played", player="codex/x", turns_played=4, value=None)]
+        lines = benchmark_run.summarise(rows)
+        self.assertIn("value: 0.400 (sd 0.141) over 2 finished runs and 4 AI finishes, 10.0 min each; by run: 0.50, 0.30; "
                       "ended by VICTORY_TIME", lines)
         self.assertTrue(any(line.startswith("value: 0.700 (sd 0.000) over 1 finished runs") for line in lines),
-                        "a DNF is not averaged into the value")
-        # the deal is the unit (live 2026-11-18: one window's deals were 0 of 5 and 5 of 5): 0.141 / sqrt(2)
-        self.assertIn("deals: 2 finished, the value's standard error over them 0.100 "
-                      "(the deal is the unit: its games are not independent trials)", lines)
-        self.assertEqual(sum(1 for line in lines if line.startswith("deals: ")), 1, "one deal has no error over deals")
+                        "a run that did not finish is not averaged into the value")
+        # the seed is the unit (live 2026-11-18: two seeds were 0 of 5 and 5 of 5): 0.141 / sqrt(2)
+        self.assertIn("seeds: 2 finished, the value's standard error over them 0.100 "
+                      "(the seed is the unit: its games are not independent trials)", lines)
+        self.assertEqual(sum(1 for line in lines if line.startswith("seeds: ")), 1, "one seed has no error over seeds")
         self.assertFalse(any("standard error" in line for line in lines if line.startswith("games: ")))
-        self.assertIn("DNF: 1 of 2 runs (window_not_played), below every finished run in an ordering; "
-                      "with DNF as 0 the value is 0.350", lines)
+        self.assertIn("not finished: 1 of 2 runs (turns_not_played), below every finished run in an ordering; "
+                      "with not finished as 0 the value is 0.350", lines)
         self.assertEqual(lines[-2].split(), ["value", "0.400", "(0.141)", "0.700", "(0.000)"])
-        self.assertEqual(lines[-1].split(), ["DNF", "0", "of", "2", "1", "of", "2"])
+        self.assertEqual(lines[-1].split(), ["not", "finished", "0", "of", "2", "1", "of", "2"])
 
     def test_a_save_valued_as_it_is_has_one_line(self):
-        only = {"entrant": "board", "end_reason": "value_only", "value": 0.25,
-                "continuations": [{"end_reason": "seat_dead", "won": False, "seconds": 120.0}]}
-        lines = board_run.summarise([only])
-        self.assertEqual(lines[0], "board: 1 runs, 0 played their window")
-        self.assertTrue(lines[1].startswith("value: 0.250 (sd 0.000) over 1 finished runs and 1 continuations, 2.0 min each"))
+        only = {"player": "save", "end_reason": "finish_only", "value": 0.25,
+                "ai_finishes": [{"end_reason": "seat_dead", "won": False, "seconds": 120.0}]}
+        lines = benchmark_run.summarise([only])
+        self.assertEqual(lines[0], "save: 1 runs, 0 played their turns")
+        self.assertTrue(lines[1].startswith("value: 0.250 (sd 0.000) over 1 finished runs and 1 AI finishes, 2.0 min each"))
         self.assertTrue(lines[1].endswith("ended by seat_dead"))
 
     def test_the_games_as_one_pool_and_the_ones_the_stop_turn_left_open(self):
         games = [{"end_reason": "victory", "won": True, "seconds": 60.0, "victory": "VICTORY_CULTURAL"},
                  {"end_reason": "victory", "won": False, "seconds": 60.0, "victory": "VICTORY_DOMINATION"},
                  {"end_reason": "turn_limit", "won": False, "seconds": 600.0, "turn": 500}]
-        lines = board_run.summarise([{"entrant": "board", "end_reason": "value_only", "value": 0.5,
-                                      "continuations": games}])
-        self.assertIn("and 2 continuations, 1.0 min each", lines[1])      # the open game is in no mean
+        lines = benchmark_run.summarise([{"player": "save", "end_reason": "finish_only", "value": 0.5,
+                                      "ai_finishes": games}])
+        self.assertIn("and 2 AI finishes, 1.0 min each", lines[1])      # the open game is in no mean
         self.assertEqual(lines[2], "games: the seat won 1 of 2 decided, 0.500")
         self.assertEqual(lines[3], "not decided by the stop turn: 1 (turn 500), in no share")
 
-    def test_no_run_that_played_its_window_is_one_line(self):
-        self.assertEqual(len(board_run.summarise([row(0, reason="stalled")])), 1)
+    def test_no_run_that_played_its_turns_gives_one_line(self):
+        self.assertEqual(len(benchmark_run.summarise([row(0, reason="stalled")])), 1)
 
 
 class Lua(unittest.TestCase):
@@ -733,10 +733,10 @@ class Lua(unittest.TestCase):
         except ImportError:
             self.skipTest("lupa is not installed")
         lua = lupa.LuaRuntime()
-        for name, body in (("READ", board_run.READ), ("POLL", board_run.POLL % {"seat": 0}),
-                           ("BURN", board_run.BURN % {"burn": 17}), ("LEAVE", board_run.LEAVE),
-                           ("START", board_run.start_chunk(3, 10, 0)),
-                           ("START with terms", board_run.start_chunk(3, 10, 0, row="ai", time="off"))):
+        for name, body in (("READ", benchmark_run.READ), ("POLL", benchmark_run.POLL % {"seat": 0}),
+                           ("SKIP", benchmark_run.SKIP % {"skip": 17}), ("LEAVE", benchmark_run.LEAVE),
+                           ("START", benchmark_run.start_chunk(3, 10, 0)),
+                           ("START with terms", benchmark_run.start_chunk(3, 10, 0, row="ai", time="off"))):
             with self.subTest(name):
                 self.assertTrue(lua.eval("function(src) return loadstring and loadstring(src) or load(src) end")(body),
                                 f"{name} does not compile")

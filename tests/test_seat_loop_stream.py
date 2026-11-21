@@ -84,14 +84,14 @@ class CommandTests(unittest.TestCase):
         self.assertIn("reports/c1-x.md", text)
 
     def test_the_instance_ends_on_a_turn_that_is_the_seats_not_on_a_count_of_finishes(self):
-        """Live 2026-11-16: Codex stopped after its tenth finish, a leader on screen and the board nine turns on."""
+        """Live 2026-11-16: Codex stopped after its tenth finish, a leader on screen and the game nine turns on."""
         text = loop.prompt_for(5, "c1-x")
         self.assertEqual(text.count("turn T0+5 is yours"), 2)
         self.assertNotIn("T0+4", text)
         self.assertIn("a finish that comes back\n   on the same turn", text)
         self.assertNotIn("whichever", text)
 
-    def test_a_referees_window_names_its_turn_as_well(self):
+    def test_a_benchmark_runs_last_turn_is_named_as_well(self):
         text = loop.prompt_for(10, "c1-x", until=262)
         self.assertEqual(text.count("turn T0+10 or turn 262 is yours, whichever comes first"), 2)
         self.assertIn("with T0 at 262 or later there is nothing to play", text)
@@ -215,18 +215,18 @@ class OldStreamTests(unittest.TestCase):
 
 
 
-class WindowOver(unittest.TestCase):
-    """A referee's window (docs/BENCHMARK.md rule 5): with `--until-turn` the loop ends by the board, read
+class LastTurnReached(unittest.TestCase):
+    """A benchmark run's last turn (docs/BENCHMARK.md rule 5): with `--until-turn` the loop ends by the game, read
     before every cycle, and not by a count of cycles."""
 
     def over(self, now, until=100):
-        return loop.window_over(until, 0, read=lambda seat: now)
+        return loop.last_turn_reached(until, 0, read=lambda seat: now)
 
-    def test_a_window_still_open_wants_another_instance(self):
+    def test_a_run_with_turns_left_wants_another_instance(self):
         self.assertEqual(self.over({"turn": 99, "winner": -1, "alive": True}), "")
 
     def test_the_turn_that_is_the_seats_ends_it(self):
-        self.assertIn("window is over", self.over({"turn": 100, "winner": -1, "alive": True}))
+        self.assertIn("turns are over", self.over({"turn": 100, "winner": -1, "alive": True}))
         self.assertIn("turn 103 of 100", self.over({"turn": 103, "winner": -1, "alive": True}))
 
     def test_a_decided_game_or_a_dead_seat_ends_it_before_the_turn(self):
@@ -236,15 +236,15 @@ class WindowOver(unittest.TestCase):
     def test_a_read_that_fails_or_says_nothing_does_not_end_the_loop(self):
         def down(seat):
             raise OSError("no socket")
-        self.assertEqual(loop.window_over(100, 0, read=down), "")
+        self.assertEqual(loop.last_turn_reached(100, 0, read=down), "")
         self.assertEqual(self.over(None), "")
         self.assertEqual(self.over({}), "")
 
     def test_the_read_names_the_seat(self):
         seen = []
-        loop.window_over(100, 2, read=lambda seat: seen.append(seat) or {"turn": 1})
+        loop.last_turn_reached(100, 2, read=lambda seat: seen.append(seat) or {"turn": 1})
         self.assertEqual(seen, [2])
-        self.assertIn("Players[2]", loop.WINDOW % 2)
+        self.assertIn("Players[2]", loop.TURN_READ % 2)
 
 if __name__ == "__main__":
     unittest.main()
