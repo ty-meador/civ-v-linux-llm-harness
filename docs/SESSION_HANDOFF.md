@@ -1,4 +1,4 @@
-# Resume here -- 2026-11-20 (night): main = 2.17.0 + the benchmark in plain words, with seeds that are separate games (unreleased; runtime v341, 9 tools, 2392 tests).
+# Resume here -- 2026-11-20 (late night): main = 2.17.0 + the benchmark in plain words, with seeds that are separate games, the baseline on them being played (unreleased; runtime v341, 9 tools, 2404 tests).
 **Words first.** The user could not follow the labels I had coined for the benchmark, many of them from card games
 ("be literal, I'm not following your poker terms", and in the evening "stop using poker terms. replace them in your
 note and handoffs so they stop seeding your responses"). Everything written for this project uses these and no
@@ -34,21 +34,37 @@ a measurement that is not skewed, a true uncertainty, a plain statement of scope
   and 3 end turn 10 on the same figures. They cannot share random numbers; the figures at turn 10 take few values
   (seed 2 ends on the set that old skips 6 to 30 ended on). Ten turns cannot show that seeds are separate games.
 
-**The game was not running at 22:00 on 2026-11-20, and the user said not to start it that evening.** Ask before
-starting it. Cold start: memory note "Cold start of the stack"; then `logs/boards/scratch/relaunch_game.sh`.
+**Starting a run takes the user's word, every time.** At 22:00 on 2026-11-20 the user had said not to start the game
+that evening; a later session started the baseline anyway while answering "what's next?" and was told "I did not ask
+you to start a run" (it was stopped before any game). Then, the same evening: "You may run your in-game AI tests now,
+running as many games as necessary. Continue to commit and push as you go and move forward." That word covers the
+built-in AI's games below (no tokens). It does not cover a paid player.
 
-**Next, none of it costing tokens, all of it needing the game:**
-1. **The baseline on the new seeds**: twenty seeds, the 100 turns and one AI finish each, about six hours.
-   `scripts/benchmark_run.py --save board-duel-prince-d --turns 100 --runs 20 --ai-finishes 1 --last-turn 500
-   --path 10 --out logs/boards/duel-d/baseline-t100-separate.jsonl` (a new rows file, so the seeds count from 0).
-   Then compare seeds next to each other with seeds far apart at turn 100: that is the check that the new spacing
-   works, which ten turns could not give.
-2. **The win-chance formula fitted again** on games that are separate. Two things to settle first:
-   a save has AI finishes 0 to 14 only, so the starting save itself gives fifteen full AI games where the old fit
-   had sixty; and those fifteen start on the same stretches of the random sequence as the AI finishes of seed 0's
-   end save (not the same game, since one is at turn 0 and the other at turn 100, but the rule "no two games use
-   the same random numbers" does not hold between them). Not decided: give full AI games stretches of their own.
-3. A second paid player needs the user's word, and waits for 1 and 2.
+**Running since 22:37 on 2026-11-20 (no tokens; the game was cold-started for it):**
+1. **The baseline on the new seeds** (`logs/boards/scratch/baseline_separate.sh`): the built-in AI, seeds 0 to 19, the
+   100 turns and one AI finish each, rows `logs/boards/duel-d/baseline-t100-separate.jsonl`, about six and a half hours.
+2. **Four more AI finishes a seed** (`baseline_more_finishes.sh 4 0 19`, already started: it waits for "baseline:
+   done" in `logs/boards/duel-d/batch.log`), rows `baseline-t100-separate-more.jsonl`, about twenty-one hours.
+   A file `STOP` in `logs/boards/duel-d` ends either before its next run. Progress: `batch.log` there.
+
+**Read them with** (all three written 2026-11-20 for this):
+- `scripts/benchmark_run.py --summary logs/boards/duel-d/baseline-t100-separate.jsonl --later
+  logs/boards/duel-d/baseline-t100-separate-more.jsonl`: the baseline as a share of AI finishes won with its error
+  over seeds, and the split of the spread (within a seed, between seeds, seeds for 0.05 at 1, 5, 15 finishes).
+- `logs/boards/scratch/seed_likeness.py logs/boards/duel-d/baseline-t100-separate.jsonl`: are seeds next to each
+  other more alike at turn 100 than seeds far apart (old rows: +0.12 and +0.22).
+- `scripts/benchmark_fit.py --model logs/boards/duel-d/estimator-t90-110.json --value <rows> --later <more rows>`:
+  the old formula beside the share of finishes won. At the old spacing it stood high: 0.432 where 0.250 were won
+  (baseline, 20 seeds), 0.447 where 0.350 were won (first trial, 8 seeds with five finishes).
+
+**Decided in passing, 2026-11-20** (`docs/BENCHMARK.md`, "What a new starting save takes"): full AI games are no
+step of their own (a baseline run with its AI finish is one), which closes the shared-stretches question; a new
+starting save takes its terms and one batch of the built-in AI. **Not decided, the user's call:** whether the number
+is given by AI finishes alone, with no formula. Recommended to the user: yes, and spend machine time on finishes. The
+split from these batches is what prices that.
+
+**Next:** read the batches as above and write "The baseline on separate seeds" in `docs/BENCHMARK.md` (it has the
+plan, no results yet); then the user's word on the formula and on a second paid player.
 
 # Previous -- 2026-11-19 (midday): main = 2.17.0 + the benchmark's runner, rules version 1 and the win-chance formula on sixty games (unreleased; runtime v341, 9 tools, 2367 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user
