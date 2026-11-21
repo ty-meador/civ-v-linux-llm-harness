@@ -1,4 +1,4 @@
-# Resume here -- 2026-11-20 (late night): main = 2.17.0 + the benchmark in plain words, with seeds that are separate games, the baseline on them being played (unreleased; runtime v341, 9 tools, 2404 tests).
+# Resume here -- 2026-11-20 (late night): main = 2.17.0 + the benchmark in plain words, with seeds that are separate games, the baseline on them being played (unreleased; runtime v341, 9 tools, 2414 tests).
 **Words first.** The user could not follow the labels I had coined for the benchmark, many of them from card games
 ("be literal, I'm not following your poker terms", and in the evening "stop using poker terms. replace them in your
 note and handoffs so they stop seeding your responses"). Everything written for this project uses these and no
@@ -51,7 +51,7 @@ built-in AI's games below (no tokens). It does not cover a paid player.
 - `scripts/benchmark_run.py --summary logs/boards/duel-d/baseline-t100-separate.jsonl --later
   logs/boards/duel-d/baseline-t100-separate-more.jsonl`: the baseline as a share of AI finishes won with its error
   over seeds, and the split of the spread (within a seed, between seeds, seeds for 0.05 at 1, 5, 15 finishes).
-- `logs/boards/scratch/seed_likeness.py logs/boards/duel-d/baseline-t100-separate.jsonl`: are seeds next to each
+- `scripts/benchmark_seed_likeness.py logs/boards/duel-d/baseline-t100-separate.jsonl`: are seeds next to each
   other more alike at turn 100 than seeds far apart (old rows: +0.12 and +0.22).
 - `scripts/benchmark_fit.py --model logs/boards/duel-d/estimator-t90-110.json --value <rows> --later <more rows>`:
   the old formula beside the share of finishes won. At the old spacing it stood high: 0.432 where 0.250 were won

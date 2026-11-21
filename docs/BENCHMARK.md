@@ -1350,8 +1350,8 @@ No tokens.
   batch before its next run.
 - **What they are for.** (1) The baseline as a share of AI finishes won, with an error over seeds that are separate
   games. (2) The check the ten-turn runs could not give: are seeds next to each other more alike at turn 100 than
-  seeds far apart (`logs/boards/scratch/seed_likeness.py`: on the old rows, seeds 17 random numbers apart are alike
-  at +0.12 and +0.22, which 0.086 and 0.013 of random orderings of the same runs reach). (3) The split of the spread
+  seeds far apart (`scripts/benchmark_seed_likeness.py`: on the old rows, seeds 17 random numbers apart are alike
+  at +0.12 and +0.22, which 0.091 and 0.011 of random orderings of the same runs reach). (3) The split of the spread
   into the part within a seed and the part between seeds, on games that share no random numbers
   (`--summary ... --later ...`), which is what says how many seeds and how many finishes a player's number takes
   without the formula. (4) Twenty positions at turn 100 with five outcomes each, to check the formula fitted on the

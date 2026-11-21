@@ -16,6 +16,12 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The check that seeds are separate games is a script in the repository (2026-11-21).**
+  `scripts/benchmark_seed_likeness.py ROWS [ROWS ...]` reads every finished run where its turns ended and says
+  whether runs on seeds 1, 2 and 3 apart ended more alike than runs on seeds far apart, with the share of random
+  orderings of the same runs that come out at least as alike. It was a scratch file the benchmark document cited
+  and the repository did not hold. The orderings are the same for a file whatever is read beside it. On the
+  baseline at the old spacing, seeds next to each other: +0.120 (0.091 of orderings) and +0.219 (0.011).
 - **A summary counts AI finishes played later, and says what the spread is made of (2026-11-20).**
   `scripts/benchmark_run.py --summary ROWS --later ROWS [ROWS ...]` joins the AI finishes of `--finish-only` rows to
   the run whose end save they were played from (a finish of a number the run already has is the same game and is not
