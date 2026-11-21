@@ -16,6 +16,13 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The baseline on seeds that are separate games: 0.474 (2026-11-21, docs).** Twenty seeds of the built-in AI at
+  the new spacing with one AI finish each: the Celts won 9 of 19 decided (standard error over seeds 0.118), one
+  finish undecided at turn 500. Seeds next to each other are no more alike at turn 100 than any two (+0.022, which
+  0.422 of random orderings reach; +0.120 and +0.219 at the old spacing). The formula fitted on the earlier games
+  says 0.518 where 0.474 were won. The old baseline figure 0.250 came from games that were not separate and is
+  not to be used. Four more AI finishes a seed are being played. `docs/BENCHMARK.md`, "The baseline on separate
+  seeds".
 - **The check that seeds are separate games is a script in the repository (2026-11-21).**
   `scripts/benchmark_seed_likeness.py ROWS [ROWS ...]` reads every finished run where its turns ended and says
   whether runs on seeds 1, 2 and 3 apart ended more alike than runs on seeds far apart, with the share of random

@@ -1,4 +1,4 @@
-# Resume here -- 2026-11-20 (late night): main = 2.17.0 + the benchmark in plain words, with seeds that are separate games, the baseline on them being played (unreleased; runtime v341, 9 tools, 2414 tests).
+# Resume here -- 2026-11-21 (early morning): main = 2.17.0 + the benchmark in plain words, with seeds that are separate games and the baseline on them at 0.474 (twenty seeds, further AI finishes being played) (unreleased; runtime v341, 9 tools, 2414 tests).
 **Words first.** The user could not follow the labels I had coined for the benchmark, many of them from card games
 ("be literal, I'm not following your poker terms", and in the evening "stop using poker terms. replace them in your
 note and handoffs so they stop seeding your responses"). Everything written for this project uses these and no
@@ -40,14 +40,18 @@ you to start a run" (it was stopped before any game). Then, the same evening: "Y
 running as many games as necessary. Continue to commit and push as you go and move forward." That word covers the
 built-in AI's games below (no tokens). It does not cover a paid player.
 
-**Running since 22:37 on 2026-11-20 (no tokens; the game was cold-started for it):**
-1. **The baseline on the new seeds** (`logs/boards/scratch/baseline_separate.sh`): the built-in AI, seeds 0 to 19, the
-   100 turns and one AI finish each, rows `logs/boards/duel-d/baseline-t100-separate.jsonl`, about six and a half hours.
-2. **Four more AI finishes a seed** (`baseline_more_finishes.sh 4 0 19`, already started: it waits for "baseline:
-   done" in `logs/boards/duel-d/batch.log`), rows `baseline-t100-separate-more.jsonl`, about twenty-one hours.
-   A file `STOP` in `logs/boards/duel-d` ends either before its next run. Progress: `batch.log` there.
+**The baseline's twenty seeds are done (2026-11-21, 05:34); four more AI finishes a seed are being played (no tokens):**
+1. **The baseline on the new seeds, one AI finish each** (rows `logs/boards/duel-d/baseline-t100-separate.jsonl`):
+   **the Celts won 9 of 19 decided, 0.474, standard error over seeds 0.118**; one finish undecided at turn 500 (seed
+   0's, in no share). **Seeds next to each other are no more alike than any two** (+0.022, reached by 0.422 of
+   random orderings; the old spacing gave +0.120 and +0.219). The old formula says 0.518 on the 19 where 0.474 were
+   won, within the errors. The old baseline figure 0.250 is not to be used. `docs/BENCHMARK.md`, "The baseline on
+   separate seeds", has all of it.
+2. **Four more AI finishes a seed** (`logs/boards/scratch/baseline_more_finishes.sh 4 0 19`, playing since 05:35),
+   rows `baseline-t100-separate-more.jsonl`, about twenty-one hours, done near 03:00 on 2026-11-22. A file `STOP` in
+   `logs/boards/duel-d` ends it before its next seed. Progress: `batch.log` there ("more finishes: ..." lines).
 
-**Read them with** (all three written 2026-11-20 for this):
+**Read them with:**
 - `scripts/benchmark_run.py --summary logs/boards/duel-d/baseline-t100-separate.jsonl --later
   logs/boards/duel-d/baseline-t100-separate-more.jsonl`: the baseline as a share of AI finishes won with its error
   over seeds, and the split of the spread (within a seed, between seeds, seeds for 0.05 at 1, 5, 15 finishes).
@@ -63,8 +67,11 @@ starting save takes its terms and one batch of the built-in AI. **Not decided, t
 is given by AI finishes alone, with no formula. Recommended to the user: yes, and spend machine time on finishes. The
 split from these batches is what prices that.
 
-**Next:** read the batches as above and write "The baseline on separate seeds" in `docs/BENCHMARK.md` (it has the
-plan, no results yet); then the user's word on the formula and on a second paid player.
+**Next:** when the further finishes are in, run the summary with `--later` and write the split of the spread (within a
+seed, between seeds, seeds for a standard error of 0.05) and the formula on five outcomes a position into "The
+baseline on separate seeds"; say whether twenty seeds are enough for the baseline or more are to be played (the
+user's word of 2026-11-20 covers more of the built-in AI's games); then the user's word on the formula and on a second
+paid player.
 
 # Previous -- 2026-11-19 (midday): main = 2.17.0 + the benchmark's runner, rules version 1 and the win-chance formula on sixty games (unreleased; runtime v341, 9 tools, 2367 tests).
 **The work is the project's own benchmark, and the rules are ours to write** (the user, 2026-11-16). The user

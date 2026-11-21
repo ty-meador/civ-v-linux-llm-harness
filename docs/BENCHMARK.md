@@ -53,7 +53,8 @@ number.
   this starting save) is valued too low by it. AI finishes are the check: where a player's share of AI finishes won
   stands above its formula value by more than their errors, the share is what is reported (rule 1).
 - Not yet: the formula was fitted on games played before 2026-11-20, when seeds were too close together to be
-  separate games (point 3). It has to be fitted again on games that are separate.
+  separate games (point 3). It has to be fitted again on games that are separate. On the first twenty separate
+  positions it says 0.518 where 0.474 of the AI finishes were won, within the errors (2026-11-21).
 
 **3. A true uncertainty.** The error given with the number has to be the error it really has.
 
@@ -66,9 +67,10 @@ number.
 - Before that a seed was 17 random numbers on from the one before, and games on neighbouring seeds were the same
   game early on and alike at turn 100. Thirty-one games were a handful of games counted many times. Every error
   over seeds in the sections dated before 2026-11-20 is too small, by an amount that was not measured.
-- Not yet: the baseline played on the new seeds, and a check on 100-turn runs that seeds next to each other are no
-  more alike than seeds far apart. Seven 10-turn runs at the new spacing were played and say nothing either way:
-  the figures at turn 10 take too few values.
+- Checked 2026-11-21 on twenty 100-turn runs of the built-in AI at the new spacing: seeds next to each other are no
+  more alike at turn 100 than any two seeds (likeness +0.022, which 0.422 of random orderings of the same runs
+  reach; at the old spacing +0.120 and +0.219). The baseline on them is 0.474 with a standard error of 0.118 on
+  one AI finish a seed; four more finishes a seed are being played ("The baseline on separate seeds").
 
 **4. A plain statement of scope.** What the number is about, and what it is not about.
 
@@ -1337,10 +1339,34 @@ same day, and the words are set out at its top.
   35 with the first finishes counted in; seed 7's four were not played. The scripts' options, names and row keys and
   this document were put into plain words on 2026-11-20 (files written before keep their names; see the top).
 
-### The baseline on separate seeds (2026-11-20, being played)
+### The baseline on separate seeds (2026-11-21: twenty seeds played, four more AI finishes a seed being played)
 
 Started 2026-11-20 at 22:37 on the user's word ("run your in-game AI tests now, running as many games as necessary").
 No tokens.
+
+**The twenty seeds with one AI finish each, done 2026-11-21 at 05:34** (6 h 57 min: 228 s for the 100 turns, 16.3
+minutes an AI finish).
+
+- **The baseline: the Celts won 9 of the 19 decided AI finishes, 0.474, standard error over seeds 0.118.** One AI
+  finish (seed 0's) reached the stop turn 500 with no victory, both civilizations alive with 14 delegates each; it
+  is in no share. One of twenty is more than the 2 of 185 seen on this starting save before and is too few to say
+  the rate changed. Another finish (seed 11's) was won on turn 500 itself, so the stop turn is close to where some
+  games end; it stays at 500 unless the further finishes show more undecided games.
+- **Seeds next to each other are no more alike than any two seeds.** `scripts/benchmark_seed_likeness.py` on the
+  twenty positions at turn 100: seeds 1 apart +0.022 (0.422 of random orderings of the same runs are at least as
+  alike), 2 apart -0.092 (0.834), 3 apart +0.032 (0.387). At the old spacing seeds 1 apart stood at +0.120 (0.091)
+  and +0.219 (0.011). No two runs ended on the same position. This is the check point 3 was waiting for.
+- **How the games ended.** 15 of the 19 by the World Leader vote, 3 by Domination, 1 by Culture. The Celts' nine
+  wins: five votes, all three Dominations, the one Culture. Austria's ten wins were all the vote.
+- **Against the baseline at the old spacing** (0.250 over 20 seeds, 9 of 28 games): the new figure is higher by
+  0.224. The old figure's error (0.093) was too small by an amount that was not measured, because its games were
+  not separate, so nothing is concluded from the difference except that the old 0.250 is not to be used.
+- **The formula fitted on the earlier games, on these positions:** 0.505 estimated over the 20 seeds (standard
+  error over seeds 0.033, of the formula 0.065), and 0.518 on the 19 with a decided finish, where 0.474 were won.
+  They agree within the errors, on one outcome a position. On the old-spacing baseline the same formula said 0.432
+  where 0.250 were won; that gap came with games that were alike and is not seen here. Five outcomes a position
+  will say more.
+- **The Celts at turn 100:** score 487 (sd 61, 336 to 585), 2.5 cities (1 to 4), share of score 0.518 (sd 0.051).
 
 - **The batch** (`logs/boards/scratch/baseline_separate.sh`): the built-in AI plays the 100 turns on seeds 0 to 19 at
   the new spacing with one AI finish each (`--path 10`, stopped at turn 500), rows
