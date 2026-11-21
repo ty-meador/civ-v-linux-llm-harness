@@ -16,6 +16,11 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The test suite cannot reach a live game's lock (2026-11-21).** The MCP path takes the per-socket action lock
+  even against a fake game, and the suite used the machine's own socket path, so two LeaderScreenGuard tests were
+  refused ("another game operation is running") whenever `scripts/check.sh` ran during a live load, and a test
+  could make a live call wait. `tests/conftest.py` gives the whole run a scratch socket path before any `harness`
+  module reads the environment. `scripts/check.sh` is safe to run while a game plays. Tests only.
 - **The session handoff is not part of the repository (2026-11-21).** `docs/SESSION_HANDOFF.md` is a working note
   for whoever resumes the work. It is untracked and ignored, and the documents that pointed at it no longer do.
 - **The baseline on seeds that are separate games: 0.474 (2026-11-21, docs).** Twenty seeds of the built-in AI at
