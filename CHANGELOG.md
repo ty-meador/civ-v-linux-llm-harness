@@ -16,6 +16,8 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The session handoff is not part of the repository (2026-11-21).** `docs/SESSION_HANDOFF.md` is a working note
+  for whoever resumes the work. It is untracked and ignored, and the documents that pointed at it no longer do.
 - **The baseline on seeds that are separate games: 0.474 (2026-11-21, docs).** Twenty seeds of the built-in AI at
   the new spacing with one AI finish each: the Celts won 9 of 19 decided (standard error over seeds 0.118), one
   finish undecided at turn 500. Seeds next to each other are no more alike at turn 100 than any two (+0.022, which

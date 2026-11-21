@@ -13,3 +13,5 @@ harness/tunerd-seats.json
 # per-client tokens kept beside the repo (public repo: never commit)
 .*_pat
 tmp*/
+# session notes for whoever resumes the work: local workspace only, never the repository
+docs/SESSION_HANDOFF.md

@@ -147,7 +147,7 @@ levels, border tints, pulse/hold/intent alphas, dashed civilian rings, the capit
 Record frame and pass times beside the baseline. Fix what differs.
 
 **5. Switch and remove.** Default to canvas, delete `map.js` and the flag, drop `svg#map` from the CSS,
-update VISUALIZATION.md's file table and the fog paragraph, CHANGELOG, SESSION_HANDOFF, and cut a release.
+update VISUALIZATION.md's file table and the fog paragraph, CHANGELOG, and cut a release.
 If d3 is to go, replace the CDN tag with a vendored `d3-zoom` build in the same commit or the next. (Done
 2026-10-09, after the real-recording section below; d3 stays, the panels and the zoom still use it.)
 
@@ -303,7 +303,7 @@ the fit on the real Large map (its worst frames 75 and 132), the canvas page sit
 gesture, a seat view paints in 33 ms against 135, the rebuild in 30 against 195. The England "player" row is
 the player ticking over a recording with no calls (a snapshot re-applied; the SVG's 60 ms worst frame is that),
 the 2026-09-30 row has calls arriving and pulses live. The heap on the 72 MB recording is the recording itself
-(the page holds every parsed row, SESSION_HANDOFF) and the renderers differ by nothing there; read it in a
+(the page holds every parsed row) and the renderers differ by nothing there; read it in a
 fresh tab, as the script does: measured across navigations in one tab it grew by about 67 MB a page, the
 back/forward cache keeping each previous document alive.
 
