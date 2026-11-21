@@ -63,6 +63,7 @@ import argparse
 import json
 import math
 import os
+import random
 import shutil
 import subprocess
 import sys
@@ -596,6 +597,72 @@ def pooled_lines(rows: list[dict], games: list[dict]) -> list[str]:
     return lines
 
 
+def with_later_finishes(rows: list[dict], later: list[dict]) -> tuple[list[dict], list[str]]:
+    """The runs with the AI finishes that were played afterwards on their end saves counted in. A later finish is in a
+    `--finish-only` row whose `save` is a run's `end_save`; it joins that run unless the run already has a finish of
+    the same number m (the same number is the same game), and the run's value is taken again over all of them. Also
+    the saves of later rows that are no run's end save, which are in nothing."""
+    by_save: dict[str, list[dict]] = {}
+    for r in later:
+        if r.get("end_reason") == "finish_only" and r.get("save"):
+            by_save.setdefault(r["save"], []).extend(r.get("ai_finishes") or [])
+    out, used = [], set()
+    for r in rows:
+        more = by_save.get(r.get("end_save") or "")
+        if more:
+            used.add(r["end_save"])
+            games = list(r.get("ai_finishes") or [])
+            have = {c.get("m") for c in games}
+            for c in more:
+                if c.get("m") not in have:
+                    have.add(c.get("m"))
+                    games.append(c)
+            r = {**r, "ai_finishes": games}
+            r["value"] = value_of(r, games)
+        out.append(r)
+    return out, sorted(set(by_save) - used)
+
+
+SPREAD_SEEDS = 4          # fewer seeds with two finishes each say nothing about a spread between seeds
+TARGET_ERROR = 0.05
+FINISHES_ASKED = (1, 5, 15)
+
+
+def spread_parts(seeds: list[tuple[int, int]]) -> tuple[float, float]:
+    """The two parts of the spread of a player's values, as variances, from (games won, games decided) a seed.
+    Within a seed: one AI finish is won or lost, and from one end of the turns that varies by p(1 - p), estimated
+    a seed as R / (R - 1) times its share won times its share lost. Between seeds: the variance of the seeds'
+    shares, less what the finishes alone put into it (the within part over R, a seed), never below 0."""
+    shares = [w / r for w, r in seeds]
+    within = [r / (r - 1) * (w / r) * (1 - w / r) for w, r in seeds]
+    between = mean_sd(shares)[1] ** 2 - sum(v / r for v, (_, r) in zip(within, seeds)) / len(seeds)
+    return sum(within) / len(within), max(between, 0.0)
+
+
+def spread_lines(rows: list[dict], resamplings: int = 2000) -> list[str]:
+    """What the turns decide and what the AI finish decides, for the runs with two or more decided AI finishes, and
+    what that costs: the seeds a standard error of 0.05 takes at 1, 5 and 15 AI finishes a seed. The value of n seeds
+    at R finishes each has the variance (between + within / R) / n, so finishes past a few buy little once the
+    between part is the larger, and only seeds bring it down. The range beside the between figure is the middle two
+    thirds of the same figure over seeds drawn again from these with replacement: with few seeds it is wide."""
+    seeds = []
+    for r in rows:
+        decided = [c for c in r.get("ai_finishes") or () if c.get("end_reason") in DECIDED]
+        if r.get("end_reason") == "all_turns_played" and len(decided) >= 2:
+            seeds.append((sum(1 for c in decided if c["won"]), len(decided)))
+    if len(seeds) < SPREAD_SEEDS:
+        return []
+    within, between = spread_parts(seeds)
+    rng = random.Random(0)
+    again = sorted(math.sqrt(spread_parts([rng.choice(seeds) for _ in seeds])[1]) for _ in range(resamplings))
+    lo, hi = again[resamplings // 6], again[-(resamplings // 6) - 1]
+    need = ", ".join(f"{math.ceil((between + within / r) / TARGET_ERROR ** 2)} at {r}" for r in FINISHES_ASKED)
+    return [f"spread: {len(seeds)} seeds with two or more AI finishes ({sum(r for _, r in seeds)} finishes): from one end of "
+            f"the turns a finish varies by {math.sqrt(within):.3f} (within a seed); the chance the turns leave varies by "
+            f"{math.sqrt(between):.3f} from seed to seed ({lo:.3f} to {hi:.3f} over resamplings of the seeds)",
+            f"seeds for a standard error of {TARGET_ERROR}: {need} AI finishes a seed"]
+
+
 def value_lines(rows: list[dict]) -> list[str]:
     """The player's value over its finished runs, each run's own, and its runs that did not finish as a count of their own: beside
     the value, never inside its mean. The last figure is the value with each of those as 0, what an ordering uses."""
@@ -613,6 +680,7 @@ def value_lines(rows: list[dict]) -> list[str]:
             lines.append(f"seeds: {len(values)} finished, the value's standard error over them {sd / math.sqrt(len(values)):.3f} "
                          "(the seed is the unit: its games are not independent trials)")
         lines.extend(pooled_lines(rows, games))
+        lines.extend(spread_lines(rows))
     if not_finished and (values or any("ai_finishes" in r or "value" in r for r in rows)):
         why = ", ".join(sorted({r["end_reason"] for r in not_finished}))
         lines.append(f"not finished: {len(not_finished)} of {len(not_finished) + len(values)} runs ({why}), below every finished run in an ordering"
@@ -730,13 +798,21 @@ def main(argv: list[str] | None = None) -> int:
                          "row and Time switched off (unless --row own, --time on), saved as NEW. Every player's turns and every "
                          "AI finish on NEW is then played on the same terms, a player's included")
     ap.add_argument("--summary", type=Path, metavar="ROWS", help="print the summary of a rows file and do nothing else")
+    ap.add_argument("--later", type=Path, nargs="+", metavar="ROWS", default=[],
+                    help="with --summary: rows files of --finish-only runs on the end saves of the runs summarised; their "
+                         "AI finishes are counted with the run they were played from")
     ap.add_argument("command", nargs=argparse.REMAINDER,
                     help="after `--`: the player, a command that plays the seat and ends; {seed}, {turns} and {until} "
                          "in it are the seed's number, the turns and the game turn at which the turns are over")
     a = ap.parse_args(argv)
     if a.summary:
-        print("\n".join(summarise(read_rows(a.summary))))
+        rows, stray = with_later_finishes(read_rows(a.summary), [r for path in a.later for r in read_rows(path)])
+        print("\n".join(summarise(rows)))
+        if stray:
+            print(f"\nlater rows on saves that are no run's end save here, in nothing: {', '.join(stray)}")
         return 0
+    if a.later:
+        ap.error("--later goes with --summary")
     command = a.command[1:] if a.command[:1] == ["--"] else a.command
     if a.terms:
         if not a.save or command:

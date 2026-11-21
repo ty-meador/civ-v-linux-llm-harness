@@ -726,6 +726,96 @@ class Summary(unittest.TestCase):
         self.assertEqual(len(benchmark_run.summarise([row(0, reason="stalled")])), 1)
 
 
+def finishes(*won, first=0, reason="victory"):
+    return [{"m": first + i, "end_reason": reason, "won": bool(w), "seconds": 60.0} for i, w in enumerate(won)]
+
+
+def valued(*won, **kw):
+    return row(140, turns_played=10, value=sum(won) / len(won), ai_finishes=finishes(*won), **kw)
+
+
+class LaterFinishes(unittest.TestCase):
+    """AI finishes played afterwards on a run's end save are that run's games (2026-11-20: the baseline's seeds got
+    one finish each with the run and four more from a second batch, in a rows file of their own)."""
+
+    def test_a_later_finish_joins_the_run_whose_end_save_it_was_played_from(self):
+        runs = [valued(0, end_save="save--x-seed0-end"), valued(1, end_save="save--x-seed1-end")]
+        later = [{"player": "save", "save": "save--x-seed0-end", "end_reason": "finish_only", "value": 1.0,
+                  "ai_finishes": finishes(1, 1, 1, first=1)}]
+        got, stray = benchmark_run.with_later_finishes(runs, later)
+        self.assertEqual([c["m"] for c in got[0]["ai_finishes"]], [0, 1, 2, 3])
+        self.assertEqual(got[0]["value"], 0.75)
+        self.assertEqual(got[1], runs[1])
+        self.assertEqual(stray, [])
+        self.assertEqual(len(runs[0]["ai_finishes"]), 1, "the rows read are not changed")
+
+    def test_a_finish_of_a_number_the_run_has_is_the_same_game_and_is_not_counted_twice(self):
+        runs = [valued(0, end_save="e0")]
+        later = [{"save": "e0", "end_reason": "finish_only", "ai_finishes": finishes(0, 1)},
+                 {"save": "e0", "end_reason": "finish_only", "ai_finishes": finishes(1, first=1)}]
+        got, _ = benchmark_run.with_later_finishes(runs, later)
+        self.assertEqual([(c["m"], c["won"]) for c in got[0]["ai_finishes"]], [(0, False), (1, True)])
+        self.assertEqual(got[0]["value"], 0.5)
+
+    def test_later_rows_on_a_save_no_run_ended_on_are_named_and_in_nothing(self):
+        got, stray = benchmark_run.with_later_finishes(
+            [valued(1, end_save="e0")], [{"save": "another", "end_reason": "finish_only", "ai_finishes": finishes(0)}])
+        self.assertEqual((got[0]["value"], stray), (1.0, ["another"]))
+
+    def test_a_run_that_did_not_finish_stays_without_a_value(self):
+        runs = [row(0, reason="turns_not_played", value=None, end_save="e0")]
+        got, _ = benchmark_run.with_later_finishes(runs, [{"save": "e0", "end_reason": "finish_only", "ai_finishes": finishes(1)}])
+        self.assertIsNone(got[0]["value"])
+
+    def test_the_summary_takes_later_rows_files(self):
+        with tempfile.TemporaryDirectory() as d:
+            runs, later = Path(d) / "runs.jsonl", Path(d) / "later.jsonl"
+            runs.write_text(json.dumps(valued(0, end_save="e0")) + "\n")
+            later.write_text(json.dumps({"player": "save", "save": "e0", "end_reason": "finish_only",
+                                         "ai_finishes": finishes(1, 1, 1, first=1)}) + "\n"
+                             + json.dumps({"player": "save", "save": "e9", "end_reason": "finish_only",
+                                           "ai_finishes": finishes(1)}) + "\n")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(benchmark_run.main(["--summary", str(runs), "--later", str(later)]), 0)
+        self.assertIn("value: 0.750 (sd 0.000) over 1 finished runs and 4 AI finishes", out.getvalue())
+        self.assertIn("later rows on saves that are no run's end save here, in nothing: e9", out.getvalue())
+
+
+class Spread(unittest.TestCase):
+    """The spread of a player's values has two parts and they cost differently: a finish is machine time, a seed is
+    the player's 100 turns."""
+    SEEDS = [(0, 4), (4, 4), (2, 4), (2, 4)]
+
+    def test_the_two_parts(self):
+        within, between = benchmark_run.spread_parts(self.SEEDS)
+        # within: 0, 0 and twice 4/3 x 0.25; between: the shares' variance 1/6 less the mean of within / 4
+        self.assertAlmostEqual(within, 1 / 6)
+        self.assertAlmostEqual(between, 1 / 6 - 1 / 24)
+
+    def test_seeds_that_differ_no_more_than_their_finishes_alone_would_have_no_part_between(self):
+        self.assertEqual(benchmark_run.spread_parts([(2, 4), (2, 4), (1, 4), (3, 4)])[1], 0.0)
+
+    def test_the_lines_say_both_parts_and_the_seeds_an_error_takes(self):
+        rows = [valued(*([1] * w + [0] * (r - w))) for w, r in self.SEEDS]
+        lines = benchmark_run.spread_lines(rows)
+        self.assertTrue(lines[0].startswith(
+            "spread: 4 seeds with two or more AI finishes (16 finishes): from one end of the turns a finish varies by "
+            "0.408 (within a seed); the chance the turns leave varies by 0.354 from seed to seed ("), lines[0])
+        self.assertEqual(lines[1], "seeds for a standard error of 0.05: 117 at 1, 64 at 5, 55 at 15 AI finishes a seed")
+        self.assertEqual(benchmark_run.spread_lines(rows), lines, "the resampling is the same every time")
+        self.assertEqual([line for line in benchmark_run.summarise(rows) if line.startswith(("spread", "seeds for"))], lines)
+
+    def test_seeds_with_one_finish_and_runs_that_did_not_play_their_turns_are_not_in_it(self):
+        rows = [valued(*([1] * w + [0] * (r - w))) for w, r in self.SEEDS]
+        more = [*rows, valued(1), row(0, reason="seat_dead", value=0.0, ai_finishes=finishes(0, 0)),
+                row(140, value=None, ai_finishes=finishes(0, 0, reason="turn_limit"))]
+        self.assertEqual(benchmark_run.spread_lines(more), benchmark_run.spread_lines(rows))
+
+    def test_too_few_seeds_give_no_line(self):
+        self.assertEqual(benchmark_run.spread_lines([valued(1, 0), valued(0, 0), valued(1, 1)]), [])
+
+
 class Lua(unittest.TestCase):
     def test_the_chunks_compile(self):
         try:

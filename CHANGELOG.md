@@ -16,6 +16,16 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A summary counts AI finishes played later, and says what the spread is made of (2026-11-20).**
+  `scripts/benchmark_run.py --summary ROWS --later ROWS [ROWS ...]` joins the AI finishes of `--finish-only` rows to
+  the run whose end save they were played from (a finish of a number the run already has is the same game and is not
+  counted twice; a later row on a save that is no run's end save is named and is in nothing), and takes each run's
+  value again over all of its finishes. Where four or more seeds have two or more decided AI finishes, the summary
+  adds two lines: how much one finish varies from the same end of the turns (within a seed), how much the chance
+  the turns leave varies from seed to seed (between seeds, with the range it takes when the seeds are drawn again
+  from themselves), and the seeds a standard error of 0.05 takes at 1, 5 and 15 AI finishes a seed. A finish costs
+  machine time and a seed costs the player's 100 turns, so this is what says how to buy an error. Scripts only.
+
 - **The benchmark in plain words, and seeds that are separate games (2026-11-20).** `scripts/board_run.py` and
   `board_fit.py` are now `scripts/benchmark_run.py` and `benchmark_fit.py`. Options: `--player` (was `--label`),
   `--skip none|seed` (was `--burn none|run`), `--ai-finishes R` (was `--continue R`), `--first-ai-finish M`,
