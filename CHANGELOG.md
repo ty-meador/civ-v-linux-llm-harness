@@ -25,6 +25,10 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   the turns leave varies from seed to seed (between seeds, with the range it takes when the seeds are drawn again
   from themselves), and the seeds a standard error of 0.05 takes at 1, 5 and 15 AI finishes a seed. A finish costs
   machine time and a seed costs the player's 100 turns, so this is what says how to buy an error. Scripts only.
+  `scripts/benchmark_fit.py` takes `--later` the same way for `--fit` and `--value`, and leaves all the AI finishes of
+  one run out of a fit together (they start from one position; before, each finish with a path was left out by
+  itself, so a fit was scored on a game whose sister games it had seen). A game of a `--finish-only` row is still
+  left out by itself.
 
 - **The benchmark in plain words, and seeds that are separate games (2026-11-20).** `scripts/board_run.py` and
   `board_fit.py` are now `scripts/benchmark_run.py` and `benchmark_fit.py`. Options: `--player` (was `--label`),

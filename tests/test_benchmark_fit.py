@@ -1,5 +1,7 @@
 """scripts/benchmark_fit.py: positions with outcomes out of the runner's rows, a small logistic fit, and a run valued
 by the point it ended on. No game: rows are made by hand."""
+import contextlib
+import io
 import json
 import random
 import sys
@@ -34,6 +36,31 @@ class Points(unittest.TestCase):
         self.assertEqual([(p["group"], p["turn"], p["won"]) for p in pts],
                          [("whole:0:0", 0, True), ("whole:0:0", 10, True), ("whole:0:1", 0, False)])
         self.assertEqual((pts[1]["share"]["score"], pts[1]["n"]), (0.75, 2))
+
+    def test_the_ai_finishes_of_a_run_start_from_one_position_and_are_left_out_together(self):
+        run = {"player": "built-in-ai", "seat": 0, "end_reason": "all_turns_played",
+               "ai_finishes": [game(0, True, [point(100, 30, 10), point(110, 40, 10)]), game(1, False, [point(100, 30, 10)])]}
+        pts = benchmark_fit.points_of([run, run], "baseline")
+        self.assertEqual([p["group"] for p in pts], ["baseline:0"] * 3 + ["baseline:1"] * 3)
+
+    def test_finishes_played_later_on_a_runs_end_save_are_its_own_with_later(self):
+        with tempfile.TemporaryDirectory() as d:
+            runs, later, model = Path(d) / "runs.jsonl", Path(d) / "later.jsonl", Path(d) / "model.json"
+            rows = [{"player": "built-in-ai", "seat": 0, "end_reason": "all_turns_played", "end_save": f"e{i}",
+                     "end_point": point(100, 60 if i % 2 else 40, 50), "value": float(i % 2),
+                     "ai_finishes": [game(0, bool(i % 2), [point(100, 60 if i % 2 else 40, 50)])]} for i in range(6)]
+            runs.write_text("".join(json.dumps(r) + "\n" for r in rows))
+            later.write_text("".join(json.dumps(
+                {"player": "save", "seat": 0, "save": f"e{i}", "end_reason": "finish_only",
+                 "ai_finishes": [game(1, False, [point(100, 60 if i % 2 else 40, 50)])]}) + "\n" for i in range(6)))
+            self.assertEqual(benchmark_fit.main(["--fit", str(runs), "--later", str(later), "--features", "score",
+                                                 "--model", str(model)]), 0)
+            kept = json.loads(model.read_text())
+            self.assertEqual((kept["games"], kept["points"]), (6, 12), "six seeds of two finishes, not twelve games")
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                benchmark_fit.main(["--model", str(model), "--value", str(runs), "--later", str(later)])
+            self.assertIn("AI finishes won 0.250 on 6 of them", out.getvalue())
 
     def test_a_game_that_was_stopped_undecided_gives_none(self):
         rows = [{"seat": 0, "ai_finishes": [game(0, False, [point(0, 10, 10)], reason="last_turn")]}]
@@ -80,7 +107,7 @@ class Fit(unittest.TestCase):
             mine = rng.randint(20, 80)
             won = rng.random() < benchmark_fit.sigmoid(12 * (mine / 100 - 0.5))
             rows.append(game(m, won, [point(t, mine, 100 - mine) for t in (50, 100, 150)]))
-        return [{"seat": 0, "ai_finishes": rows}]
+        return [{"player": "save", "seat": 0, "end_reason": "finish_only", "ai_finishes": rows}]   # a --finish-only row
 
     def test_a_lead_that_wins_games_gets_a_positive_weight_and_beats_the_base_rate_on_games_it_never_saw(self):
         pts = benchmark_fit.points_of(self.games())
@@ -95,7 +122,8 @@ class Fit(unittest.TestCase):
     def test_a_game_is_left_out_whole(self):
         """One game of thirty identical points that goes against every other: scored by the others, it is all wrong.
         Left out a point at a time it would be learned from its own twenty-nine."""
-        rows = [{"seat": 0, "ai_finishes": [game(m, False, [point(100, 30, 70)]) for m in range(6)]
+        rows = [{"player": "save", "seat": 0, "end_reason": "finish_only",
+                 "ai_finishes": [game(m, False, [point(100, 30, 70)]) for m in range(6)]
                  + [game(m, True, [point(100, 70, 30)]) for m in range(6, 12)]
                  + [game(99, True, [point(100, 30, 70)] * 30)]}]
         scored = benchmark_fit.left_out(benchmark_fit.points_of(rows), ("score",))

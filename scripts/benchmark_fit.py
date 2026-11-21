@@ -22,7 +22,9 @@ compared.
 The game is the unit, not the point: a game's thirty points are one outcome. Every figure of merit is taken
 leaving one game out (fitted on the others, scored on its points) and stands beside the same figure for the
 base rate alone, which is what the win-chance formula has to beat. A run's row gives one point per decided
-AI finish, all at the position its turns ended on, and those are left out together. A fit is of the starting saves
+AI finish, all at the position its turns ended on, or the points of each finish's path, and a run's finishes are
+left out together: they start from one position. AI finishes played later on a run's end save are in a rows file
+of their own and are given with `--later`, which counts them with their run. A fit is of the starting saves
 it was fitted on: the intercept is the seat's own edge there.
 
 `--value` reads the point each run's turns ended on (`end_point`, or the seat's shares in a row older than
@@ -43,7 +45,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from benchmark_run import DECIDED, INDICATORS, ROUTES, player_of, mean_sd, read_rows
+from benchmark_run import DECIDED, INDICATORS, ROUTES, THE_SAVE, player_of, mean_sd, read_rows, with_later_finishes
 
 KEYS = INDICATORS + ROUTES
 SETS = (("score",), ("score", "score*t"), ("score", "techs", "cities"), ("score", "delegates", "allies"),
@@ -87,9 +89,12 @@ def end_point_of(row: dict) -> tuple[dict, int, int] | None:
 
 def points_of(rows: list[dict], name: str = "", seat: int | None = None) -> list[dict]:
     """Every position with an outcome in the rows: each point of a decided AI finish's path, or, for an
-    AI finish that kept none, the position the run's turns ended on. `group` is what is left out together."""
+    AI finish that kept none, the position the run's turns ended on. `group` is what is left out together: a game
+    of a save finished as it is (`--finish-only`), and all the AI finishes of a run, which start from one position
+    and go together (the seed is the unit, docs/BENCHMARK.md rule 6)."""
     out = []
     for i, row in enumerate(rows):
+        a_run = row.get("end_reason") != "finish_only" and player_of(row) != THE_SAVE
         for c in row.get("ai_finishes") or ():
             if c.get("end_reason") not in DECIDED:
                 continue
@@ -97,8 +102,8 @@ def points_of(rows: list[dict], name: str = "", seat: int | None = None) -> list
                 for pt in c["path"]:
                     got = shares_of(pt["players"], seat_of(row, c, seat))
                     if got:
-                        out.append({"group": f"{name}:{i}:{c['m']}", "turn": pt["turn"], "share": got[0], "n": got[1],
-                                    "won": bool(c["won"])})
+                        out.append({"group": f"{name}:{i}" if a_run else f"{name}:{i}:{c['m']}", "turn": pt["turn"],
+                                    "share": got[0], "n": got[1], "won": bool(c["won"])})
             else:
                 got = end_point_of(row)
                 if got:
@@ -314,13 +319,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ridge", type=float, default=1.0, help="the penalty on the scaled coefficients (default 1)")
     ap.add_argument("--model", type=Path, help="with --fit the file the best fit is written to; with --value the one read")
     ap.add_argument("--value", nargs="+", type=Path, metavar="ROWS", help="rows files whose runs the model values")
+    ap.add_argument("--later", nargs="+", type=Path, metavar="ROWS", default=[],
+                    help="rows files of --finish-only runs on the end saves of runs in the --fit and --value files: their "
+                         "AI finishes are counted with the run they were played from (given under --fit instead, each "
+                         "would stand as a game of its own)")
     a = ap.parse_args(argv)
     if not a.fit and not (a.value and a.model):
         ap.error("give --fit ROWS, or --model FILE --value ROWS")
+    later = [r for f in a.later for r in read_rows(f)]
+    rows_of = lambda f: with_later_finishes(read_rows(f), later)[0]
     model = None
     if a.fit:
         lo, hi = a.turns or (0, 10_000)
-        points = [p for f in a.fit for p in points_of(read_rows(f), f.stem, a.seat) if lo <= p["turn"] <= hi]
+        points = [p for f in a.fit for p in points_of(rows_of(f), f.stem, a.seat) if lo <= p["turn"] <= hi]
         if len({p["group"] for p in points}) < 3:
             print("fewer than three decided games in the rows: nothing to fit", file=sys.stderr)
             return 2
@@ -336,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.value and model:
         seen: dict[str, dict] = {}
         for f in a.value:
-            rows = read_rows(f)
+            rows = rows_of(f)
             print(f"{f}:")
             print("\n".join("  " + line for line in value_lines(model, rows)))
             for name, w in runs_of(model, rows).items():
