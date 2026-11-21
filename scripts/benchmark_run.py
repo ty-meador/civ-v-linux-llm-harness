@@ -337,9 +337,9 @@ def ai_finish(g, save: str, m: int, seat: int | None = None, poll: float = 3.0, 
             if now["turn"] != last_turn:
                 if path_every and now["turn"] // path_every > last_turn // path_every and now["winner"] < 0:
                     out["path"].append(path_point(g.q(READ)))
-                last_turn, last_change = now["turn"], clock()
-                if now["turn"] % 25 == 0:
+                if now["turn"] // 25 > last_turn // 25:     # a turn can pass between two polls: said on passing, not on landing
                     say(f"    AI finish {m}: turn {now['turn']}  +{clock() - t0:.0f}s")
+                last_turn, last_change = now["turn"], clock()
             # beside the result, never in it: when the seat was first at war with a major, and the most cities it held
             if now.get("wars") and "first_war_turn" not in out:
                 out["first_war_turn"] = now["turn"]
