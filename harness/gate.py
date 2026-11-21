@@ -258,8 +258,12 @@ def _first_gate(ts: dict | None, seat: int | None, *, may_change_seat: bool = Fa
                        "session(action='load_latest') resumes the newest save, session(action='load', "
                        "args={filename}) a named one; in a game with other people ask the human first"}
     if ts.get("game_over"):
-        return {"name": "game_over", "clear_with": None,
-                "why": "the game is over; nothing more happens in it (session(action='main_menu') leaves it)"}
+        why = "the game is over; nothing more happens in it (session(action='main_menu') leaves it)"
+        if ts.get("alive") is False:
+            # GitLab #197: a dead seat's game is over whatever the game state says (it ran on under GAMESTATE_EXTENDED)
+            why = ("this seat is out of the game (no city left), so the game is over for it; nothing more happens "
+                   "(session(action='main_menu') leaves it)")
+        return {"name": "game_over", "clear_with": None, "why": why}
     active = ts.get("active_player")
     hotseat = bool(ts.get("hotseat"))
     if seat is not None and active is not None and active != seat:

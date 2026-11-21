@@ -9,6 +9,24 @@ from ..client import TunerdError, TunerConnectionLost
 
 from .support import _game_busy_error
 
+# The words the game's own notification uses for each victory ("... through a Science Victory!").
+VICTORY_WORDS = {"VICTORY_SPACE_RACE": "science", "VICTORY_DOMINATION": "domination", "VICTORY_CULTURAL": "cultural",
+                 "VICTORY_DIPLOMATIC": "diplomatic", "VICTORY_TIME": "time"}
+
+
+def victory_from_status(ts: dict) -> dict | None:
+    """Who won and how, from the victory the status says the game holds (`victory_set`, GitLab #197), in the shape
+    `_victory_from_log` gives. For a game that ended with no notification to read: under autoplay, or for a seat
+    that was dead when the victory came."""
+    v = ts.get("victory_set") if isinstance(ts, dict) else None
+    if not isinstance(v, dict):
+        return None
+    winner = v.get("winner") or f"team {v.get('team')}"
+    kind = VICTORY_WORDS.get(str(v.get("type")), str(v.get("type") or "").removeprefix("VICTORY_").lower() or None)
+    how = f" through a {kind.capitalize()} Victory" if kind else ""
+    who = "You have" if v.get("mine") else f"{winner} has"
+    return {"winner": winner, "type": kind, "mine": bool(v.get("mine")), "text": f"{who} won the game{how}."}
+
 
 def note_held_units(units: list, order_rows: list) -> None:
     """A unit whose order paused or failed is back in my hands: say so on its todo row (`order`). The Lua row
@@ -839,10 +857,13 @@ class TurnMixin:
                 # the quiet-turn budget says.
                 out.update({"game_over": True, "woke_because": ["game_over"],
                             "hint": "the game is over: nothing more happens in it; session(action='main_menu') leaves it"})
-                victory = self._victory_from_log()
+                victory = self._victory_from_log() or victory_from_status(ts)
                 if victory:
                     out["victory"] = victory
                     out["hint"] = f"{victory['text']} The game is over; session(action='main_menu') leaves it"
+                    if ts.get("alive") is False:
+                        # GitLab #197: the seat died and the game went on to another's victory with no end screen
+                        out["defeat"] = {"text": "you are out of the game: no city left"}
                 elif ts.get("alive") is False:
                     # No winner in the log and this seat is dead: the game ended for me (live England t226: London,
                     # the last city, captured by the Ottomans; the reply said only game_over).

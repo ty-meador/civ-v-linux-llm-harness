@@ -610,6 +610,63 @@ class LuaRuntimeTests(unittest.TestCase):
         assert(r.ok==true and #pushed==2 and pushed[2].m==30, H.json(r))
         """)
 
+    STATUS_WORLD = """
+        local stub = { __index = function() return function() return nil end end }
+        ME = setmetatable({ GetEndTurnBlockingType = function() return -1 end, GetTeam = function() return 0 end,
+                            IsAlive = function() return ALIVE end }, stub)
+        Players = { [0] = ME, [1] = setmetatable({ GetTeam = function() return 1 end,
+                                                   GetCivilizationShortDescription = function() return 'Siam' end }, stub) }
+        Teams = { [0] = setmetatable({}, stub) }
+        Game.IsNetworkMultiPlayer = function() return false end
+        Game.GetGameState = function() return STATE end
+        Game.GetWinner = function() return WINNER end
+        Game.GetVictory = function() return 3 end
+        GameInfo = GameInfo or {}
+        GameInfo.Victories = { [3] = { Type = 'VICTORY_DOMINATION' } }
+        GameDefines = { MAX_MAJOR_CIVS = 22 }
+        Game.IsProcessingMessages = function() return false end
+        Game.IsPaused = function() return false end
+        Game.GetPausePlayer = function() return -1 end
+        Game.GetActivePlayer = function() return 0 end
+        Game.GetGameTurn = function() return 57 end
+        GameplayGameStateTypes = { GAMESTATE_ON = 0, GAMESTATE_OVER = 1, GAMESTATE_EXTENDED = 2 }
+        PreGame = { IsHotSeatGame = function() return false end }
+        UI = { IsPopupUp = function() return false end }
+        H.modal_flags = function() return {} end
+        H.status_alerts = function() return nil, 5, nil end
+        H.pending_popups = function() return {} end
+        H.pending_deal_from = function() return nil end
+        H.blocking_name = function() return 'NO_ENDTURN_BLOCKING_TYPE' end
+        H.todo = function() return { units = { { id = 7 } }, cities = {}, promotions = {}, research_unset = false } end
+        H.stale_blocker = function() return nil end
+        H.expiring_deals = function() return {} end
+        H.expiring_friendships = function() return {} end
+    """
+
+    def test_a_dead_seats_game_is_over_though_the_state_says_extended(self):
+        """GitLab #197 (2026-11-16, autoplay): the seat's last city fell, Siam took a Domination victory, the state
+        went to GAMESTATE_EXTENDED and the turns ran on. Status read alive false and game_over false."""
+        self.run_lua(self.STATUS_WORLD + """
+        ALIVE, STATE, WINNER = false, 2, 1
+        local t = H.turn_state(0)
+        assert(t.alive == false and t.game_over == true, H.json(t))
+        assert(t.game_state_name == 'GAMESTATE_EXTENDED', tostring(t.game_state_name))
+        local v = t.victory_set
+        assert(v and v.team == 1 and v.type == 'VICTORY_DOMINATION' and v.mine == false and v.winner == 'Siam', H.json(v))
+        assert(#t.todo.units == 0, 'a dead seat has no chores: ' .. H.json(t.todo))
+        """)
+
+    def test_a_living_seat_in_an_extended_game_plays_on_with_the_victory_named(self):
+        self.run_lua(self.STATUS_WORLD + """
+        ALIVE, STATE, WINNER = true, 2, 0
+        local t = H.turn_state(0)
+        assert(t.game_over == false and t.alive == true, H.json(t))
+        assert(t.victory_set.mine == true and t.victory_set.team == 0, H.json(t.victory_set))
+        ALIVE, STATE, WINNER = true, 0, -1
+        t = H.turn_state(0)
+        assert(t.game_over == false and t.victory_set == nil, 'no victory, nothing said: ' .. H.json(t))
+        """)
+
     def test_a_finished_games_status_carries_no_chores(self):
         """GitLab #92 (Assyria t273 after the win): blocking_hint still asked for a World Congress proposal and
         todo.units held a Crossbowman beside the game_over gate."""

@@ -506,6 +506,28 @@ class GameOverTests(unittest.TestCase):
         g.notification_log = lambda limit=40, include_dismissed=True, pid=None: {"notifications": []}
         self.assertNotIn("defeat", g.finish_turn(), "alive and no winner read: nothing is claimed")
 
+    def test_a_dead_seat_is_told_the_victory_the_game_holds_when_no_notification_names_it(self):
+        """GitLab #197: under autoplay the seat died, Siam won by Domination, no end screen came and no notification
+        named the win; the status carries the victory the game holds."""
+        over = status(57, my_turn=False, game_over=True, alive=False,
+                      victory_set={"team": 1, "winner": "Siam", "type": "VICTORY_DOMINATION", "mine": False})
+        g = ScriptedGame([(over, QUIET)])
+        g.notification_log = lambda limit=40, include_dismissed=True, pid=None: {"notifications": []}
+        r = g.finish_turn()
+        self.assertTrue(r["game_over"])
+        self.assertEqual(r["victory"], {"winner": "Siam", "type": "domination", "mine": False,
+                                        "text": "Siam has won the game through a Domination Victory."})
+        self.assertEqual(r["defeat"], {"text": "you are out of the game: no city left"})
+        self.assertTrue(r["hint"].startswith("Siam has won the game through a Domination Victory."))
+
+    def test_the_victory_from_the_status_reads_every_type_and_my_own(self):
+        from harness.game_parts.turn import victory_from_status
+        self.assertIsNone(victory_from_status({"game_over": True}))
+        mine = victory_from_status({"victory_set": {"team": 0, "winner": "The Celts", "type": "VICTORY_SPACE_RACE", "mine": True}})
+        self.assertEqual((mine["type"], mine["text"]), ("science", "You have won the game through a Science Victory."))
+        bare = victory_from_status({"victory_set": {"team": 3, "mine": False}})
+        self.assertEqual((bare["winner"], bare["type"], bare["text"]), ("team 3", None, "team 3 has won the game."))
+
     def test_the_wait_returns_at_once_on_the_over_state(self):
         class G(Game):
             def __init__(self):

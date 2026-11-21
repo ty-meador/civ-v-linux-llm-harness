@@ -568,6 +568,7 @@ function H.resume_moves(pid, skip)
           -- Settlers and Prophets arrived with 0 moves and lost the turn their purpose needed. The record is kept
           -- and the move is not re-issued: the unit keeps its moves and stands in todo.units with the reason.
           local why = H.hold_standing_move(u, pm, pid)
+          pm.held_turn, pm.held_reason = Game.GetGameTurn(), why.kind   -- the MISSION_SKIP guard reads this (#211)
           out[#out + 1] = { unit_id = id, x = pm.x, y = pm.y, held = true, reason = why.kind, attention = why.attention,
                             err = why.err }
         else
@@ -580,6 +581,8 @@ function H.resume_moves(pid, skip)
             -- GitLab #86 (Assyria t253): an automated Worker walked into the capital the night before the Booster's
             -- standing move landed, and the move was dropped for good. One of my own civilians on the destination
             -- moves on: keep the record and try again at the next turn start; the row says who stands there.
+            local kept = H.pending_moves[key]
+            if kept then kept.held_turn, kept.held_reason = Game.GetGameTurn(), "own_unit_on_destination" end
             out[#out + 1] = { unit_id = id, x = pm.x, y = pm.y, held = true, reason = "own_unit_on_destination",
                               blocking_unit = r.blocking_unit,
                               err = r.err .. "; the standing move is kept and tries again next turn start" }
@@ -676,6 +679,7 @@ end
 function H.unit_mission_order(unit_id, mission, x, y, build, pid)
   local u, err = own_active_unit(unit_id, pid)
   if not u then return err end
+  local dropped = nil   -- the held standing move a skip dropped (#211), said in the reply
   if mission == "MISSION_SKIP" then
     -- A skip on a unit that is mid-way through a multi-turn move cancels the engine's path (live t306:
     -- the Caravel's standing order to (54,29) died to a reflex MISSION_SKIP and it sat at (54,13) with
@@ -691,7 +695,19 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
     -- ...but a stalled one blocks end_turn (todo() lists it), and refusing the skip there is a
     -- deadlock: turn_status says "this unit stops the turn", unit_mission says "it does not".
     -- A human at the same screen just presses Space.
-    if (busy or H.pending_moves[key]) and not H.is_stalled_mission(u) then
+    -- A standing move held back this turn is the third shape (GitLab #211, live 2026-11-18: a Warrior's move held
+    -- because a barbarian Trireme came beside it): nothing is queued, the unit stands awake with its moves, the
+    -- engine raises ENDTURN_BLOCKING_UNITS on it and todo.units lists it with a note that names this very order.
+    -- Refusing it as "does not block end_turn" was wrong on both counts. The guard reads the mark the resume left
+    -- on the record when it held the move this turn (H.resume_moves); the skip goes through and the reply says
+    -- which path it dropped.
+    pm = H.pending_moves[key]
+    if pm and pm.held_turn ~= nil and not busy and u:MovesLeft() > 0 and pm.held_turn == Game.GetGameTurn() then
+      dropped = { x = pm.x, y = pm.y, held_because = pm.held_reason,
+                  note = "the standing move to (" .. pm.x .. "," .. pm.y .. ") was held this turn and is dropped; "
+                         .. "order(to='unit', action='move') there again takes it up" }
+    end
+    if (busy or pm) and not H.is_stalled_mission(u) and not dropped then
       return { ok = false, err = "unit is already on a multi-turn move and does not block end_turn; "
                                  .. "MISSION_SKIP would cancel that path: give it a new order(to='unit', action='move') instead, "
                                  .. "or order(to='unit', action='mission', args={mission='COMMAND_CANCEL'}) to drop the path on purpose",
@@ -807,7 +823,7 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
     H.religion_pending = H.religion_pending or {}
     H.religion_pending[pid] = mission == "MISSION_ENHANCE_RELIGION" and "enhance" or "found"
   end
-  return { ok = true }
+  return { ok = true, standing_move_dropped = dropped }
 end
 
 -- Missions that act and need a move left to run (GitLab #83); pushed at 0 moves the engine holds them and does

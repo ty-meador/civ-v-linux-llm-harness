@@ -93,7 +93,10 @@ fine there; with a client that has a hard per-call limit, stay under it.
 game_over=true (with woke_because ["game_over"] and the game_over gate) means the game ended while the AIs
 moved: `victory` {winner, type, text, turn} is the game's own notification ("Catherine has won the game
 through a Science Victory!") when the log holds one, and `hint` names session(action="main_menu"). The wait never
-runs to its timeout on a finished game.
+runs to its timeout on a finished game. A seat that is dead (`alive` false) is in a finished game whatever the game
+state says: the same reply, with `defeat`, and `victory` {winner, type, mine, text} from the victory the game holds
+when no notification named it. A status carries `victory_set` {team, winner, type, mine} from the moment a victory
+is set; a living seat in a game carried on past it still plays.
 
 One client owns the turn: the turn's first order claims it for that process, and another client of the
 same seat calling this gets ok=false with `turn_claim` (holder pid, how long it has held the turn, when

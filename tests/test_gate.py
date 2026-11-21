@@ -117,6 +117,13 @@ class PrecedenceTests(unittest.TestCase):
         self.assertEqual(g["name"], "leader_screen")
         self.assertEqual(compute_gate(base, 0)["name"], "turn_not_active")
 
+    def test_a_dead_seats_gate_says_it_is_out_of_the_game(self):
+        """GitLab #197: the status of a dead seat is game_over whatever the game state; the gate says why."""
+        g = compute_gate({**FREE, "game_over": True, "alive": False, "my_turn": False}, 0)
+        self.assertEqual((g["name"], g["clear_with"]), ("game_over", None))
+        self.assertIn("this seat is out of the game", g["why"])
+        self.assertIn("session(action='main_menu')", g["why"])
+
     def test_no_game_and_game_over_come_first(self):
         self.assertEqual(compute_gate({"ok": True, "ingame": False, "screen": "MainMenu"}, 0)["name"], "no_game")
         self.assertEqual(compute_gate({**FREE, "game_over": True, "hand_off_pending": True}, 0)["name"], "game_over")

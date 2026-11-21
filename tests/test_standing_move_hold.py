@@ -126,6 +126,69 @@ class HeldStandingMoveLuaTests(unittest.TestCase):
         assert(#MOVED == 1 and MOVED[1][1] == 3, H.json(MOVED))
         """)
 
+    # GitLab #211 (live 2026-11-18, the scripted loop on the Celts duel, turn 38): the held unit blocks the end of
+    # the turn, its note names MISSION_SKIP, and the skip was refused as "does not block end_turn".
+    ORDERS = """
+    MissionTypes = { MISSION_SKIP = 4 }
+    GameMessageTypes = { GAMEMESSAGE_PUSH_MISSION = 9 }
+    ActivityTypes = { ACTIVITY_AWAKE = 0, ACTIVITY_MISSION = 6 }
+    SENT = {}
+    Game.SelectionListGameNetMessage = function(msg, a, b, c) SENT[#SENT + 1] = { msg, a } end
+    UI = { GetHeadSelectedUnit = function() return SELECTED end, SelectUnit = function(u) SELECTED = u end }
+    for _, u in pairs(UNITS) do
+      u.queue, u.activity, u.moves = 0, 0, 120
+      u.GetLengthMissionQueue = function() return u.queue end
+      u.GetActivityType = function() return u.activity end
+      u.MovesLeft = function() return u.moves end
+      u.CanStartMission = function() return true end
+    end
+    """
+
+    def test_a_skip_on_a_held_unit_goes_through_and_says_which_path_it_dropped(self):
+        self.run_lua(self.ORDERS + """
+        H.pending_moves[H.pm_key(1, 0)] = { x = 31, y = 60, pid = 0, unit_id = 1 }
+        local out = H.resume_moves(0)
+        assert(out[1].held == true and out[1].err:find('MISSION_SKIP', 1, true), H.json(out))
+        local r = H.unit_mission(1, 'MISSION_SKIP', nil, nil, nil, 0)
+        assert(r.ok == true, H.json(r))
+        local d = r.standing_move_dropped
+        assert(d and d.x == 31 and d.y == 60 and d.held_because == 'hostile', H.json(r))
+        assert(d.note:find('held this turn and is dropped', 1, true), d.note)
+        assert(#SENT == 1 and SENT[1][1] == 9 and SENT[1][2] == 4, 'the skip was sent: ' .. H.json(SENT))
+        assert(H.pending_moves[H.pm_key(1, 0)] == nil, 'the record is gone')
+        """)
+
+    def test_a_skip_on_a_move_held_for_my_own_unit_on_the_destination_goes_through_too(self):
+        self.run_lua(self.ORDERS + """
+        H.move_unit = function() return { ok = false, err = 'destination already holds your WORKER 9',
+                                          blocking_unit = { id = 9, type = 'WORKER' } } end
+        H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3 }
+        local out = H.resume_moves(0)
+        assert(out[1].held == true and out[1].reason == 'own_unit_on_destination', H.json(out))
+        local r = H.unit_mission(3, 'MISSION_SKIP', nil, nil, nil, 0)
+        assert(r.ok == true and r.standing_move_dropped.held_because == 'own_unit_on_destination', H.json(r))
+        """)
+
+    def test_a_skip_on_a_move_that_is_under_way_is_still_refused_and_the_record_kept(self):
+        self.run_lua(self.ORDERS + """
+        -- the Caravel of t306: the path is queued, or the unit spent its moves walking it
+        for _, case in ipairs({ { queue = 1, moves = 120 }, { queue = 0, moves = 0 }, { queue = 0, moves = 120 } }) do
+          SENT = {}
+          UNITS[3].queue, UNITS[3].moves = case.queue, case.moves
+          H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3 }
+          local r = H.unit_mission(3, 'MISSION_SKIP', nil, nil, nil, 0)
+          assert(r.ok == false and r.err:find('does not block end_turn', 1, true), H.json(case) .. ' ' .. H.json(r))
+          assert(#SENT == 0 and H.pending_moves[H.pm_key(3, 0)] ~= nil, 'nothing sent, the record stays: ' .. H.json(case))
+        end
+        """)
+
+    def test_a_hold_of_an_earlier_turn_does_not_let_a_skip_through(self):
+        self.run_lua(self.ORDERS + """
+        H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3, held_turn = 0, held_reason = 'hostile' }
+        local r = H.unit_mission(3, 'MISSION_SKIP', nil, nil, nil, 0)
+        assert(r.ok == false and r.err:find('does not block end_turn', 1, true), H.json(r))
+        """)
+
     def test_the_skip_refusal_names_the_cancel_command(self):
         from harness import runtime_source
         src = runtime_source.snapshot().text

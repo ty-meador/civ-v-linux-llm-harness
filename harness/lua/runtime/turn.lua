@@ -575,6 +575,30 @@ function H.pause_player()
   return -1
 end
 
+-- The victory the game holds, or nil: the winning team, its first civilization's name, the victory's type and
+-- whether it is this seat's (GitLab #197). The end-game screen shows all of it to every player.
+function H.victory_set(pid)
+  local okw, team = pcall(function() return Game.GetWinner() end)
+  if not okw or type(team) ~= "number" or team < 0 then return nil end
+  local out = { team = team }
+  local okv, v = pcall(function() return Game.GetVictory() end)
+  if okv and type(v) == "number" and v >= 0 then
+    local row = GameInfo and GameInfo.Victories and GameInfo.Victories[v]
+    out.type = row and row.Type or nil
+  end
+  local me = Players[pid]
+  out.mine = (me ~= nil and me:GetTeam() == team) or false
+  for i = 0, (GameDefines and GameDefines.MAX_MAJOR_CIVS or 22) - 1 do
+    local o = Players[i]
+    if o and o:GetTeam() == team then
+      local okn, name = pcall(function() return o:GetCivilizationShortDescription() end)
+      if okn and type(name) == "string" then out.winner = name end
+      break
+    end
+  end
+  return out
+end
+
 function H.turn_state(pid)
   local p = Players[pid]
   local net = Game.IsNetworkMultiPlayer()
@@ -622,7 +646,14 @@ function H.turn_state(pid)
     dynamic_turns = net and Game.IsOption(GameOptionTypes.GAMEOPTION_DYNAMIC_TURNS) or false,
     turn_timer = net and Game.IsOption(GameOptionTypes.GAMEOPTION_END_TURN_TIMER_ENABLED) or false,
     everyone_connected = net and Network.IsEveryoneConnected() or nil,
-    game_state = gs, game_state_name = H.game_state_name(gs), game_over = gs == GameplayGameStateTypes.GAMESTATE_OVER,
+    -- GitLab #197 (seen 2026-11-16 under autoplay): the seat's last city fell, the other civilization took a
+    -- Domination victory, the game state went to GAMESTATE_EXTENDED with no end screen and the turns ran on with no
+    -- living human. Status read alive false, game_over false and the gate turn_not_active: a wait there never
+    -- returned. A dead seat's game is over whatever the state says; `victory_set` names a victory the game holds.
+    -- A living seat in an extended game (a victory set, "one more turn") can still play, so that is not `game_over`.
+    game_state = gs, game_state_name = H.game_state_name(gs),
+    game_over = gs == GameplayGameStateTypes.GAMESTATE_OVER or p:IsAlive() == false,
+    victory_set = H.victory_set(pid),
     alive = p:IsAlive(), pending_popups = H.pending_popups(pid), pending_deal_from = H.pending_deal_from(pid),
     notifications = H.notification_counts(p),
   }

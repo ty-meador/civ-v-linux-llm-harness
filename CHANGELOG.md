@@ -16,6 +16,21 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A skip on a unit whose standing move was held goes through (#211; runtime v342, 2026-11-21).** A unit whose
+  standing move the runtime held back this turn (a hostile unit or a barbarian camp beside it, a civilian within
+  reach of its destination, one of my own units on the destination) stands awake with its moves and blocks the end
+  of the turn, and its note names `MISSION_SKIP`. That skip was refused as "already on a multi-turn move and does
+  not block end_turn". The resume now marks the record it holds, the skip guard reads the mark, the skip is sent
+  and the reply carries `standing_move_dropped` {x, y, held_because, note}. A move that is under way (queued, or
+  the moves spent on it) is refused as before. Code and tests; the live turn is still to be played.
+- **A dead seat's game is over, and a status names the victory the game holds (#197; runtime v342, 2026-11-21).**
+  Under autoplay the seat's last city fell, the other civilization took a Domination victory, the game state went
+  to GAMESTATE_EXTENDED with no end screen, and status read `alive: false`, `game_over: false` with the gate
+  `turn_not_active`: a wait there never returned. `game_over` is now true for a seat that is not alive, the gate
+  says the seat is out of the game, and the wait returns at once. Every status carries `victory_set` {team,
+  winner, type, mine} once a victory is set; the finish reply's `victory` falls back to it when no notification
+  named the win, with `defeat` beside it for a dead seat. A living seat in a game carried on past a victory still
+  plays. Code and tests; the live read is still to be made.
 - **The test suite cannot reach a live game's lock (2026-11-21).** The MCP path takes the per-socket action lock
   even against a fake game, and the suite used the machine's own socket path, so two LeaderScreenGuard tests were
   refused ("another game operation is running") whenever `scripts/check.sh` ran during a live load, and a test
