@@ -76,6 +76,13 @@ class FakeGame:
 
     leave_reply = {"ok": True}
 
+    def has_state(self, name):
+        self.looked += 1
+        return name == "InGame" and self.looked <= self.up_for
+
+    looked = 0
+    up_for = 0   # how many looks still find the game up after an exit that answered nothing
+
     def quick_save(self):
         self.sent.append("quick_save")
         if self.quick_file is not None:
@@ -363,6 +370,23 @@ class AiFinishes(unittest.TestCase):
         quiet = FakeGame([read()], polls=[poll(331, 69, winner=1)])
         self.go(quiet)
         self.assertFalse(any("ExitToMainMenu" in s for s in quiet.sent), "a seat's exit that worked is not sent twice")
+
+    def test_an_exit_that_answered_nothing_is_looked_at_before_the_game_is_taken_as_left(self):
+        """Live 2026-11-21: the daemon could not read the runtime source, the seat's exit answered `{}` (the same
+        answer as a state torn down under the call), and the engine played on from a win at turn 421 to 479."""
+        clock = Clock()
+        stuck = FakeGame([read()])
+        stuck.leave_reply, stuck.up_for = {}, 10**6
+        benchmark_run.leave(stuck, settle=15.0, clock=clock, sleep=clock.sleep)
+        self.assertIn("Events.ExitToMainMenu()", stuck.sent[-1], "still up after the settle time: asked itself")
+        self.assertGreaterEqual(clock.t, 15.0)
+        leaving = FakeGame([read()])
+        leaving.leave_reply, leaving.up_for = {}, 2
+        benchmark_run.leave(leaving, settle=15.0, clock=clock, sleep=clock.sleep)
+        self.assertEqual((leaving.looked, leaving.sent), (3, []), "a game that goes within the time is not asked twice")
+        answered = FakeGame([read()])
+        benchmark_run.leave(answered, clock=clock, sleep=clock.sleep)
+        self.assertEqual((answered.looked, answered.sent), (0, []), "an exit that answered ok is taken at its word")
 
     def test_the_first_war_and_the_most_cities_stand_beside_the_result(self):
         polls = [dict(poll(260, 900), wars=0, cities=2), dict(poll(271, 889), wars=1, cities=3),

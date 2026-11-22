@@ -182,17 +182,30 @@ return {ok = true}
 """
 
 
-def leave(g) -> None:
+def leave(g, settle: float = 15.0, clock=time.monotonic, sleep=time.sleep) -> None:
     """Leave the loaded game for the main menu. The harness's own exit is a seat's: while the engine plays the seat
     the observer is the active player and the exit answers "this seat is not active". A run that ended on a win
     left its game up that way and the engine played on past turn 380 (live 2026-11-16, the user watching). The
-    runner is no seat and asks the game itself."""
+    runner is no seat and asks the game itself.
+
+    The harness's exit also answers nothing at all (`{}`) in two cases it cannot tell apart: the game left and the
+    state was torn down under the call, or the call never reached the runtime. Live 2026-11-21: the daemon could
+    not read the runtime source (the repository's folder had been moved under it), the exit answered `{}`, and
+    the engine played on from a win at turn 421 to turn 479. So no answer is looked at: a game that is leaving
+    is gone within `settle` seconds, and one that is still up after that is asked itself."""
     reply = g.leave_to_main_menu()
-    if isinstance(reply, dict) and reply.get("ok") is False:
-        try:
-            g.q(LEAVE)
-        except Exception:   # the InGame state is torn down under the call: the reply may never come
-            pass
+    if isinstance(reply, dict) and reply.get("ok") is True:
+        return
+    if not (isinstance(reply, dict) and reply.get("ok") is False):
+        deadline = clock() + settle
+        while clock() < deadline:
+            if not g.has_state("InGame"):
+                return
+            sleep(1)
+    try:
+        g.q(LEAVE)
+    except Exception:   # the InGame state is torn down under the call: the reply may never come
+        pass
 
 
 class Refused(Exception):

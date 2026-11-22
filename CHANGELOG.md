@@ -16,6 +16,13 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A benchmark run looks at an exit that answered nothing (2026-11-22).** `scripts/benchmark_run.py` left a
+  finished game through the harness's exit and asked the game itself only when that exit refused. The exit also
+  answers `{}` when its call never reached the runtime, the same answer as a game that left under the call. Live
+  2026-11-21: the repository's folder was moved while a batch played, the daemon could no longer read the runtime
+  source, the exit after a seed's last AI finish answered `{}`, the script gave up two minutes later and the
+  engine played on from a win at turn 421 to turn 479. `leave` now waits up to 15 seconds for the game to be
+  gone after an exit with no answer and, when it is still up, asks the game itself. One test.
 - **A skip on a unit whose standing move was held goes through (#211; runtime v342, 2026-11-21).** A unit whose
   standing move the runtime held back this turn (a hostile unit or a barbarian camp beside it, a civilian within
   reach of its destination, one of my own units on the destination) stands awake with its moves and blocks the end
