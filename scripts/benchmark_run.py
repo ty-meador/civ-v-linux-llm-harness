@@ -507,6 +507,30 @@ def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
         row["end_save"], row["end_save_error"] = None, str(e)
 
 
+def keep_game_over(g, row: dict, name: str, was: int, seen: int = -1, since: float | None = None,
+                   sleep=time.sleep, clock=time.monotonic) -> None:
+    """The game where it ended inside the run, saved as `name`: someone won, or the seat was destroyed. A game the
+    seat lost is a finished run like any other, and its save is the run's recording as much as the save at the end
+    of the turns is. `seen` is the turn of a save the game has taken of the end already (`CHECKPOINT`); with none
+    the game is asked for one here, which the observer may do (live 2026-11-22, after a named winner). Not seen
+    live: the save of a human seat that was just destroyed. Should the game write none then, the quick save that
+    is there is kept if it is of this run (written after `since`), and the row says which it is: the seat's last
+    saved turn."""
+    turn = seen
+    if turn < 0:
+        was = quick_mtime()     # a player's own quick saves have been written since the run began: only a new file counts
+        try:
+            turn = (g.q(SAVE_NOW) or {}).get("turn", -1)
+        except Exception:       # the row stands whatever the game answers here
+            turn = -1
+    row["game_over_save"] = copy_quick(name, was, sleep=sleep, clock=clock)
+    row["game_over_save_turn"] = turn if row["game_over_save"] and turn >= 0 else None
+    quick = saves_dir() / "quick" / "QuickSave.Civ5Save"
+    if row["game_over_save"] is None and since is not None and quick.exists() and quick.stat().st_mtime > since:
+        shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
+        row["game_over_save"], row["game_over_save_from"] = name, "the last quick save of the run, from before the end"
+
+
 def ai_finish(g, save: str, m: int, seat: int | None = None, poll: float = 3.0, stall: float = 900.0,
               row: str = "own", time_victory: str = "on", stop_turn: int | None = None, path_every: int = 0,
               sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
@@ -677,13 +701,10 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
                 row["end_reason"] = "stalled"
             if row["end_reason"]:
                 break
-        if checkpoint and row["end_reason"] in ("game_won", "seat_dead"):
-            over = now.get("over", -1)
-            if over < 0:        # the handler has not seen the end yet: asked for here, the observer may save
-                over = (g.q(SAVE_NOW) or {}).get("turn", now["turn"])
-            row["game_over_save"] = copy_quick(f"{checkpoint_name}-game-over", quick_was, sleep=sleep, clock=clock)
-            row["game_over_save_turn"] = over
-            say(f"  saved at the game's end, turn {over}: {row['game_over_save'] or 'no file'}")
+        if (checkpoint or end_save) and row["end_reason"] in ("game_won", "seat_dead"):
+            name = (end_save.removesuffix("-end") if end_save else checkpoint_name) + "-game-over"
+            keep_game_over(g, row, name, quick_was, seen=now.get("over", -1), sleep=sleep, clock=clock)
+            say(f"  saved at the game's end, turn {row['game_over_save_turn']}: {row['game_over_save'] or 'no file'}")
         after = g.q(READ)
         row.update(seconds=round(clock() - t0, 1), end=seat_view(after, seat), winner=after["winner"],
                    victory=after["victory"], turns_played=after["turn"] - before["turn"],
@@ -744,6 +765,7 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
             g.q(SKIP % {"skip": skip})
         how = played(g, seat)
         sleep(claim_wait)
+        quick_was = quick_mtime()
         t0, began = clock(), now()
         try:
             row["rc"] = run(command, timeout=timeout, check=False).returncode
@@ -771,6 +793,9 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
                    players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],
                    end_point=path_point(after), played=played_pair(how, played(g, seat, before["turn"]), seat))
         keep_end(g, row, end_save, save_game, sleep, clock)
+        if end_save and row["end_reason"] in ("game_won", "seat_dead"):
+            keep_game_over(g, row, end_save.removesuffix("-end") + "-game-over", quick_was, since=began,
+                           sleep=sleep, clock=clock)
         if keep_notebook is not None and nb.exists():
             keep_notebook.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(nb, keep_notebook)
@@ -1097,7 +1122,9 @@ def main(argv: list[str] | None = None) -> int:
                          "after, in the row. A path with its game's outcome is what the win-chance formula is fitted on")
     ap.add_argument("--keep-end", action="store_true",
                     help="save the game where the turns end even with no AI finish asked, under the name an AI finish "
-                         "would load: the position can be read again later, or finished later with --finish-only")
+                         "would load: the position can be read again later, or finished later with --finish-only. A game "
+                         "that ended inside the turns (a victory, or the seat destroyed) is saved where it ended, as "
+                         "...-game-over: a lost game is a finished run and keeps its save")
     ap.add_argument("--checkpoint", type=int, default=0, metavar="N",
                     help="with the built-in AI on the seat: save the game while it plays, on every game turn that is a "
                          "multiple of N and once when the game is won or the seat is dead, as <save>--built-in-ai-seed<n>-t<turn> "

@@ -73,7 +73,8 @@ class FakeGame:
         if "c.hooked" in code or code == benchmark_run.CHECKPOINT_OFF:
             return {"ok": True}
         if code == benchmark_run.SAVE_NOW:
-            self.write_quick("asked at the end")
+            if self.save_now_writes:
+                self.write_quick("asked at the end")
             return {"ok": True, "turn": 248}
         now = self.polls.pop(0)
         if now.get("wrote"):
@@ -88,6 +89,7 @@ class FakeGame:
         os.utime(self.quick_file, ns=(self.writes * 10 ** 9, self.writes * 10 ** 9))
 
     writes = 0
+    save_now_writes = True   # False: the game answers the save asked at the game's end and writes no file
 
     played_reply = None   # what the game answers the read of rule 7's figures; None stands for a read that failed
 
@@ -386,6 +388,40 @@ class APlayersRun(unittest.TestCase):
         self.assertEqual((row["end_reason"], row["rc"], row["victory"]), ("seat_dead", 3, "VICTORY_DOMINATION"))
         won = read(turn=247, winner=0, victory="VICTORY_SPACE_RACE")
         self.assertEqual(self.go(self.game(after=won))["end_reason"], "game_won")
+
+    def lost(self, save_now_writes=True, played_saves=False):
+        """A run with its end save asked whose seat is destroyed on turn 247, in a folder of saves of its own."""
+        dead = read(turn=247, players=[player(0, human=True, alive=False), player(1)])
+        g = self.game(after=dead, polls=[poll(247, 0, alive=False, turn_active=False)])
+        g.quick_file, g.save_now_writes = self.dir / "saves" / "quick" / "QuickSave.Civ5Save", save_now_writes
+        run = self.command(g)
+        if played_saves:        # the seat's own quick save, written while the command played
+            def run(cmd, timeout, check, inner=run):
+                g.write_quick("the seat's last saved turn")
+                return inner(cmd, timeout, check)
+        with mock.patch.dict(os.environ, {"CIV5_SAVES_DIR": str(self.dir / "saves")}):
+            row = self.go(g, run=run, end_save="save--codex-x-seed0-end", now=lambda: 0.5)
+        files = {p.stem: p.read_text() for p in (self.dir / "saves").glob("*.Civ5Save")}
+        return row, files
+
+    def test_a_game_the_seat_lost_keeps_its_save_where_it_ended(self):
+        row, files = self.lost(played_saves=True)
+        self.assertEqual((row["end_reason"], row["game_over_save"], row["game_over_save_turn"]),
+                         ("seat_dead", "save--codex-x-seed0-game-over", 248))
+        self.assertEqual(files, {"save--codex-x-seed0-game-over": "asked at the end"})
+        self.assertNotIn("end_save", row, "the save at the end of the turns is of a run that played them")
+        self.assertNotIn("game_over_save_from", row)
+        self.assertEqual(benchmark_run.result_of(row), "finished")
+
+    def test_with_no_save_from_the_game_at_the_end_the_seats_last_quick_save_of_the_run_is_kept_and_said(self):
+        row, files = self.lost(save_now_writes=False, played_saves=True)
+        self.assertEqual(files, {"save--codex-x-seed0-game-over": "the seat's last saved turn"})
+        self.assertEqual((row["game_over_save"], row["game_over_save_turn"]), ("save--codex-x-seed0-game-over", None))
+        self.assertIn("before the end", row["game_over_save_from"])
+
+    def test_with_no_save_at_all_the_row_says_none(self):
+        row, files = self.lost(save_now_writes=False)
+        self.assertEqual((row["game_over_save"], files), (None, {}))
 
     def test_the_command_is_told_the_turn_at_which_its_turns_are_over(self):
         """Rule 5. Live 2026-11-16: told to end ten turns, Codex stopped with the game nine turns on."""

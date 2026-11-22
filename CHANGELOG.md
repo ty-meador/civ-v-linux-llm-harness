@@ -27,6 +27,12 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   on the observer's slot and the engine plays on. `start_single_player(world_size=...)` now sets the city-states to
   the size's own number, as the setup screen's size picker does; a Small map hosted after a Duel had kept the
   Duel's 4. Its reply and a hosted manifest's `setup_screen` say the number. Four tests.
+- **A game that ended inside a run keeps its save (2026-11-22, the user: a game the seat lost is a valid game and a
+  valid outcome).** With `--keep-end`, a run that ends by a victory or by the seat's destruction is saved where it
+  ended, as `<save>--<player>-seed<n>-game-over`, a player's run and the built-in AI's alike; before, only a run
+  that played all its turns left a save, so a lost game had no recording. The row says the save and its turn
+  (`game_over_save`, `game_over_save_turn`). Should the game write no file at that moment (not seen live for a
+  human seat just destroyed), the seat's last quick save of the run is kept and the row says so. Three tests.
 
 - **How a player is scored: by the project, from its recording, by a method that is not published (2026-11-22,
   the user's decisions; docs and wording only).** The benchmark is named OMTbench ("one more turn"). A run leaves
