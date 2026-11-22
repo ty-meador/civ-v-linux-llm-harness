@@ -25,6 +25,8 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   "How a player is scored"; the section on the share of AI finishes won is now headed as the earlier number and
   stays as what was measured of the built-in AI. The README bullet, the roadmap and `saves/benchmark/README.md`
   say the same, and the summary's table of how the seat was played no longer claims anything about ordering.
+  Also decided that day: each registered user may send in one submission a week, and submissions are published
+  once a week.
 
 - **`benchmark_run.py --keep-end` (2026-11-22).** A run with no AI finish asked still saves the game where its
   turns end, under the name an AI finish would load, so the position can be loaded again later or finished later

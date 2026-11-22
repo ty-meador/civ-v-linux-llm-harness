@@ -44,7 +44,8 @@ thought.
   goal ("Goal saves" below).
 - A web page where a benchmark is chosen and started: the harness starts the game if it is not running and plays
   the benchmark. How a visitor's own model is put on the seat is left for later.
-- Scores published on the benchmark's own site.
+- Scores published on the benchmark's own site, once a week. Each registered user may send in one submission
+  a week.
 
 **What the sections below are now.** "The number, and what makes it honest" and the rules describe the earlier
 number, the share of AI finishes won. It is still what was measured of the built-in AI on the first starting save
