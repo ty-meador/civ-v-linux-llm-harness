@@ -252,9 +252,12 @@ Turn 269, trimmed for width. It predates runtime v217; a status now also names t
 
 ## What to expect
 
-- **It is slow and it costs tokens.** A developed empire means dozens of tool calls per turn. A game to
-  victory is a long project; an evening is a few dozen turns. Quiet-turn skipping and standing orders are
-  what keep that bill down.
+- **It takes hours and it costs tokens.** In the call ledger of November 2026 a turn of the first hundred
+  took 3 tool calls at the median (6 to 8 at the 90th percentile, 20 at most), and a turn past 200 took 6 to
+  10 depending on the client (10 to 18 at the 90th percentile, 26 at most); a `batch` counts as one call
+  whatever it carries. Past turn 240, one turn's start to the next was about 50 seconds at the median for
+  Codex and for Grok (one save, nine turns each). A game to victory is a few hundred such turns, each paid
+  for in tokens. Batches, quiet-turn skipping and standing orders are what keep that bill down.
 - **Leave the window alone during the agent's turn.** It drives the game's own screens the way a mouse
   would, and a stray click from you lands in its turn.
 - **The game crashes sometimes.** The Linux port does, with or without the harness. Quick saves every turn
