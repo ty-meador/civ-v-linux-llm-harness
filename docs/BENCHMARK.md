@@ -48,16 +48,13 @@ number.
   same nine tools and no notebook at the start (rule 3). The seat's server closes the seat on turn 100, so a player
   cannot play past its turns by a miscount (rule 5). Time is no part of a result (rule 5). A run broken by the harness
   or the game is void and played again (rule 5). A save plays the same game on another processor, so anyone can
-  compute a value again ("A save is the same game on another processor"). Every seed is played from a fresh game
-  process (rule 4, 2026-11-22), so one seed's value can be computed again without playing any other seed.
+  compute a value again ("A save is the same game on another processor"), by playing its games in the same order
+  from a fresh game process (the rules, "What version 1 changed").
 - A skew that is gone: the win-chance formula. Before turn 110 it has one input that helps, the share of score, so
   a player that plays for something it has no input for (delegates for the World Leader vote, which decides most
   games on this starting save) was valued too low by it. On the first twenty separate positions it says 0.505 where
   0.438 of five AI finishes a position were won, within the errors; seed by seed it is no closer to a seed's share
   than the plain mean is (2026-11-22, "The baseline on separate seeds"). No number is given by it.
-- Not yet: no run has been played under the fresh-process rule. The baseline's twenty seeds were played with a
-  fresh game process every eight or ten seeds. Their games are as good a sample of the Celts' chance as any, so the
-  baseline and its error stand; a single one of its seeds is recomputed only by playing its stretch again.
 
 **3. A true uncertainty.** The error given with the number has to be the error it really has.
 
@@ -184,14 +181,15 @@ one are the argument and the measurements; where they differ from a rule, the ru
   under "The baseline on separate seeds"). So a value can be recomputed by anyone who plays its games in the same
   order from a fresh game process, and new games of a save need new numbers. The batches so far started a fresh
   process every eight or ten seeds, so a single seed's rows are recomputed only by playing that stretch again.
-  A rule since 2026-11-22 (rule 4): a fresh game process for every seed (about a minute each), which makes each
-  seed's value recomputable by itself.
+  A fresh game process for every seed (about a minute each) would make each seed's value recomputable by itself.
+  It was proposed and turned down (the user, 2026-11-22): it changes no number and no error, and a seed's games are
+  as good a sample of the Celts' chance whatever was played before them.
 
 **Decided 2026-11-22 (the user)**, after the baseline on twenty separate seeds:
 
 - The number is the share of AI finishes won and nothing else. The estimate of rule 1 and its two errors of rule 6
   are withdrawn; their text is kept as the record of what was tried.
-- Every seed starts in a fresh game process (rule 4).
+- No fresh game process for every seed. A batch starts the game when it has to, as before.
 - The baseline stays at twenty seeds of five AI finishes (0.438, standard error 0.071). More baseline seeds are not
   planned ("Are twenty seeds enough for the baseline?" under "The baseline on separate seeds").
 
@@ -298,14 +296,6 @@ with a seed's random numbers inside the run decides more than the AI finishes af
 run on the Celts duel was worth 0 of 5 on seed 0 and 5 of 5 on seed 1, the seat identical at turn 60 and Austria at
 score 247 and 182. So eight seeds with one or two AI finishes each, not two seeds with five. For a model every seed is
 a run of its tokens, and that, more than machine hours, is what a value costs.
-
-- **Every seed starts in a fresh game process (the user, 2026-11-22).** The game is started, the seed's 100 turns
-  are played, then its AI finishes in the order of their numbers, and nothing else is loaded in that process. A
-  game process keeps something from the games it has played, and it enters the next one ("A replay that was not the
-  same game"), so only then is a seed's value a matter of the save and the numbers alone. It costs about a minute a
-  seed. A row of a seed played any other way says so. Not checked: that the second and later games of a fresh
-  process are the same games every time when the games before them are the same (the pair of 2026-11-17 says yes
-  for the second). Not done: no tracked script starts the game; the batches so far were shell scripts that did.
 
 **5. A run counts whatever happened.**
 

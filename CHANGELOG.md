@@ -16,15 +16,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
-- **The benchmark's number is the share of AI finishes won, and every seed starts in a fresh game process
-  (2026-11-22, the user's decisions).** `docs/BENCHMARK.md` only, no code. (1) The win-chance formula gives no
-  number: on the twenty separate seeds of the baseline it was no closer to a seed's share of AI finishes won than
-  the plain mean is. The estimate of rule 1 and its two errors of rule 6 are withdrawn and kept as the record;
-  `scripts/benchmark_fit.py` stays. (2) Rule 4: the game is started, a seed's 100 turns are played, then its AI
-  finishes in the order of their numbers, and nothing else is loaded in that process, so one seed's value can be
-  computed again without playing any other. No run has been played under it yet, and no tracked script starts the
-  game. (3) The baseline stays at twenty seeds (0.438, standard error 0.071); twenty-one more for 0.05 are not
-  played, since they would take the error of a player's difference from the baseline from 0.10 to 0.087 only.
+- **The benchmark's number is the share of AI finishes won (2026-11-22, the user's decisions).**
+  `docs/BENCHMARK.md` only, no code. (1) The win-chance formula gives no number: on the twenty separate seeds of
+  the baseline it was no closer to a seed's share of AI finishes won than the plain mean is. The estimate of rule 1
+  and its two errors of rule 6 are withdrawn and kept as the record; `scripts/benchmark_fit.py` stays. (2) The
+  baseline stays at twenty seeds (0.438, standard error 0.071); twenty-one more for 0.05 are not played, since they
+  would take the error of a player's difference from the baseline from 0.10 to 0.087 only. (3) A fresh game process
+  for every seed was proposed, written in as a rule and turned down the same day: it changes no number and no
+  error. A value is still computed again by playing its games in the same order from a fresh game process.
 
 ## 2.18.0 -- A benchmark of its own, and the built-in AI's baseline (2026-11-22)
 
