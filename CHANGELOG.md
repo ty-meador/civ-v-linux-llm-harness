@@ -14,7 +14,14 @@ Two counters, on purpose (GitLab #26):
 
 Dates are the day the change was committed; "live tNNN" is the game turn it was checked on.
 
-## Unreleased
+## 2.18.0 -- A benchmark of its own, and the built-in AI's baseline (2026-11-22)
+
+Runtime v343 (v341 in 2.17.0), 9 tools, 2441 tests. The tools of the benchmark in `docs/BENCHMARK.md`: a player
+plays the same 100 turns from one starting save on seeds that are separate games, the engine finishes each game
+several times, and the player's number is the share of those AI finishes it won, with a standard error over seeds.
+The built-in AI's baseline on the first starting save is 0.438 with a standard error of 0.071 (twenty seeds, five
+AI finishes each). Two fixes to the tools a seat plays with: a skip on a unit whose standing move was held goes
+through (#211), and a dead seat's game is over (#197); both checked on the live game.
 
 - **A benchmark run looks at an exit that answered nothing (2026-11-22).** `scripts/benchmark_run.py` left a
   finished game through the harness's exit and asked the game itself only when that exit refused. The exit also

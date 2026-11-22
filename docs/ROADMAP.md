@@ -349,3 +349,10 @@ With it every stage of the token-accounting plan is built; no issue is open.
 
 First thoughts on CivBench (arXiv 2604.07733): `docs/CIVBENCH.md`. Decided 2026-11-13: no Vox Populi, a benchmark of our own; the sketch is `docs/BENCHMARK.md`. #189 (spectator) is off the 2.15.0 milestone.
 
+**The benchmark's tools and its baseline are released as `v2.18.0` (2026-11-22, runtime v343, 2441 tests)**:
+`scripts/benchmark_run.py` (a player's 100 turns on a starting save, AI finishes, the summary and the split of the
+spread), `scripts/benchmark_fit.py` (the win-chance formula) and `scripts/benchmark_seed_likeness.py`; seeds that
+are separate games; the built-in AI's baseline on the first starting save, 0.438 with a standard error of 0.071 over
+twenty seeds of five AI finishes. Open in `docs/BENCHMARK.md`: a model's number on these seeds, whether the number is
+given by AI finishes alone, more seeds for an error of 0.05, and a fresh game process for every seed.
+
