@@ -16,6 +16,11 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The scripted loop plays past a World Congress call for proposals, seen live (2026-11-22, #198).** The code
+  is 672b23c of 2026-11-17 (`scripts/play_loop.py` answers `ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS` with the
+  first enactment the league offers, else a repeal). On the Maya turn-242 save, where three runs had stopped at
+  turn 246, the loop proposed to enact the city-state embargo on turn 246 and played its ten turns to turn 252
+  (5.6 minutes, `logs/boards/maya-t242/issue198.jsonl`).
 - **A starting save of the benchmark is made by one command and kept with a manifest (2026-11-22, #194).**
   `scripts/benchmark_save.py --host NAME --civ ...` starts a game from the single-player setup screen (Prince,
   Quick, a Duel map and every victory type on unless said otherwise), puts the benchmark's terms in and saves it;
