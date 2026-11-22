@@ -389,7 +389,7 @@ ordering. They explain a value; they do not replace it.
   played. Seconds a turn are written down as a fact about the run and its machine, not about the player (rule 5).
 
 **8. What would overturn this, to be tested before any model's tokens are spent on it.** Where each test
-stands after the night of 2026-11-17:
+stands after the night of 2026-11-17, with what was measured since (to 2026-11-22) added at the end of each:
 
 - *The value cannot tell a lower reference point from the baseline.* **Open. The loop's seat is worth less the longer
   the loop holds it, on a starting save in the 0.2 to 0.8 range; by seeds the difference at 100 turns is not yet
@@ -404,15 +404,25 @@ stands after the night of 2026-11-17:
   loop's seven unfinished runs were its own fault, since fixed. At 30 turns the loop's opening costs nothing on this
   starting save (7 of 10 against the built-in AI's 7 of 14) or on the first duel (10 of 10 against 9 of 10): thirty
   opening turns of one sound build order are not bad play, and no test of a 30-turn run exists yet that has bad play
-  in it.
+  in it. *Since:* the loop with its fault fixed finished eight seeds of 100 turns and won one, 0.125 (standard error
+  0.125) against the built-in AI's 0.30 (0.13): 0.175 apart with 0.18 ("The fixed loop's eight seeds"). Those seeds
+  were at the old spacing. **Still open on 2026-11-22:** the loop has not been played on the separate seeds the
+  baseline now stands on (0.438, 0.071). Twenty of them with one AI finish each are about eleven hours and no
+  tokens (17 minutes for the loop's 100 turns, 16 for a finish); a loop at 0.125 would then stand about three
+  standard errors under the baseline, and a loop that does not would say the number cannot see bad play.
 - *AI finishes are too slow or too noisy.* **Slow and noisy, both measured.** From an opening a duel
   AI finish is 12 to 14 minutes, and a whole Tiny game to turn 330 took 24. Five an hour is a value known
   to about 0.2. "Valued within the hour" holds only for late starting saves (an AI finish from turn 325 took 2.2
-  minutes). Rule 6 now gives the standard error and says what a difference costs.
+  minutes). Rule 6 now gives the standard error and says what a difference costs. *Since:* on the Celts duel the
+  built-in AI's 100 turns take 3.5 minutes and an AI finish 15.7. An AI finish varies by 0.433 from one end of the
+  turns and the chance the turns leave by 0.252 from seed to seed, so twenty seeds of five finishes give 0.071 and
+  0.05 takes forty-one ("The baseline on separate seeds"). Not measured: a Small map; no starting save on one is
+  planned.
 - *No starting save is undecided.* **One is, of five.** The seat on the human's Prince row lost every full AI game. On
   the AIs' row the first duel is 0.80 over all 25 decided games of the built-in AI, on the range's top edge; two
   more duels were 4 of 4 and the first Tiny starting save 0 of 4. `board-duel-prince-d` is 7 of 14, 0.50 (standard
-  error 0.13). Starting saves have to be hosted in number and screened, about four for one kept.
+  error 0.13). Starting saves have to be hosted in number and screened, about four for one kept. *Since:* 0.438
+  (0.071) on twenty separate seeds of five AI finishes.
 - *The save in between.* **Holds as a mechanism; not shown to change the result.** Twenty games finished by the AI
   from a turn-30 save had no conquest and the first eight full AI games on the same starting save had three, which
   looked like the save's doing (0.017 by chance). Eight more full AI games had none: three conquests in sixteen full
