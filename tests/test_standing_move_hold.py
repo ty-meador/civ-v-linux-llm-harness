@@ -158,6 +158,19 @@ class HeldStandingMoveLuaTests(unittest.TestCase):
         assert(H.pending_moves[H.pm_key(1, 0)] == nil, 'the record is gone')
         """)
 
+    def test_a_held_move_whose_path_the_engine_still_queues_says_what_the_skip_dropped(self):
+        """Live 2026-11-22 (a Settler held as within_reach, the first order's path still in the engine's queue): the
+        unit read as stalled, the skip went through and dropped the record, and the reply named no path."""
+        self.run_lua(self.ORDERS + """
+        H.pending_moves[H.pm_key(1, 0)] = { x = 31, y = 60, pid = 0, unit_id = 1 }
+        local out = H.resume_moves(0)
+        assert(out[1].held == true, H.json(out))
+        UNITS[1].queue, UNITS[1].activity = 1, 6
+        local r = H.unit_mission(1, 'MISSION_SKIP', nil, nil, nil, 0)
+        assert(r.ok == true and r.standing_move_dropped and r.standing_move_dropped.x == 31, H.json(r))
+        assert(H.pending_moves[H.pm_key(1, 0)] == nil, 'the record is gone')
+        """)
+
     def test_a_skip_on_a_move_held_for_my_own_unit_on_the_destination_goes_through_too(self):
         self.run_lua(self.ORDERS + """
         H.move_unit = function() return { ok = false, err = 'destination already holds your WORKER 9',

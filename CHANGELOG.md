@@ -23,13 +23,20 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   source, the exit after a seed's last AI finish answered `{}`, the script gave up two minutes later and the
   engine played on from a win at turn 421 to turn 479. `leave` now waits up to 15 seconds for the game to be
   gone after an exit with no answer and, when it is still up, asks the game itself. One test.
-- **A skip on a unit whose standing move was held goes through (#211; runtime v342, 2026-11-21).** A unit whose
+- **A skip on a unit whose standing move was held goes through (#211; runtime v342 and v343, 2026-11-21 and 22).** A unit whose
   standing move the runtime held back this turn (a hostile unit or a barbarian camp beside it, a civilian within
   reach of its destination, one of my own units on the destination) stands awake with its moves and blocks the end
   of the turn, and its note names `MISSION_SKIP`. That skip was refused as "already on a multi-turn move and does
   not block end_turn". The resume now marks the record it holds, the skip guard reads the mark, the skip is sent
   and the reply carries `standing_move_dropped` {x, y, held_because, note}. A move that is under way (queued, or
-  the moves spent on it) is refused as before. Code and tests; the live turn is still to be played.
+  the moves spent on it) is refused as before. **Live 2026-11-22 (runtime v343)** on a scratch load of the
+  benchmark's starting save: a Settler ordered to a hill-forest plot two away stood one plot short on the next
+  turn, held as `within_reach`; the skip answered ok, the unit left `todo.units` and the turn ended. The first
+  live try, on v342, found the held move's other shape: the engine still had the first order's path in its queue,
+  so the unit read as stalled, the skip went through by the older stalled rule and dropped the record, and the
+  reply named no path. v343 says what was dropped there too (`standing_move_dropped` {x: 10, y: 12, held_because:
+  "within_reach"} in the live reply). The shape of the report itself, a held unit with nothing queued (a hostile
+  unit beside it), stands on its tests; it was not staged live. One more test.
 - **A dead seat's game is over, and a status names the victory the game holds (#197; runtime v342, 2026-11-21).**
   Under autoplay the seat's last city fell, the other civilization took a Domination victory, the game state went
   to GAMESTATE_EXTENDED with no end screen, and status read `alive: false`, `game_over: false` with the gate
@@ -37,7 +44,11 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   says the seat is out of the game, and the wait returns at once. Every status carries `victory_set` {team,
   winner, type, mine} once a victory is set; the finish reply's `victory` falls back to it when no notification
   named the win, with `defeat` beside it for a dead seat. A living seat in a game carried on past a victory still
-  plays. Code and tests; the live read is still to be made.
+  plays. **Live 2026-11-22 (runtime v343)** on the same scratch game: under autoplay Austria took the seat's only
+  city (staged: war declared, swordsmen beside the capital, the city one hit from falling), Domination, the state
+  GAMESTATE_EXTENDED. Status read `alive: false`, `game_over: true`, the gate `game_over` ("this seat is out of
+  the game (no city left)"), `victory_set` {team: 1, type: "VICTORY_DOMINATION", mine: false, winner: "Austria"};
+  a wait returned in a second with the same.
 - **The test suite cannot reach a live game's lock (2026-11-21).** The MCP path takes the per-socket action lock
   even against a fake game, and the suite used the machine's own socket path, so two LeaderScreenGuard tests were
   refused ("another game operation is running") whenever `scripts/check.sh` ran during a live load, and a test

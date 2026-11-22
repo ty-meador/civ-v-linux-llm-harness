@@ -701,8 +701,13 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
     -- Refusing it as "does not block end_turn" was wrong on both counts. The guard reads the mark the resume left
     -- on the record when it held the move this turn (H.resume_moves); the skip goes through and the reply says
     -- which path it dropped.
+    -- The held move's other shape (live 2026-11-22, a Settler held as within_reach on turn 1 of a scratch game):
+    -- the engine still has the path of the first order in its queue, so the unit reads as stalled, the skip went
+    -- through by the stalled rule above and the record was dropped with it -- and the reply said nothing of the
+    -- path. A held move that is stalled says what it dropped as well.
     pm = H.pending_moves[key]
-    if pm and pm.held_turn ~= nil and not busy and u:MovesLeft() > 0 and pm.held_turn == Game.GetGameTurn() then
+    if pm and pm.held_turn ~= nil and u:MovesLeft() > 0 and pm.held_turn == Game.GetGameTurn()
+       and (not busy or H.is_stalled_mission(u)) then
       dropped = { x = pm.x, y = pm.y, held_because = pm.held_reason,
                   note = "the standing move to (" .. pm.x .. "," .. pm.y .. ") was held this turn and is dropped; "
                          .. "order(to='unit', action='move') there again takes it up" }
