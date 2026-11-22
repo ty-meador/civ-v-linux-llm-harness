@@ -66,9 +66,13 @@ class FakeGame:
             return self.reads.pop(0) if len(self.reads) > 1 else self.reads[0]   # the last read stands for any later one
         if "return {skip" in code:
             return {"skip": 0}
+        if "score_parts" in code:
+            return self.played_reply
         if "ExitToMainMenu" in code:
             return {"ok": True}
         return self.polls.pop(0)
+
+    played_reply = None   # what the game answers the read of rule 7's figures; None stands for a read that failed
 
     def leave_to_main_menu(self):
         self.left += 1
@@ -838,6 +842,125 @@ class Spread(unittest.TestCase):
 
     def test_too_few_seeds_give_no_line(self):
         self.assertEqual(benchmark_run.spread_lines([valued(1, 0), valued(0, 0), valued(1, 1)]), [])
+
+
+def played_reply(**kw):
+    """What the game answers the read of rule 7's figures."""
+    out = {"leader": "Boudicca", "gold": 120, "units": 9, "military_units": 5,
+           "yields": {"food": 30, "production": 20, "gold": 4, "science": 15, "culture": 6, "faith": 2},
+           "score_parts": {k: 10 for k in benchmark_run.SCORE_PARTS},
+           "at_war": {}, "friends": ["Austria"], "denounced": {}, "denounced_by": {}, "allies": ["Sidon"], "events": {}}
+    out.update(kw)
+    return out
+
+
+EVENTS = [{"turn": 242, "player": 0, "kind": 0, "text": "Session 4 starts"},
+          {"turn": 243, "player": 0, "kind": 1, "text": "Dublin is founded."},
+          {"turn": 244, "player": 0, "kind": 0, "text": "Boudicca declares war on Maria Theresa!"},
+          {"turn": 245, "player": 23, "kind": 0, "text": "Sidon declares war on Boudicca!"},
+          {"turn": 246, "player": 1, "kind": 0, "text": "Maria Theresa completes Great Library!"},
+          {"turn": 247, "player": 0, "kind": 0, "text": "Boudicca completes Parthenon!"},
+          {"turn": 250, "player": 1, "kind": 0, "text": "Maria Theresa has made peace with Boudicca!"}]
+
+
+class HowTheSeatWasPlayed(unittest.TestCase):
+    """Rule 7 (#196): the seat's figures at both ends of a run and what the game's replay says happened between, in
+    the row; the call ledger's count of a player's run; all of it in the summary, ordering no one."""
+
+    def game(self):
+        after = read(turn=252, players=[player(0, human=True, score=140), player(1, score=310)])
+        g = FakeGame([read(), after], polls=[poll(252, 0)])
+        g.played_reply = played_reply(events=list(EVENTS))
+        return g
+
+    def test_a_run_keeps_the_figures_at_both_ends_and_the_events_between(self):
+        g = self.game()
+        row = run(g)
+        asked = [c for c in g.sent if "score_parts" in c]
+        self.assertEqual(len(asked), 2)
+        self.assertLess(g.sent.index(asked[0]), next(i for i, c in enumerate(g.sent) if "SetAIAutoPlay" in c),
+                        "the first read is before the engine takes the seat")
+        self.assertIn(f"m.Turn >= {benchmark_run.NO_EVENTS}", asked[0], "the read at the start asks for no events")
+        self.assertIn("m.Turn >= 242", asked[1], "the read at the end asks for the run's turns")
+        how = row["played"]
+        self.assertEqual(how["end"]["yields"]["science"], 15)
+        self.assertEqual((how["end"]["at_war"], how["end"]["friends"]), ([], ["Austria"]), "an empty Lua table is an empty list")
+        self.assertNotIn("events", how["end"])
+        self.assertEqual([e["turn"] for e in how["events"]], [243, 244, 245, 246, 247, 250], "the replay's session line is no event")
+        self.assertEqual(how["counts"], {"wars_declared": 1, "wars_declared_on_it": 1, "peace_made": 1, "wonders": 1,
+                                         "cities_founded": 1})
+
+    def test_a_read_the_game_does_not_answer_is_kept_as_its_error_and_the_run_stands(self):
+        g = self.game()
+        g.played_reply = None
+        row = run(g)
+        self.assertEqual(row["end_reason"], "all_turns_played")
+        self.assertIn("error", row["played"]["end"])
+        self.assertNotIn("counts", row["played"])
+        self.assertEqual(benchmark_run.played_lines({"built-in-ai": [row]}), [], "and it is in no table")
+
+    def test_the_ledger_is_counted_for_the_seat_between_the_two_moments(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "calls.jsonl"
+            rows = [{"t": 99.0, "seat": 0, "tool": "state", "ok": True},
+                    {"t": 100.0, "seat": 0, "tool": "state", "action": "units", "ok": True},
+                    {"t": 101.0, "seat": 1, "tool": "order", "action": "unit/move", "ok": True},
+                    {"t": 102.0, "seat": 0, "tool": "order", "action": "unit/mission", "ok": True,
+                     "args": '{"args":{"mission":"MISSION_SKIP"}}'},
+                    {"t": 103.0, "seat": 0, "tool": "order", "action": "city/produce", "ok": False,
+                     "err": "city cannot build this: already built"},
+                    {"t": 104.0, "seat": 0, "tool": "order", "action": "civ/friendship", "ok": True, "turn": 247,
+                     "args": '{"to":"civ","action":"friendship","id":3}', "excerpt": '{"ok":true,"accepted":true}'},
+                    {"t": 200.0, "seat": 0, "tool": "turn", "action": "finish", "ok": True}]
+            path.write_text("not json\n" + "".join(json.dumps(r) + "\n" for r in rows))
+            got = benchmark_run.ledger_counts(path, 0, 100.0, 150.0)
+            self.assertEqual((got["calls"], got["unit_skips"]), (4, 1))
+            self.assertEqual(got["refused"], {"city cannot build this": 1})
+            self.assertEqual(got["with_civs"], [{"turn": 247, "action": "civ/friendship", "ok": True,
+                                                 "args": '{"to":"civ","action":"friendship","id":3}',
+                                                 "reply": '{"ok":true,"accepted":true}'}])
+            self.assertIn("error", benchmark_run.ledger_counts(Path(d) / "none.jsonl", 0, 0, 1))
+
+    def test_a_command_that_names_no_log_folder_has_no_tokens(self):
+        self.assertIsNone(benchmark_run.tokens_of(["loop", "--turns", "10"]))
+        with tempfile.TemporaryDirectory() as d:
+            self.assertIsNone(benchmark_run.tokens_of(["loop", "--log-dir", d]), "a folder with no record in it")
+
+    def test_the_summary_sets_the_players_figures_side_by_side_and_lists_what_was_said_between_civilizations(self):
+        def a_row(name, science, n, cost=None):
+            end = played_reply(yields=dict(played_reply()["yields"], science=science))
+            end.pop("events")
+            r = row(140, turns_played=10, run=n, played={"start": {}, "end": end, "events": EVENTS[1:],
+                                                         "counts": {"wars_declared": 1, "wonders": 1}})
+            if name:
+                r["player"] = name
+            if cost:
+                r["cost"] = cost
+            return r
+
+        cost = {"calls": 60, "refused": {"city cannot build this": 2}, "unit_skips": 7, "tokens": {"new_in": 1000,
+                "cache_read": 8000, "cache_write": 1000, "out": 500},
+                "with_civs": [{"turn": 247, "action": "civ/friendship", "ok": True, "args": "{}", "reply": "accepted"}]}
+        lines = benchmark_run.summarise([a_row(None, 20, 0), a_row(None, 30, 1), a_row("codex/x", 50, 0, cost)])
+        at = next(i for i, line in enumerate(lines) if line.startswith("how the seat was played"))
+        self.assertEqual(lines[at + 1].split(), ["built-in-ai", "x2", "codex/x", "x1"])
+        cell = lambda label: next(line for line in lines[at:] if line.startswith(label))[32:].split()
+        self.assertEqual(cell("science a turn"), ["25.0", "50.0"])
+        self.assertEqual(cell("friends"), ["1.0", "1.0"])
+        self.assertEqual(cell("wars declared, in the run"), ["1.0", "1.0"])
+        self.assertEqual(cell("calls a turn"), ["-", "6.0"], "the built-in AI makes no calls")
+        self.assertEqual(cell("tokens read a turn"), ["-", "1000.0"])
+        self.assertEqual(cell("tokens written a turn"), ["-", "50.0"])
+        self.assertEqual(cell("seconds a turn"), ["30.0", "30.0"], "a fact of the run and its machine, whoever played")
+        self.assertIn("codex/x, calls refused by reason: 2 city cannot build this", lines)
+        self.assertTrue(any(line.startswith("codex/x seed 0, turn 247: civ/friendship") for line in lines))
+        war = next(line for line in lines if line.startswith("built-in-ai seed 1, war and peace:"))
+        self.assertIn("turn 244 Boudicca declares war on Maria Theresa!", war)
+        self.assertIn("turn 250 Maria Theresa has made peace with Boudicca!", war)
+        self.assertNotIn("Great Library", war)
+
+    def test_rows_from_before_have_no_such_table(self):
+        self.assertFalse(any("how the seat was played" in line for line in benchmark_run.summarise([row(140), row(150)])))
 
 
 class Lua(unittest.TestCase):

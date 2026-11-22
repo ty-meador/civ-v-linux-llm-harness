@@ -16,6 +16,18 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A run's row says how the seat was played, and the summary sets it beside the built-in AI's (2026-11-22,
+  #196, rule 7).** `scripts/benchmark_run.py` reads the seat at both ends of every run: food, production, gold,
+  science, culture and faith a turn, gold on hand, the nine parts of the score, units, and who it is at war
+  with, friends with, has denounced, is denounced by and is allied to (`played` in the row). Between the ends it
+  keeps the lines of the game's own replay, so a war has its declarer, and counts wars declared by the seat and on
+  it, peace made, wonders and cities founded off them. For a player's run it counts the call ledger between the
+  command's start and end (calls, calls refused by reason, unit turns skipped, orders to other civilizations with
+  their replies) and reads the tokens of the seat loop's records (`cost`). `--summary` prints "how the seat was
+  played": each player's mean in a column, the refusals by reason, and war, peace and orders to other
+  civilizations line by line. None of it is in the value or orders anyone. A read the game does not answer is
+  kept as its error and the run stands. Not there: units and cities lost (no count in the game), and turns a
+  city built nothing or a unit had no order (the game does not end a turn in either state).
 - **The scripted loop plays past a World Congress call for proposals, seen live (2026-11-22, #198).** The code
   is 672b23c of 2026-11-17 (`scripts/play_loop.py` answers `ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS` with the
   first enactment the league offers, else a repeal). On the Maya turn-242 save, where three runs had stopped at

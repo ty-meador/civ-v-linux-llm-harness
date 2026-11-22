@@ -39,6 +39,13 @@ valued: the game is saved at the end of the turns and the engine's AI finishes i
 the seat's team wins. A run that did not finish has no value; it is counted beside the value and stands below every
 finished run.
 
+Beside the value, a row keeps how the seat was played (rule 7; it explains a value and orders no one). `played`:
+the seat's yields, gold, parts of the score and standing with the others at both ends of the run, and the game's
+replay lines between them (a war and who declared it, a peace, a wonder, a city founded). `cost`, for a player's
+run: what the call ledger counted between the command's start and its end (calls, calls refused by reason, unit
+turns skipped, orders to other civilizations with their replies) and the tokens of the seat loop's records.
+`--summary` prints each player's mean beside the built-in AI's.
+
 What it will not do (each seen live 2026-11-16, docs/BENCHMARK.md "Autoplay, checked live"):
 
 - Start on a starting save with no observer slot beside the seat. The engine then makes the seat itself the observer
@@ -300,6 +307,142 @@ def with_terms(g, save: str, new: str, seat: int | None = None, row: str = "ai",
         leave(g)
 
 
+# How the seat was played (rule 7): figures that explain a value and are never part of the ordering. Read for the
+# seat alone at the two ends of a run. `events` are the game's own replay messages (what its replay screen lists:
+# a war declared and by whom, a peace, a wonder, a golden age, a city founded) from the run's first turn on.
+PLAYED = """
+local seat = %(seat)d
+local p = Players[seat]
+local team = Teams[p:GetTeam()]
+local function n(f) local ok, v = pcall(f) return ok and v or 0 end
+local food, production = 0, 0
+for c in p:Cities() do
+  food = food + c:GetYieldRate(YieldTypes.YIELD_FOOD)
+  production = production + c:GetYieldRate(YieldTypes.YIELD_PRODUCTION)
+end
+local at_war, friends, denounced, denounced_by, allies = {}, {}, {}, {}, {}
+for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
+  local o = Players[i]
+  if i ~= seat and o and o:IsAlive() and PreGame.GetSlotStatus(i) ~= 4 then
+    local name = o:GetCivilizationShortDescription()
+    if team:IsAtWar(o:GetTeam()) then at_war[#at_war + 1] = name end
+    if p:IsDoF(i) then friends[#friends + 1] = name end
+    if p:IsDenouncedPlayer(i) then denounced[#denounced + 1] = name end
+    if o:IsDenouncedPlayer(seat) then denounced_by[#denounced_by + 1] = name end
+  end
+end
+for m = GameDefines.MAX_MAJOR_CIVS, GameDefines.MAX_CIV_PLAYERS - 1 do
+  local c = Players[m]
+  if c and c:IsAlive() and c:IsMinorCiv() and c:GetAlly() == seat then allies[#allies + 1] = c:GetName() end
+end
+local events = {}
+for _, m in ipairs(Game.GetReplayMessages and Game.GetReplayMessages() or {}) do
+  if (m.Type == 0 or m.Type == 1) and m.Turn >= %(since)d then
+    events[#events + 1] = {turn = m.Turn, player = m.Player, kind = m.Type, text = m.Text}
+  end
+end
+return {leader = p:GetName(), gold = p:GetGold(), units = p:GetNumUnits(), military_units = p:GetNumMilitaryUnits(),
+  yields = {food = food, production = production, gold = p:CalculateGoldRate(), science = p:GetScience(),
+    culture = p:GetTotalJONSCulturePerTurn(), faith = p:GetTotalFaithPerTurn()},
+  score_parts = {cities = n(function() return p:GetScoreFromCities() end),
+    population = n(function() return p:GetScoreFromPopulation() end), land = n(function() return p:GetScoreFromLand() end),
+    wonders = n(function() return p:GetScoreFromWonders() end), techs = n(function() return p:GetScoreFromTechs() end),
+    policies = n(function() return p:GetScoreFromPolicies() end),
+    great_works = n(function() return p:GetScoreFromGreatWorks() end),
+    religion = n(function() return p:GetScoreFromReligion() end),
+    future_tech = n(function() return p:GetScoreFromFutureTech() end)},
+  at_war = at_war, friends = friends, denounced = denounced, denounced_by = denounced_by, allies = allies,
+  events = events}
+"""
+YIELDS = ("food", "production", "gold", "science", "culture", "faith")
+SCORE_PARTS = ("cities", "population", "land", "wonders", "techs", "policies", "great_works", "religion", "future_tech")
+RELATIONS = ("at_war", "friends", "denounced", "denounced_by", "allies")
+NO_EVENTS = 10 ** 9           # a `since` no turn reaches: the read at the start of a run asks for no events
+SESSION_LINE = "Session "     # the replay's own line for every load of the game, not an event of the game
+
+
+def played(g, seat: int, since: int = NO_EVENTS) -> dict:
+    """The seat's figures of rule 7 at this moment, and the game's replay messages from turn `since` on. Never the
+    reason a run fails: a read the game does not answer is kept as its error."""
+    try:
+        out = dict(g.q(PLAYED % {"seat": seat, "since": since}))
+    except Exception as e:      # whatever the game or the wire raised, the run goes on
+        return {"error": f"{type(e).__name__}: {e}"}
+    for k in (*RELATIONS, "events"):
+        out[k] = list(out.get(k) or [])       # an empty Lua table has no shape of its own
+    out["events"] = [e for e in out["events"] if not str(e.get("text", "")).startswith(SESSION_LINE)]
+    return out
+
+
+def played_pair(start: dict, end: dict, seat: int) -> dict:
+    """What a row keeps of the two reads: the figures at both ends, the events between, and what the events say of
+    the seat. The counts are read off the game's English lines ("X declares war on Y!"), with the leader's name the
+    game gave; the lines themselves are kept so that a count can be checked."""
+    events = end.pop("events", [])
+    start.pop("events", None)
+    out = {"start": start, "end": end, "events": events}
+    if "error" not in end:
+        leader = end.get("leader") or ""
+        mine = [e for e in events if e.get("player") == seat]
+        wars = [e for e in events if " declares war on " in e.get("text", "")]
+        out["counts"] = {
+            "wars_declared": sum(1 for e in wars if e.get("player") == seat),
+            "wars_declared_on_it": sum(1 for e in wars if e.get("player") != seat and leader
+                                       and e["text"].rstrip("!").endswith(" " + leader)),
+            "peace_made": sum(1 for e in events if " made peace with " in e.get("text", "")
+                              and (e.get("player") == seat or (leader and leader in e["text"]))),
+            "wonders": sum(1 for e in mine if " completes " in e.get("text", "")),
+            "cities_founded": sum(1 for e in mine if e.get("kind") == 1),
+        }
+    return out
+
+
+def ledger_path() -> Path:
+    return Path(os.environ.get("CIV5_CALL_LOG") or Path(__file__).resolve().parent.parent / "logs" / "calls.jsonl")
+
+
+def ledger_counts(path: Path, seat: int, start: float, end: float) -> dict:
+    """What the call ledger says of a player's run: the seat's calls between two moments, the ones refused by the
+    reason given (a refusal's first clause), unit turns skipped, and the orders to another civilization with their
+    replies, listed. A batch is one call and its orders are not seen one by one."""
+    out: dict = {"calls": 0, "refused": {}, "unit_skips": 0, "with_civs": []}
+    if not path.is_file():
+        return {**out, "error": f"no ledger at {path}"}
+    with path.open(errors="replace") as fh:
+        for line in fh:
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            if r.get("seat") != seat or not start <= (r.get("t") or 0) <= end:
+                continue
+            out["calls"] += 1
+            if r.get("ok") is False:
+                why = str(r.get("err") or "no reason given").split(":")[0][:70]
+                out["refused"][why] = out["refused"].get(why, 0) + 1
+            action = str(r.get("action") or "")
+            if r.get("tool") == "order" and action == "unit/mission" and "MISSION_SKIP" in str(r.get("args")):
+                out["unit_skips"] += 1
+            if r.get("tool") == "order" and action.startswith("civ/"):
+                out["with_civs"].append({"turn": r.get("turn"), "action": action, "ok": r.get("ok"),
+                                         "args": r.get("args"), "reply": (r.get("excerpt") or r.get("err") or "")[:300]})
+    return out
+
+
+def tokens_of(command: list[str]) -> dict | None:
+    """The tokens of a run whose command kept the seat loop's records (`--log-dir DIR`): everything read, split by
+    how it was charged, and everything written. None for a command that names no such folder or left nothing."""
+    if "--log-dir" not in command[:-1]:
+        return None
+    try:
+        from harness.usage import report, rows
+        sessions, _left_out = report.read([command[command.index("--log-dir") + 1]])
+        usage = [u for s in sessions for u in s["usage"]]
+        return dict(rows.total(usage)) if usage else None
+    except Exception as e:      # a record that does not read is said, the run stands
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
 def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
     """The position the played turns ended on, saved for the AI finishes (rule 1)."""
     if not name or row.get("end_reason") != "all_turns_played":
@@ -430,6 +573,7 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
     except Refused:
         leave(g)
         raise
+    how = played(g, seat)
     t0 = clock()
     started = g.q(start_chunk(skip, turns, seat, row, time_victory))
     row: dict = {"player": BUILT_IN_AI, "save": save, "seat": seat, "turns_asked": turns, "skip": skip,
@@ -464,7 +608,7 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
         row.update(seconds=round(clock() - t0, 1), end=seat_view(after, seat), winner=after["winner"],
                    victory=after["victory"], turns_played=after["turn"] - before["turn"],
                    players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],
-                   end_point=path_point(after))
+                   end_point=path_point(after), played=played_pair(how, played(g, seat, before["turn"]), seat))
         keep_end(g, row, end_save, save_game, sleep, clock)
         return row
     finally:
@@ -481,7 +625,7 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
                notebook: str | None = None, keep_notebook: Path | None = None, claim_wait: float = 0.0,
                timeout: float = 4 * 3600.0, settle: float = 120.0, poll: float = 3.0, run=subprocess.run,
                end_save: str | None = None, save_game=save_as,
-               path_of=notebook_path, sleep=time.sleep, clock=time.monotonic) -> dict:
+               path_of=notebook_path, sleep=time.sleep, clock=time.monotonic, now=time.time) -> dict:
     """One run of the starting save by a command that plays the seat and ends. Loads `save`, reads, puts the player's
     notebook in place, runs the command, reads, and leaves for the main menu with the notebook that was on disk
     before put back. The command's own exit code is in the row and decides nothing: the run played its turns
@@ -513,13 +657,15 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
             shutil.copyfile(notebook, nb)
         if skip:
             g.q(SKIP % {"skip": skip})
+        how = played(g, seat)
         sleep(claim_wait)
-        t0 = clock()
+        t0, began = clock(), now()
         try:
             row["rc"] = run(command, timeout=timeout, check=False).returncode
         except subprocess.TimeoutExpired:
             row["end_reason"] = "timeout"
         row["seconds"] = round(clock() - t0, 1)
+        row["cost"] = {**ledger_counts(ledger_path(), seat, began, now()), "tokens": tokens_of(command)}
         # The command may end while the other players still move: the read waits for the seat's turn.
         waited = 0.0
         while True:
@@ -538,7 +684,7 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
             row["end_reason"] = "all_turns_played" if after["turn"] - before["turn"] == turns else "turns_not_played"
         row.update(end=end, winner=after["winner"], victory=after["victory"], turns_played=after["turn"] - before["turn"],
                    players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],
-                   end_point=path_point(after))
+                   end_point=path_point(after), played=played_pair(how, played(g, seat, before["turn"]), seat))
         keep_end(g, row, end_save, save_game, sleep, clock)
         if keep_notebook is not None and nb.exists():
             keep_notebook.parent.mkdir(parents=True, exist_ok=True)
@@ -701,6 +847,66 @@ def value_lines(rows: list[dict]) -> list[str]:
     return lines
 
 
+def played_lines(by_player: dict[str, list[dict]]) -> list[str]:
+    """Rule 7's figures, the players of a rows file side by side: the mean over each player's runs that kept them.
+    Nothing here orders players."""
+    kept = {name: [r for r in rs if "error" not in ((r.get("played") or {}).get("end") or {"error": 1})]
+            for name, rs in by_player.items()}
+    kept = {name: rs for name, rs in kept.items() if rs}
+    if not kept:
+        return []
+
+    def line(label: str, of) -> str:
+        cells = []
+        for rs in kept.values():
+            xs = [x for x in (of(r) for r in rs) if x is not None]
+            cells.append(f"{mean_sd(xs)[0]:.1f}" if xs else "-")
+        return f"{label:32}" + "".join(f"{c:>24}" for c in cells)
+
+    end = lambda r: r["played"]["end"]
+    lines = ["", "how the seat was played (rule 7; explains a value, orders no one), mean over runs at the end of the turns:",
+             f"{'':32}" + "".join(f"{f'{name} x{len(rs)}':>24}" for name, rs in kept.items())]
+    lines += [line(f"{k} a turn", lambda r, k=k: end(r)["yields"].get(k)) for k in YIELDS]
+    lines.append(line("gold on hand", lambda r: end(r).get("gold")))
+    lines += [line(f"score from {k.replace('_', ' ')}", lambda r, k=k: end(r)["score_parts"].get(k)) for k in SCORE_PARTS]
+    lines.append(line("units", lambda r: end(r).get("units")))
+    lines += [line(k.replace("_", " "), lambda r, k=k: len(end(r).get(k) or [])) for k in RELATIONS]
+    for k in ("wars_declared", "wars_declared_on_it", "peace_made", "wonders", "cities_founded"):
+        lines.append(line(k.replace("_", " ") + ", in the run", lambda r, k=k: (r["played"].get("counts") or {}).get(k)))
+    if any(r.get("cost") for rs in kept.values() for r in rs):
+        a_turn = lambda r, x: x / r["turns_played"] if r.get("cost") and r.get("turns_played") and x is not None else None
+        tokens = lambda r, *ks: (sum((r["cost"].get("tokens") or {}).get(k, 0) for k in ks)
+                                 if r.get("cost") and "new_in" in (r["cost"].get("tokens") or {}) else None)
+        lines += [line("calls a turn", lambda r: a_turn(r, (r.get("cost") or {}).get("calls"))),
+                  line("calls refused a turn", lambda r: a_turn(r, sum(((r.get("cost") or {}).get("refused") or {}).values())
+                                                               if r.get("cost") else None)),
+                  line("unit turns skipped", lambda r: (r.get("cost") or {}).get("unit_skips")),
+                  line("orders to other civs", lambda r: len(r["cost"]["with_civs"]) if r.get("cost") else None),
+                  line("tokens read a turn", lambda r: a_turn(r, tokens(r, "new_in", "cache_read", "cache_write"))),
+                  line("tokens written a turn", lambda r: a_turn(r, tokens(r, "out")))]
+    lines.append(line("seconds a turn", lambda r: r["seconds"] / r["turns_played"]
+                      if r.get("seconds") is not None and r.get("turns_played") else None))
+    for name, rs in kept.items():
+        refused: dict[str, int] = {}
+        for r in rs:
+            for why, n in ((r.get("cost") or {}).get("refused") or {}).items():
+                refused[why] = refused.get(why, 0) + n
+        if refused:
+            lines.append(f"{name}, calls refused by reason: "
+                         + "; ".join(f"{n} {why}" for why, n in sorted(refused.items(), key=lambda kv: -kv[1])))
+        for r in rs:
+            said = [e for e in r["played"].get("events", []) if " declares war on " in e.get("text", "")
+                    or " made peace with " in e.get("text", "")]
+            said = [e for e in said if e.get("player") == r.get("seat") or (end(r).get("leader") or "\0") in e["text"]]
+            if said:
+                lines.append(f"{name} seed {r.get('run', '?')}, war and peace: "
+                             + "; ".join(f"turn {e['turn']} {e['text']}" for e in said))
+            for d in (r.get("cost") or {}).get("with_civs") or []:
+                lines.append(f"{name} seed {r.get('run', '?')}, turn {d.get('turn')}: {d.get('action')} {d.get('args')} "
+                             f"-> {'refused: ' if d.get('ok') is False else ''}{d.get('reply')}")
+    return lines
+
+
 def summarise(rows: list[dict]) -> list[str]:
     """Every player of a rows file by itself, then the players side by side when there are two or more: the
     mean at the end of the turns and its spread, over the runs that played the turns. Only runs of the same
@@ -712,8 +918,9 @@ def summarise(rows: list[dict]) -> list[str]:
     played = {name: [r for r in rows if player_of(r) == name and r.get("end_reason") == "all_turns_played"] for name in names}
     played = {name: rs for name, rs in played.items() if rs}
     turns = {r.get("turns_played", r.get("turns_asked")) for rs in played.values() for r in rs}
+    how = played_lines(played) if len(turns) == 1 else []
     if len(played) < 2:
-        return lines
+        return lines + how
     if len(turns) > 1:
         return [*lines, "", f"not side by side: the runs played {', '.join(str(w) for w in sorted(turns))} turns"]
     lines += ["", f"side by side, {turns.pop()} turns, mean (sd) at the end:",
@@ -727,7 +934,7 @@ def summarise(rows: list[dict]) -> list[str]:
         not_finished = [sum(1 for r in rows if player_of(r) == name and result_of(r) == "did_not_finish") for name in played]
         if any(not_finished):
             lines.append(f"{'not finished':12}" + "".join(f"{f'{n} of {n + len(vs)}':>24}" for n, vs in zip(not_finished, valued.values())))
-    return lines
+    return lines + how
 
 
 def wait_main_menu(g, seconds: float = 120.0) -> None:

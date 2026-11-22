@@ -387,6 +387,21 @@ ordering. They explain a value; they do not replace it.
   each trade and peace treaty, listed, not scored.
 - *What the play cost.* Tokens a turn, calls a turn, orders refused by reason, the share of runs
   played. Seconds a turn are written down as a fact about the run and its machine, not about the player (rule 5).
+- **In the row and in `--summary` since 2026-11-22** (`played` and `cost` in a row; "how the seat was played" in
+  the summary, each player's mean beside the baseline's).
+  - *Read from the game at both ends of a run, for the seat:* the six yields a turn, gold on hand, the nine parts
+    of the score, units, and who it is at war with, friends with, has denounced, is denounced by and is allied
+    to. *Between the ends:* the lines of the game's own replay (a war declared and by whom, a peace, a wonder, a
+    golden age, a city founded), kept as the game wrote them. Wars declared by the seat and on it, peace made,
+    wonders and cities founded are counted off those lines; war and peace are also printed line by line.
+  - *Counted from the call ledger for a player's run:* calls, calls refused by the reason given, unit turns
+    skipped, and every order to another civilization with its reply, listed. Tokens are read from the records a
+    seat loop keeps (`--log-dir`). The built-in AI makes no calls and has no such figures.
+  - *Not there.* Units lost and cities lost: the game keeps no count and the replay names a captured city only
+    in a sentence. Turns a city built nothing and turns a unit had no order: the game does not end a turn in
+    either state, so the count is always nothing; unit turns skipped stand in for the second. What was given
+    and got in a trade the built-in AI made: its trades leave no ledger. A refusal inside a batch: a batch is
+    one call in the ledger.
 
 **8. What would overturn this, to be tested before any model's tokens are spent on it.** Where each test
 stands after the night of 2026-11-17, with what was measured since (to 2026-11-22) added at the end of each:
