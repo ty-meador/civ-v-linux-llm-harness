@@ -1011,6 +1011,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--path", type=int, default=0, metavar="N",
                     help="keep each AI finish's path: every player's indicators at its start and every N turns "
                          "after, in the row. A path with its game's outcome is what the win-chance formula is fitted on")
+    ap.add_argument("--keep-end", action="store_true",
+                    help="save the game where the turns end even with no AI finish asked, under the name an AI finish "
+                         "would load: the position can be read again later, or finished later with --finish-only")
     ap.add_argument("--finish-only", action="store_true",
                     help="no turns played: value --save itself by R AI finishes (--ai-finishes R), a starting save's own worth")
     ap.add_argument("--terms", metavar="NEW",
@@ -1074,7 +1077,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"seed {n} is past the end of the random sequence ({SEQUENCE // NUMBERS_A_SEED} seeds fit); "
                   f"nothing more was done", file=sys.stderr)
             return 2
-        end_save = f"{a.save}--{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-end" if a.ai_finishes else None
+        end_save = f"{a.save}--{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-end" if a.ai_finishes or a.keep_end else None
         try:
             if a.finish_only:
                 row = {"player": name, "save": a.save, "seat": a.seat, "turns_asked": 0, "turns_played": 0, "skip": 0,

@@ -16,6 +16,9 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **`benchmark_run.py --keep-end` (2026-11-22).** A run with no AI finish asked still saves the game where its
+  turns end, under the name an AI finish would load, so the position can be loaded again later or finished later
+  with `--finish-only`.
 - **A run's row says how the seat was played, and the summary sets it beside the built-in AI's (2026-11-22,
   #196, rule 7).** `scripts/benchmark_run.py` reads the seat at both ends of every run: food, production, gold,
   science, culture and faith a turn, gold on hand, the nine parts of the score, units, and who it is at war

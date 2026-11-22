@@ -659,6 +659,38 @@ class NewGamesOfOneSave(unittest.TestCase):
             self.assertEqual([c["m"] for c in kept["ai_finishes"]], [0, 1])
 
 
+class KeepEnd(unittest.TestCase):
+    """A run with no AI finish asked can still keep the position its turns ended on."""
+
+    def asked(self, *more):
+        seen = {}
+
+        def fake(_g, save, turns, **kw):
+            seen.update(end_save=kw.get("end_save"))
+            return {"player": "built-in-ai", "save": save, "end_reason": "all_turns_played", "turns_played": turns,
+                    "seconds": 1.0, "end_save": kw.get("end_save")}
+
+        game = mock.Mock()
+        game.has_state.return_value = False
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(benchmark_run, "run_once", fake), \
+                mock.patch.object(benchmark_run, "wait_main_menu"), mock.patch.object(benchmark_run, "ai_finish") as finish, \
+                mock.patch.object(benchmark_run, "summarise", return_value=[]), \
+                mock.patch("harness.game.Game", return_value=game), contextlib.redirect_stdout(io.StringIO()):
+            benchmark_run.main(["--save", "a", "--turns", "100", "--out", str(Path(d) / "rows.jsonl"), *more])
+            row = benchmark_run.read_rows(Path(d) / "rows.jsonl")[0]
+        finish.assert_not_called()
+        return seen["end_save"], row
+
+    def test_the_end_is_saved_under_the_seeds_name_and_no_ai_finish_is_played(self):
+        name, row = self.asked("--keep-end")
+        self.assertEqual(name, "a--built-in-ai-seed0-end")
+        self.assertNotIn("ai_finishes", row)
+        self.assertNotIn("value", row)
+
+    def test_without_it_a_run_with_no_ai_finish_saves_nothing(self):
+        self.assertIsNone(self.asked()[0])
+
+
 class Views(unittest.TestCase):
     def test_shares_are_of_the_living_and_the_place_is_by_score(self):
         r = read(players=[player(0, human=True, score=100, techs=30), player(1, score=300, techs=50),
