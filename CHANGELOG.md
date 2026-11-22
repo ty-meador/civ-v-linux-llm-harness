@@ -28,8 +28,19 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   finish undecided at turn 500. Seeds next to each other are no more alike at turn 100 than any two (+0.022, which
   0.422 of random orderings reach; +0.120 and +0.219 at the old spacing). The formula fitted on the earlier games
   says 0.518 where 0.474 were won. The old baseline figure 0.250 came from games that were not separate and is
-  not to be used. Four more AI finishes a seed are being played. `docs/BENCHMARK.md`, "The baseline on separate
-  seeds".
+  not to be used. `docs/BENCHMARK.md`, "The baseline on separate seeds".
+- **The baseline on five AI finishes a seed: 0.438, standard error 0.071 (2026-11-22, docs).** Four more AI
+  finishes on each of the twenty end saves: the Celts won 43 of the 99 decided. An AI finish varies by 0.433 from
+  one end of the 100 turns, the win chance the turns leave by 0.252 from seed to seed; a standard error of 0.05
+  takes 41 seeds at five finishes and never fewer than 26. The formula says 0.505 over the twenty seeds and, seed
+  by seed, is no closer to a seed's share than the plain mean.
+- **A save and an AI finish number are the same game only after the same games (2026-11-22, docs).** One seed's
+  finish played four times from the same end save with the same skip: twice as the first load of a fresh game
+  process, the same game both times (Domination at turn 436, readings identical out to turn 420); once after two
+  other seeds and once after six, two other games (Diplomatic at turns 431 and 409, different winners). Something
+  a game process keeps from the games it has played enters the next one. The rule that a value can be recomputed
+  from the save and the numbers now says: in the same order from a fresh game process. The baseline and its error
+  are not touched. A fresh process for every seed is proposed, not yet a rule.
 - **The check that seeds are separate games is a script in the repository (2026-11-21).**
   `scripts/benchmark_seed_likeness.py ROWS [ROWS ...]` reads every finished run where its turns ended and says
   whether runs on seeds 1, 2 and 3 apart ended more alike than runs on seeds far apart, with the share of random

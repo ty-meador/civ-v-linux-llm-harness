@@ -102,7 +102,8 @@ No. Most of what the sections below record was finding out how the engine behave
 **Found once, true of the engine and of the scripts, whatever the map:**
 
 - How the game's random numbers work and how far apart two seeds have to be ("A skip has to be longer than a game").
-- A save replays the same game on a seed, on any processor.
+- A save replays the same game on a seed, on any processor, when the game process has played the same games
+  before it (a fresh process, for a first load; found 2026-11-22).
 - What the engine needs to play a seat by itself: an observer slot, one human seat, a watch for the end of the game
   ("Autoplay, checked live").
 - The terms a starting save carries (the seat on the AIs' handicap row, no Time victory), put into a save by one
@@ -175,9 +176,14 @@ one are the argument and the measurements; where they differ from a rule, the ru
   seat the same at turn 60 in both). The seed is the unit: a value's standard error is taken over seeds
   (rule 6), a player needs many seeds and few AI finishes a seed (rule 4), and the 100-turn result
   stands on two seeds a side until more are played.
-- The same save and the same AI finish number are the same game to its last turn, so a value can be
-  recomputed by anyone, and new games of a save need new numbers. (One replay on 2026-11-21 was not the same
-  game; see "A replay that was not the same game" under "The baseline on separate seeds". Open until checked.)
+- The same save and the same AI finish number are the same game to its last turn **in a game process that has
+  played the same games before it**; a fresh process's first load is the same game every time. In a process
+  that has played other games they are another game (checked 2026-11-22: "A replay that was not the same game"
+  under "The baseline on separate seeds"). So a value can be recomputed by anyone who plays its games in the same
+  order from a fresh game process, and new games of a save need new numbers. The batches so far started a fresh
+  process every eight or ten seeds, so a single seed's rows are recomputed only by playing that stretch again.
+  Proposed and not yet a rule: a fresh game process for every seed (about a minute each), which makes each
+  seed's value recomputable by itself.
 
 **1. A run is worth what the game was worth when the player's turns were over.** A player plays a seat for a
 run of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
@@ -844,7 +850,9 @@ defines it**, the built-in AI for the same 30 turns, the same save and the same 
 starting save that carries its terms, began by replaying the first run game for game: Diplomatic at turn 342 after 757
 s (775 the first time), then Culture at turn 273 (272, the poll's own second). An AI finish is its number's random
 numbers and nothing else, so new games of one save need new numbers (`--first-ai-finish M`), and a value can be
-recomputed by anyone from the save and the numbers. The game process then died on its way back to the main menu, about
+recomputed by anyone from the save and the numbers. (Narrowed 2026-11-22: and from the games the process played
+before it. These two were the first two games of their run both times. See "A replay that was not the same game".)
+The game process then died on its way back to the main menu, about
 45 loads into one process, and took both games with it, since a row was written only when all its AI finishes were in;
 the runner now keeps them beside the rows file as it goes (`<rows>.partial`).
 
@@ -1423,11 +1431,27 @@ finish 0 above; 80 more games, 14.9 minutes an AI finish; `--summary logs/boards
   the same game" (the rules above, and "The same random numbers are the same game, to the end"), which stood on two
   games played a second time in the same order in a fresh game process. What differed here: before the freeze the game
   process had already played seeds 8 and 9 (eight finishes) and the machine was minutes from freezing; after it, seed
-  10 was the first load of a fresh process. Which of the two it is has not been checked. **Not touched by this:** each
+  10 was the first load of a fresh process. **Not touched by this:** each
   finish is a game of the built-in AI from the same position at turn 100, so the share of finishes won and its error
-  over seeds stand; the rows file holds the four finishes played after the reboot for seed 10. **Open until checked:**
-  that anyone can compute a single value again from the save and the numbers. The check is seed 10's finish 1 played
-  again twice, once in a process that has played other games and once as a fresh process's first load.
+  over seeds stand; the rows file holds the four finishes played after the reboot for seed 10.
+- **It is what the game process played before, not the freeze (checked 2026-11-22;
+  `logs/boards/duel-d/replay-check.jsonl`).** Seed 10's finish 1 was played twice more on the user's word ("you may
+  run the two additional games"), from the same end save with the same skip. (1) In the process that had just played
+  seeds 14 to 19 (24 loads), on a machine in good order: the Celts won, Diplomatic at turn 409. A third game, and
+  already apart from the others at the reading of turn 111 (the Celts at score 493 with 20 technologies, where the
+  fresh process's game has 505 and 21). (2) As the first load of a fresh process: Austria, Domination at turn 436,
+  the game played after the reboot. The two were read at the same turn 19 times; 15 readings are identical in every
+  figure, out to turn 420, and the other four differ in one to three figures by small amounts (a reading taken at
+  another moment inside the turn) with identical readings after them. So the four games of this one save and number:
+  first load of a fresh process, twice the same; after seeds 8 and 9, another; after seeds 14 to 19, a third.
+  Something a game process keeps from the games it has played enters the next one. What it is has not been looked
+  for. **What follows:** a save and a number are the same game only with the same games played before them in the
+  process (the rule above is narrowed to say so); the two games played a second time on 2026-11-17 were the first
+  two games of their run both times, which fits (whether both runs began in a fresh process was not written down).
+  **What it does not change:** the baseline, its error
+  and the split of the spread. **Not checked:** whether the second and later loads of a fresh process are the same
+  games when the loads before them are the same (the 2026-11-17 pair says yes for the second), and whether the 100
+  turns of a run are touched the same way.
 - **What they are for.** (1) The baseline as a share of AI finishes won, with an error over seeds that are separate
   games. (2) The check the ten-turn runs could not give: are seeds next to each other more alike at turn 100 than
   seeds far apart (`scripts/benchmark_seed_likeness.py`: on the old rows, seeds 17 random numbers apart are alike
