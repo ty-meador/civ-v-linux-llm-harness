@@ -184,14 +184,14 @@ than on scrolling. That is what keeps a turn affordable and the game moving whil
   board: the reply that ends a turn is 12 to 32% smaller than in 2.15.0, the league read 31 to 42%, and no
   client made an extra call for what is gone. A whole session did not get measurably cheaper: its reading is
   its requests times its context, and the number of requests varies more than a reply saves.
-- **A benchmark of its own, with the game's AI as the baseline.** `scripts/benchmark_run.py` has a player play
-  the same 100 turns from one starting save, on seeds that are separate games, and then has the engine finish
-  each game several times from where those turns ended. The player's number is the share of those AI finishes
-  its civilization won, with a standard error over seeds. The built-in AI playing the same 100 turns is the
-  baseline: on the first starting save (a duel at Prince, the Celts against Austria) it won 43 of the 99 decided
-  finishes, 0.438 with a standard error of 0.071 over twenty seeds, at no tokens. That save is in the
-  repository with a manifest (`saves/benchmark/`), and `scripts/benchmark_save.py` makes another by one command. No model has a number on
-  these seeds yet. The method, the rules, every measurement and what is still open are in `docs/BENCHMARK.md`.
+- **A benchmark of its own: OMTbench ("one more turn").** `scripts/benchmark_run.py` has a player play the same
+  100 turns from one starting save, on seeds that are separate games. Each run leaves a recording: what the
+  runner read of the game, the seat's calls, and the saved game at the end of the turns. The recording is the
+  submission. The project scores recordings and publishes the scores; the scoring method is not published, so
+  that no model can be tuned to it, and the game's own AI plays no part in a player's score. The first starting
+  save (a duel at Prince, the Celts against Austria) is in the repository with a manifest (`saves/benchmark/`),
+  and `scripts/benchmark_save.py` makes another by one command. No model has a published score yet. How a player
+  is scored, the rules, every measurement and what is still open are in `docs/BENCHMARK.md`.
 
 <details>
 <summary>The fine print: measurements and edge cases</summary>
@@ -334,8 +334,8 @@ the long version.
 - [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md): what the harness will not do, each item checked against the engine.
 - [`docs/TOKEN_ACCOUNTING.md`](docs/TOKEN_ACCOUNTING.md): what a turn costs the model, where each client keeps its
   usage records, the rules (operator's side only, numbers and never text) and the stages.
-- [`docs/BENCHMARK.md`](docs/BENCHMARK.md): the benchmark: one starting save, seeds that are separate games, the
-  built-in AI as the baseline, and every measurement made so far.
+- [`docs/BENCHMARK.md`](docs/BENCHMARK.md): the benchmark (OMTbench): how a player is scored, starting saves, seeds that
+  are separate games, the study of the built-in AI, and every measurement made so far.
 - [`docs/GAPS.md`](docs/GAPS.md), [`docs/ROADMAP.md`](docs/ROADMAP.md), [`CHANGELOG.md`](CHANGELOG.md): live audit, plan, and the map from package versions to runtime versions.
 - The tool-surface plan, nine tools (`turn`, `state`, `order`, `question`, `answer`, `notebook`, `batch`, `session`, `reference`) in place of the 145 by modelling the game's objects and their legal actions instead of its buttons, lives on GitLab: [milestone 2.0.0](https://gitlab.com/Tyler-Meador/civ-v-linux-mcp/-/milestones/11) and [tracking issue #59](https://gitlab.com/Tyler-Meador/civ-v-linux-mcp/-/issues/59).
 - [`docs/DECK_HOWTO.md`](docs/DECK_HOWTO.md): running a seat on a Steam Deck.

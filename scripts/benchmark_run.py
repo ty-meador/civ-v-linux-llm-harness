@@ -39,7 +39,7 @@ valued: the game is saved at the end of the turns and the engine's AI finishes i
 the seat's team wins. A run that did not finish has no value; it is counted beside the value and stands below every
 finished run.
 
-Beside the value, a row keeps how the seat was played (rule 7; it explains a value and orders no one). `played`:
+A row also keeps how the seat was played (rule 7), as part of the run's recording. `played`:
 the seat's yields, gold, parts of the score and standing with the others at both ends of the run, and the game's
 replay lines between them (a war and who declared it, a peace, a wonder, a city founded). `cost`, for a player's
 run: what the call ledger counted between the command's start and its end (calls, calls refused by reason, unit
@@ -307,8 +307,7 @@ def with_terms(g, save: str, new: str, seat: int | None = None, row: str = "ai",
         leave(g)
 
 
-# How the seat was played (rule 7): figures that explain a value and are never part of the ordering. Read for the
-# seat alone at the two ends of a run. `events` are the game's own replay messages (what its replay screen lists:
+# How the seat was played (rule 7), part of a run's recording. Read for the seat alone at the two ends of a run. `events` are the game's own replay messages (what its replay screen lists:
 # a war declared and by whom, a peace, a wonder, a golden age, a city founded) from the run's first turn on.
 PLAYED = """
 local seat = %(seat)d
@@ -848,8 +847,7 @@ def value_lines(rows: list[dict]) -> list[str]:
 
 
 def played_lines(by_player: dict[str, list[dict]]) -> list[str]:
-    """Rule 7's figures, the players of a rows file side by side: the mean over each player's runs that kept them.
-    Nothing here orders players."""
+    """Rule 7's figures, the players of a rows file side by side: the mean over each player's runs that kept them."""
     kept = {name: [r for r in rs if "error" not in ((r.get("played") or {}).get("end") or {"error": 1})]
             for name, rs in by_player.items()}
     kept = {name: rs for name, rs in kept.items() if rs}
@@ -864,7 +862,7 @@ def played_lines(by_player: dict[str, list[dict]]) -> list[str]:
         return f"{label:32}" + "".join(f"{c:>24}" for c in cells)
 
     end = lambda r: r["played"]["end"]
-    lines = ["", "how the seat was played (rule 7; explains a value, orders no one), mean over runs at the end of the turns:",
+    lines = ["", "how the seat was played (rule 7), mean over runs at the end of the turns:",
              f"{'':32}" + "".join(f"{f'{name} x{len(rs)}':>24}" for name, rs in kept.items())]
     lines += [line(f"{k} a turn", lambda r, k=k: end(r)["yields"].get(k)) for k in YIELDS]
     lines.append(line("gold on hand", lambda r: end(r).get("gold")))

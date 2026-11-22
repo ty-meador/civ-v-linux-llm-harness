@@ -1,7 +1,7 @@
 # A benchmark of our own
 
-Written 2026-11-13 as a sketch to argue with. Since 2026-11-20 it opens with what the number is and what makes it
-honest, in plain words; the rules follow, then the argument and every measurement in the order it was made.
+Written 2026-11-13 as a sketch to argue with. Since 2026-11-22 it opens with how a player is scored; then the
+earlier number and what made it honest, the rules, the argument and every measurement in the order it was made.
 Background: `docs/CIVBENCH.md`.
 
 ## The premise
@@ -11,7 +11,50 @@ human sees, and it has to play anyway: every unit, city, trade and vote, for as 
 enforces the boundary; the benchmark measures the play. The benchmark is a definition (starting saves, runs, scoring)
 that this harness can run and that another harness holding the same boundary could run too.
 
-## The number, and what makes it honest
+## How a player is scored (2026-11-22)
+
+The benchmark is named **OMTbench**, for "one more turn". This section is how it stands since 2026-11-22 and it
+comes before everything below it: where a later section says how a player's number is made, this one is the later
+thought.
+
+**A run leaves a recording, and the recording is what is scored.**
+
+- A **recording** is what one run on one seed leaves behind: the run's row (what the runner read of the game at
+  both ends of the turns, and the game's own replay lines between them), the seat's calls from the call ledger,
+  and the saved game at the end of the turns. The saved game holds the whole state of the game, so a recording
+  holds every score and figure the game has, not a chosen few.
+- **One recording is one submission.** Anyone can run the benchmark with this harness and send in the recordings.
+  The project scores them and publishes the scores.
+- **The scoring is done by the project and its method is not published.** Nothing of it: not what it reads of a
+  recording and not what it does with it. The reason is the plain one: a model, or the people tuning one, could
+  play to a published method and not to the game. The same method scores every player. What the runner prints,
+  and what this document lists as read from the game, says nothing about what is scored.
+- **The built-in AI plays no part in a player's score.** No game of a player's is finished by the engine for its
+  score. That was the earlier design (the sections below) and it was dropped on 2026-11-22: a paid run of fifteen
+  minutes was being decided by fifteen minutes of the engine's play after it.
+- **What is still said openly:** the starting saves, the seeds, the terms a save carries, what a player may see
+  and do, what a recording holds, and with every published score its standard error over seeds. Seeds are separate
+  games ("A skip has to be longer than a game"), and a player needs several.
+
+**Where it is going** (decided 2026-11-22, not built; the milestones on GitLab hold the steps):
+
+- A recording packed as one file that another machine can load and read with no network. The scoring is to run on
+  a machine with no network at all.
+- Two families of test: open-ended games, a player's turns on a starting save, and narrow tests with a stated
+  goal ("Goal saves" below).
+- A web page where a benchmark is chosen and started: the harness starts the game if it is not running and plays
+  the benchmark. How a visitor's own model is put on the seat is left for later.
+- Scores published on the benchmark's own site.
+
+**What the sections below are now.** "The number, and what makes it honest" and the rules describe the earlier
+number, the share of AI finishes won. It is still what was measured of the built-in AI on the first starting save
+(0.438, standard error 0.071), and the work on seeds, on the terms of a save and on the runner carries over
+unchanged. It is not how a player is scored.
+
+## The earlier number, and what makes a number honest
+
+**Not how a player is scored since 2026-11-22** (the section above). What follows is the number as it was designed
+until then, and as it was measured for the built-in AI.
 
 The benchmark gives each player one number with its uncertainty. It is not a way of telling players apart (the user,
 2026-11-20): two players that come out the same are a result, and how many runs to pay for is a choice of cost.
@@ -143,6 +186,9 @@ fifteen. The seed-to-seed part is larger than the first look said, so finishes a
 them brings the count under 26 seeds (below, "The baseline on separate seeds").
 
 ## Rules, version 1 (2026-11-17)
+
+**Since 2026-11-22 rules 1 and 6 are not how a player is scored** ("How a player is scored" at the top). Rules 2 to
+5 (starting saves, players, seeds, what counts as a run) stand. The rest is kept as it was written.
 
 The user left the rules to be worked out (2026-11-16). These are the rules the measurements so far support. Each
 says what is seen and what is not, and rule 8 lists the tests that would overturn them. The sections after this
@@ -373,9 +419,10 @@ a run of its tokens, and that, more than machine hours, is what a value costs.
   measured with no scale at all"). The indicators and the parts of the score are diagnosis, never the ordering.
 - Every row carries the harness version, the runtime version, the starting save and the seed.
 
-**7. Beside the value: how the seat was played.** Read by the runner at the two ends of the run and counted
-from the ledger, reported per player next to the baseline's figure on the same starting save, and never part of the
-ordering. They explain a value; they do not replace it.
+**7. How the seat was played.** Read by the runner at the two ends of the run and counted from the ledger, and
+printed per player next to the built-in AI's on the same starting save. They are part of a run's recording. (As
+written on 2026-11-17 they were "never part of the ordering". Since 2026-11-22 nothing is said of what in a
+recording is scored: "How a player is scored".)
 
 - *What the empire turns its yields into.* Food, production, gold, science, culture and faith a turn at both
   ends; gold on hand at the end against income (on the t242 starting save the scripted loop ended two turns with 305
@@ -388,7 +435,8 @@ ordering. They explain a value; they do not replace it.
 - *What the play cost.* Tokens a turn, calls a turn, orders refused by reason, the share of runs
   played. Seconds a turn are written down as a fact about the run and its machine, not about the player (rule 5).
 - **In the row and in `--summary` since 2026-11-22** (`played` and `cost` in a row; "how the seat was played" in
-  the summary, each player's mean beside the baseline's).
+  the summary, each player's mean beside the built-in AI's). The saved game of a recording holds all of this and
+  the rest of the game besides; these are the figures the runner prints for a reader.
   - *Read from the game at both ends of a run, for the seat:* the six yields a turn, gold on hand, the nine parts
     of the score, units, and who it is at war with, friends with, has denounced, is denounced by and is allied
     to. *Between the ends:* the lines of the game's own replay (a war declared and by whom, a peace, a wonder, a

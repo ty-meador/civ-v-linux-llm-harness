@@ -354,7 +354,10 @@ First thoughts on CivBench (arXiv 2604.07733): `docs/CIVBENCH.md`. Decided 2026-
 spread), `scripts/benchmark_fit.py` (the win-chance formula) and `scripts/benchmark_seed_likeness.py`; seeds that
 are separate games; the built-in AI's baseline on the first starting save, 0.438 with a standard error of 0.071 over
 twenty seeds of five AI finishes. Decided 2026-11-22: the number is given by AI finishes alone (no win-chance
-formula), the baseline stays at twenty seeds, and there is no fresh game process for every seed. Open in
-`docs/BENCHMARK.md`: a model's number on these seeds. Milestones after the release: 2.19.0 Benchmark: the referee,
-2.20.0 Benchmark: the pilot, 2.21.0 Benchmark: goal boards.
+formula), the baseline stays at twenty seeds, and there is no fresh game process for every seed. Later that day the benchmark was named OMTbench and how a player is scored was changed: a run leaves a recording,
+the recording is the submission, the project scores it by a method that is not published, and the built-in AI
+plays no part in a player's score (`docs/BENCHMARK.md`, "How a player is scored"). Milestones after the release:
+2.19.0 Benchmark: the referee, 2.20.0 Benchmark: the pilot, 2.21.0 Benchmark: goal boards, 2.22.0 OMTbench:
+submissions and the site (recordings sent in and scored on a machine with no network, scores published, a
+benchmark chosen and started from a web page).
 

@@ -16,6 +16,16 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **How a player is scored: by the project, from its recording, by a method that is not published (2026-11-22,
+  the user's decisions; docs and wording only).** The benchmark is named OMTbench ("one more turn"). A run leaves
+  a recording: the run's row, the seat's calls, and the saved game at the end of the turns, which holds the whole
+  game. One recording is one submission; the project scores recordings and publishes the scores. The scoring
+  method is not in this repository and is not described anywhere in it, so that no model can be tuned to it. The
+  built-in AI plays no part in a player's score: no AI finish decides a paid run. `docs/BENCHMARK.md` opens with
+  "How a player is scored"; the section on the share of AI finishes won is now headed as the earlier number and
+  stays as what was measured of the built-in AI. The README bullet, the roadmap and `saves/benchmark/README.md`
+  say the same, and the summary's table of how the seat was played no longer claims anything about ordering.
+
 - **`benchmark_run.py --keep-end` (2026-11-22).** A run with no AI finish asked still saves the game where its
   turns end, under the name an AI finish would load, so the position can be loaded again later or finished later
   with `--finish-only`.
@@ -28,7 +38,7 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   command's start and end (calls, calls refused by reason, unit turns skipped, orders to other civilizations with
   their replies) and reads the tokens of the seat loop's records (`cost`). `--summary` prints "how the seat was
   played": each player's mean in a column, the refusals by reason, and war, peace and orders to other
-  civilizations line by line. None of it is in the value or orders anyone. A read the game does not answer is
+  civilizations line by line. A read the game does not answer is
   kept as its error and the run stands. Not there: units and cities lost (no count in the game), and turns a
   city built nothing or a unit had no order (the game does not end a turn in either state).
 - **The scripted loop plays past a World Congress call for proposals, seen live (2026-11-22, #198).** The code

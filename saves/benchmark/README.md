@@ -11,9 +11,9 @@ written by `scripts/benchmark_save.py`, which reads the save back from the game 
 | `board-duel-prince-d-t200` | late | 200 | the same game | cut 2026-11-22: the built-in AI played 200 turns on seed 0 | not measured |
 | `board-duel-prince-e` | opening | 0 | Siam against the Shoshone, Duel, Pangaea | hosted 2026-11-22 by `--host` | not measured |
 
-Only the first has been measured. Rule 2 keeps a starting save only if the baseline wins between 0.2 and 0.8 of its
-games on it; a save with `"baseline": null` in its manifest has not been through that and no player's number on it
-means anything yet.
+Only the first has the built-in AI's study behind it (its share of AI finishes won; `docs/BENCHMARK.md`). A save
+with `"baseline": null` in its manifest has none. How a player's runs on these saves are scored is in
+`docs/BENCHMARK.md`, "How a player is scored".
 
 ## Using them
 
