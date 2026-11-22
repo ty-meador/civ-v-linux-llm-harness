@@ -14,6 +14,18 @@ Two counters, on purpose (GitLab #26):
 
 Dates are the day the change was committed; "live tNNN" is the game turn it was checked on.
 
+## Unreleased
+
+- **The benchmark's number is the share of AI finishes won, and every seed starts in a fresh game process
+  (2026-11-22, the user's decisions).** `docs/BENCHMARK.md` only, no code. (1) The win-chance formula gives no
+  number: on the twenty separate seeds of the baseline it was no closer to a seed's share of AI finishes won than
+  the plain mean is. The estimate of rule 1 and its two errors of rule 6 are withdrawn and kept as the record;
+  `scripts/benchmark_fit.py` stays. (2) Rule 4: the game is started, a seed's 100 turns are played, then its AI
+  finishes in the order of their numbers, and nothing else is loaded in that process, so one seed's value can be
+  computed again without playing any other. No run has been played under it yet, and no tracked script starts the
+  game. (3) The baseline stays at twenty seeds (0.438, standard error 0.071); twenty-one more for 0.05 are not
+  played, since they would take the error of a player's difference from the baseline from 0.10 to 0.087 only.
+
 ## 2.18.0 -- A benchmark of its own, and the built-in AI's baseline (2026-11-22)
 
 Runtime v343 (v341 in 2.17.0), 9 tools, 2441 tests. The tools of the benchmark in `docs/BENCHMARK.md`: a player

@@ -30,9 +30,10 @@ games** are games the built-in AI played from the first turn to the end.
 **1. A defined quantity.** The number is the chance that the Celts win the game, when the player has played their
 first 100 turns on the starting save and the built-in AI plays every civilization from there to the end.
 
-- It is measured in two ways. By AI finishes: the share of them the Celts win (rule 1). By the win-chance formula:
-  one reading of the figures at turn 100 (rule 1, "The estimate"). The formula is cheaper and is given with its own
-  error; AI finishes are what it is fitted on and checked against.
+- It is measured one way: by AI finishes, as the share of them the Celts win (rule 1). The win-chance formula gives
+  no number (the user, 2026-11-22). It was the second way from 2026-11-19; on twenty separate seeds it was no
+  closer to a seed's share than the plain mean is (point 2). The script and its measurements stay
+  (`scripts/benchmark_fit.py`, rule 1, "The estimate").
 - A run whose 100 turns were not all played did not finish. It has no value, and it is counted and shown beside the
   number, never averaged into it (rule 5).
 - The game is played on fixed terms that the starting save carries: the Celts are on the handicap row every AI plays
@@ -47,22 +48,23 @@ number.
   same nine tools and no notebook at the start (rule 3). The seat's server closes the seat on turn 100, so a player
   cannot play past its turns by a miscount (rule 5). Time is no part of a result (rule 5). A run broken by the harness
   or the game is void and played again (rule 5). A save plays the same game on another processor, so anyone can
-  compute a value again ("A save is the same game on another processor").
-- Known skew: before turn 110 the win-chance formula has one input that helps, the share of score. A player that
-  plays for something the formula has no input for (delegates for the World Leader vote, which decides most games on
-  this starting save) is valued too low by it. AI finishes are the check: where a player's share of AI finishes won
-  stands above its formula value by more than their errors, the share is what is reported (rule 1).
-- Not yet: the formula was fitted on games played before 2026-11-20, when seeds were too close together to be
-  separate games (point 3). It has to be fitted again on games that are separate. On the first twenty separate
-  positions it says 0.505 where 0.438 of five AI finishes a position were won, within the errors; seed by seed it
-  is no closer to a seed's share than the plain mean is (2026-11-22, "The baseline on separate seeds").
+  compute a value again ("A save is the same game on another processor"). Every seed is played from a fresh game
+  process (rule 4, 2026-11-22), so one seed's value can be computed again without playing any other seed.
+- A skew that is gone: the win-chance formula. Before turn 110 it has one input that helps, the share of score, so
+  a player that plays for something it has no input for (delegates for the World Leader vote, which decides most
+  games on this starting save) was valued too low by it. On the first twenty separate positions it says 0.505 where
+  0.438 of five AI finishes a position were won, within the errors; seed by seed it is no closer to a seed's share
+  than the plain mean is (2026-11-22, "The baseline on separate seeds"). No number is given by it.
+- Not yet: no run has been played under the fresh-process rule. The baseline's twenty seeds were played with a
+  fresh game process every eight or ten seeds. Their games are as good a sample of the Celts' chance as any, so the
+  baseline and its error stand; a single one of its seeds is recomputed only by playing its stretch again.
 
 **3. A true uncertainty.** The error given with the number has to be the error it really has.
 
 - The seed is the unit. The AI finishes of one seed go together (one seed was 0 of 5 and the next 5 of 5 with the
   Celts the same at turn 60 in both), so the standard error is taken over seeds and never over games (rules 4 and 6).
-- A value by the formula has two errors and both are given: the player's, over its seeds, and the formula's own,
-  from fitting it again with each game left out in turn (rule 6).
+- The number has one error, the one over seeds. (A value by the formula had a second, the formula's own; rule 6
+  keeps how it was taken.)
 - Since 2026-11-20 every game has a stretch of 1,000,003 random numbers to itself, so two seeds, and two AI finishes
   of one save, are separate games ("A skip has to be longer than a game").
 - Before that a seed was 17 random numbers on from the one before, and games on neighbouring seeds were the same
@@ -182,8 +184,16 @@ one are the argument and the measurements; where they differ from a rule, the ru
   under "The baseline on separate seeds"). So a value can be recomputed by anyone who plays its games in the same
   order from a fresh game process, and new games of a save need new numbers. The batches so far started a fresh
   process every eight or ten seeds, so a single seed's rows are recomputed only by playing that stretch again.
-  Proposed and not yet a rule: a fresh game process for every seed (about a minute each), which makes each
+  A rule since 2026-11-22 (rule 4): a fresh game process for every seed (about a minute each), which makes each
   seed's value recomputable by itself.
+
+**Decided 2026-11-22 (the user)**, after the baseline on twenty separate seeds:
+
+- The number is the share of AI finishes won and nothing else. The estimate of rule 1 and its two errors of rule 6
+  are withdrawn; their text is kept as the record of what was tried.
+- Every seed starts in a fresh game process (rule 4).
+- The baseline stays at twenty seeds of five AI finishes (0.438, standard error 0.071). More baseline seeds are not
+  planned ("Are twenty seeds enough for the baseline?" under "The baseline on separate seeds").
 
 **1. A run is worth what the game was worth when the player's turns were over.** A player plays a seat for a
 run of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
@@ -194,12 +204,12 @@ run of turns. Then the game's own AI plays that seat and every other to the end 
   technologies, and a fast four-city science win scores below a slow conquest.
 - It is the estimate of point 4 below without a fitted model: the position is valued by what one fixed finisher, the
   built-in AI, makes of it, the same for every player. It does not measure whether the player could have finished the
-  game itself. Every AI finish is also a row for the fitted win-chance formula, should one be wanted later.
+  game itself.
 - A seat dead or a game lost inside the run is 0, a game won inside it is 1, with no AI finish.
 - It is a probability, not one game's result: one AI finish is a single win or loss, twenty are an estimate. Where
-  that is still too coarse the fitted win-chance formula is the finer instrument, and the AI finishes are what it is
-  fitted on.
-- **The estimate (added 2026-11-19).** On a starting save with a fitted model a run has a second value: the model's
+  that is still too coarse, more seeds are the only finer instrument (rule 6).
+- **The estimate (added 2026-11-19, withdrawn 2026-11-22: no number is given by it; what follows is the record).**
+  On a starting save with a fitted model a run has a second value: the model's
   chance of the seat winning, read once from the position the run ended on (`scripts/benchmark_fit.py`).
   Players on that starting save are compared by the estimate. The share of AI finishes won is its audit, and every
   AI finish played for the audit is a row of the starting save's next fit.
@@ -289,6 +299,14 @@ run on the Celts duel was worth 0 of 5 on seed 0 and 5 of 5 on seed 1, the seat 
 score 247 and 182. So eight seeds with one or two AI finishes each, not two seeds with five. For a model every seed is
 a run of its tokens, and that, more than machine hours, is what a value costs.
 
+- **Every seed starts in a fresh game process (the user, 2026-11-22).** The game is started, the seed's 100 turns
+  are played, then its AI finishes in the order of their numbers, and nothing else is loaded in that process. A
+  game process keeps something from the games it has played, and it enters the next one ("A replay that was not the
+  same game"), so only then is a seed's value a matter of the save and the numbers alone. It costs about a minute a
+  seed. A row of a seed played any other way says so. Not checked: that the second and later games of a fresh
+  process are the same games every time when the games before them are the same (the pair of 2026-11-17 says yes
+  for the second). Not done: no tracked script starts the game; the batches so far were shell scripts that did.
+
 **5. A run counts whatever happened.**
 
 - The number of turns is the runner's: the game must be that many turns on. **The runner closes the seat on the last
@@ -329,8 +347,10 @@ a run of its tokens, and that, more than machine hours, is what a value costs.
   `--summary` still prints, is too small and is not the error of a value. With seeds worth 0 or 1 each, ten
   seeds tell 1.0 from 0.5 and not 0.9 from 0.7, and a difference of 0.15 between two players on one starting save
   needs about ninety seeds each. That is the price of a win as the unit, for a model it is paid in runs
-  of tokens, and it is the reason for the estimate of rule 1.
-- **A value by estimate has two errors and both are given** (added 2026-11-19). The seeds' (the standard deviation of
+  of tokens, and it was the reason for the estimate of rule 1. Measured since on twenty separate seeds of five AI
+  finishes: a standard error of 0.071, and 0.05 takes forty-one ("The baseline on separate seeds").
+- **A value by estimate had two errors and both were given** (added 2026-11-19, withdrawn with the estimate
+  2026-11-22; the record). The seeds' (the standard deviation of
   the seeds' estimates over the root of their number) is the player's. The model's is the starting save's: a jackknife
   over the games of the fit (the estimate under each fit that leaves one game out, their spread scaled by the number
   of games). It is shared by every player valued on the starting save and more seeds do not make it smaller; more
@@ -1399,7 +1419,11 @@ finish 0 above; 80 more games, 14.9 minutes an AI finish; `--summary logs/boards
   AI finishes, twenty-one more (about 78 minutes a seed, 27 hours, no tokens). A player measured the same way on the
   same twenty seeds carries an error of about the same size, so the difference between a player and the baseline has
   an error near 0.10 on twenty seeds and near 0.07 on forty-one, unless the pairing by seed takes some of it away,
-  which only a player's rows can show.
+  which only a player's rows can show. **Not played (2026-11-22; the user asked what another 27 hours would be
+  for).** Nothing needs them: the baseline is a defined number with a true error at twenty seeds. Twenty-one more
+  would take the difference's error from 0.10 to 0.087 while the player stays at twenty seeds, since half of that
+  error is the player's own, and the player's seeds are the ones paid in tokens. If a narrower error is ever wanted
+  it is bought for both sides at once, on the seeds a player has played.
 - **The stop turn stays at 500.** None of the 80 further AI finishes reached it undecided (1 of 100 in all, seed 0's
   finish 0). The 99 ended between turn 214 and turn 500, half of them by turn 378; one was won on turn 500 itself.
 - **How the 99 ended.** 69 by the World Leader vote (Austria 46, the Celts 23), 22 by Domination (the Celts 14,
@@ -1411,7 +1435,7 @@ finish 0 above; 80 more games, 14.9 minutes an AI finish; `--summary logs/boards
   of 50 (0.540, estimated 0.625): the right direction. But its mean squared gap to a seed's share (0.1025) is no
   smaller than that of giving every seed the plain 0.438 (0.0967). The formula reads the score share at turn 100
   alone; on this starting save that does not say which positions the Celts go on to win. It has not been fitted
-  again on these games.
+  again on these games. **Decided on this (the user, 2026-11-22): the number is given by AI finishes alone.**
 
 - **The batch** (`logs/boards/scratch/baseline_separate.sh`): the built-in AI plays the 100 turns on seeds 0 to 19 at
   the new spacing with one AI finish each (`--path 10`, stopped at turn 500), rows

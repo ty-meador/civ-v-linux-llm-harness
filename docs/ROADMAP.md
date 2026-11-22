@@ -353,6 +353,8 @@ First thoughts on CivBench (arXiv 2604.07733): `docs/CIVBENCH.md`. Decided 2026-
 `scripts/benchmark_run.py` (a player's 100 turns on a starting save, AI finishes, the summary and the split of the
 spread), `scripts/benchmark_fit.py` (the win-chance formula) and `scripts/benchmark_seed_likeness.py`; seeds that
 are separate games; the built-in AI's baseline on the first starting save, 0.438 with a standard error of 0.071 over
-twenty seeds of five AI finishes. Open in `docs/BENCHMARK.md`: a model's number on these seeds, whether the number is
-given by AI finishes alone, more seeds for an error of 0.05, and a fresh game process for every seed.
+twenty seeds of five AI finishes. Decided 2026-11-22: the number is given by AI finishes alone (no win-chance
+formula), every seed starts in a fresh game process, and the baseline stays at twenty seeds. Open in
+`docs/BENCHMARK.md`: a model's number on these seeds. Milestones after the release: 2.19.0 Benchmark: the referee,
+2.20.0 Benchmark: the pilot, 2.21.0 Benchmark: goal boards.
 
