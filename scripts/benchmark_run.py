@@ -17,7 +17,7 @@ them in place of the engine. The command plays the seat (a seat loop, `scripts/p
 
     scripts/benchmark_run.py --save "Pacal_0242 maya-t242-before-185-check" --turns 10 --player codex/gpt-6.1-sol \
         --notebook logs/bench191/notebook-before.json --claim-wait 200 --out logs/boards/maya-t242/rows.jsonl \
-        -- scripts/llm_seat_loop.py --agent codex --seat 0 --dir ~/projects/grok-desk-seat --model gpt-6.1-sol \
+        -- scripts/llm_seat_loop.py --agent codex --seat 0 --dir ../grok-desk-seat --model gpt-6.1-sol \
            --turns {turns} --until-turn {until} --cycles 1 --log-dir logs/boards/maya-t242/codex-{seed}
 
 `{seed}`, `{turns}` and `{until}` in the command are the seed's number, the turns, and the game turn that is the

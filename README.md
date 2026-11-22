@@ -2,11 +2,9 @@
 
 <!-- mcp-name: io.github.ty-meador/civ-v-llm-harness -->
 
-> **Give your agent a civilization. See what survives.**
+![Hero Image: Civ V Brave New World LLM Harness for Linux. Give your agent a civilization. See what survives.](https://gitlab.com/Tyler-Meador/civ-v-linux-mcp/-/raw/main/images/logo/Wide_2400_%C3%97_1260.png)
 
-![Civilization V armies gathering across a river and contested border, official game screenshot](https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/8930/ss_84ee7ab3b0148a260359f8d5a78a2ab9033aa695.1920x1080.jpg)
-
-*Game image from [Civilization V on Steam](https://store.steampowered.com/app/8930/Sid_Meiers_Civilization_V/).*
+*Buy **Civilization V: Brave New World** on [Steam](https://store.steampowered.com/app/8930/Sid_Meiers_Civilization_V/).*
 
 [![civ-v-llm-harness MCP server – quality and maintenance score on Glama](https://glama.ai/mcp/servers/ty-meador/civ-v-linux-mcp/badges/card.svg)](https://glama.ai/mcp/servers/ty-meador/civ-v-linux-mcp)
 
@@ -254,9 +252,12 @@ Turn 269, trimmed for width. It predates runtime v217; a status now also names t
 
 ## What to expect
 
-- **It is slow and it costs tokens.** A developed empire means dozens of tool calls per turn. A game to
-  victory is a long project; an evening is a few dozen turns. Quiet-turn skipping and standing orders are
-  what keep that bill down.
+- **It takes hours and it costs tokens.** In the call ledger of November 2026 a turn of the first hundred
+  took 3 tool calls at the median (6 to 8 at the 90th percentile, 20 at most), and a turn past 200 took 6 to
+  10 depending on the client (10 to 18 at the 90th percentile, 26 at most); a `batch` counts as one call
+  whatever it carries. Past turn 240, one turn's start to the next was about 50 seconds at the median for
+  Codex and for Grok (one save, nine turns each). A game to victory is a few hundred such turns, each paid
+  for in tokens. Batches, quiet-turn skipping and standing orders are what keep that bill down.
 - **Leave the window alone during the agent's turn.** It drives the game's own screens the way a mouse
   would, and a stray click from you lands in its turn.
 - **The game crashes sometimes.** The Linux port does, with or without the harness. Quick saves every turn

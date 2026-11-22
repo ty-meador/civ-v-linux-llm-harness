@@ -54,7 +54,8 @@ number.
   stands above its formula value by more than their errors, the share is what is reported (rule 1).
 - Not yet: the formula was fitted on games played before 2026-11-20, when seeds were too close together to be
   separate games (point 3). It has to be fitted again on games that are separate. On the first twenty separate
-  positions it says 0.518 where 0.474 of the AI finishes were won, within the errors (2026-11-21).
+  positions it says 0.505 where 0.438 of five AI finishes a position were won, within the errors; seed by seed it
+  is no closer to a seed's share than the plain mean is (2026-11-22, "The baseline on separate seeds").
 
 **3. A true uncertainty.** The error given with the number has to be the error it really has.
 
@@ -69,8 +70,8 @@ number.
   over seeds in the sections dated before 2026-11-20 is too small, by an amount that was not measured.
 - Checked 2026-11-21 on twenty 100-turn runs of the built-in AI at the new spacing: seeds next to each other are no
   more alike at turn 100 than any two seeds (likeness +0.022, which 0.422 of random orderings of the same runs
-  reach; at the old spacing +0.120 and +0.219). The baseline on them is 0.474 with a standard error of 0.118 on
-  one AI finish a seed; four more finishes a seed are being played ("The baseline on separate seeds").
+  reach; at the old spacing +0.120 and +0.219). The baseline on them is 0.438 with a standard error of 0.071 on
+  five AI finishes a seed (2026-11-22; 0.474 and 0.118 on one; "The baseline on separate seeds").
 
 **4. A plain statement of scope.** What the number is about, and what it is not about.
 
@@ -135,8 +136,10 @@ leave varies from seed to seed, and the seeds a standard error of 0.05 takes at 
 first trial's rows (seven seeds of five finishes, at the old spacing, so a first look): a finish varies by 0.478, the
 seeds by 0.145 (0 to 0.216 when the seeds are drawn again), and 0.05 takes 100 seeds at one finish, 27 at five, 15 at
 fifteen. A finish is fifteen minutes of the machine and a seed is 100 turns of a player's tokens, so finishes are the
-cheap way to an error and seeds the dear one. The same split on the baseline's new seeds is being played (below, "The
-baseline on separate seeds").
+cheap way to an error and seeds the dear one. The same split on the baseline's twenty separate seeds (2026-11-22): a
+finish varies by 0.433, the seeds by 0.252 (0.180 to 0.291), and 0.05 takes 101 seeds at one finish, 41 at five, 31 at
+fifteen. The seed-to-seed part is larger than the first look said, so finishes are cheap but do less: no number of
+them brings the count under 26 seeds (below, "The baseline on separate seeds").
 
 ## Rules, version 1 (2026-11-17)
 
@@ -173,7 +176,8 @@ one are the argument and the measurements; where they differ from a rule, the ru
   (rule 6), a player needs many seeds and few AI finishes a seed (rule 4), and the 100-turn result
   stands on two seeds a side until more are played.
 - The same save and the same AI finish number are the same game to its last turn, so a value can be
-  recomputed by anyone, and new games of a save need new numbers.
+  recomputed by anyone, and new games of a save need new numbers. (One replay on 2026-11-21 was not the same
+  game; see "A replay that was not the same game" under "The baseline on separate seeds". Open until checked.)
 
 **1. A run is worth what the game was worth when the player's turns were over.** A player plays a seat for a
 run of turns. Then the game's own AI plays that seat and every other to the end of the game, several times
@@ -1339,7 +1343,7 @@ same day, and the words are set out at its top.
   35 with the first finishes counted in; seed 7's four were not played. The scripts' options, names and row keys and
   this document were put into plain words on 2026-11-20 (files written before keep their names; see the top).
 
-### The baseline on separate seeds (2026-11-21: twenty seeds played, four more AI finishes a seed being played)
+### The baseline on separate seeds (2026-11-22: twenty seeds played, five AI finishes a seed)
 
 Started 2026-11-20 at 22:37 on the user's word ("run your in-game AI tests now, running as many games as necessary").
 No tokens.
@@ -1368,12 +1372,62 @@ minutes an AI finish).
   will say more.
 - **The Celts at turn 100:** score 487 (sd 61, 336 to 585), 2.5 cities (1 to 4), share of score 0.518 (sd 0.051).
 
+**The twenty seeds with five AI finishes each, done 2026-11-22 at 02:06** (finishes 1 to 4 of each end save beside
+finish 0 above; 80 more games, 14.9 minutes an AI finish; `--summary logs/boards/duel-d/baseline-t100-separate.jsonl
+--later logs/boards/duel-d/baseline-t100-separate-more.jsonl`).
+
+- **The baseline: 0.438, standard error over seeds 0.071.** The mean over the twenty seeds of the share of a seed's
+  decided AI finishes that the Celts won (sd over seeds 0.319). As games it is 43 of the 99 decided, 0.434. With one
+  AI finish a seed it stood at 0.474 with an error of 0.118; the two agree.
+- **By seed, won of decided (seeds 0 to 19):** 3/4, 1/5, 3/5, 0/5, 5/5, 1/5, 3/5, 4/5, 0/5, 1/5, 1/5, 1/5, 2/5, 3/5,
+  0/5, 3/5, 3/5, 5/5, 1/5, 3/5. Five seeds went all one way (3, 8 and 14 never won; 4 and 17 always).
+- **The split of the spread.** From one end of the 100 turns an AI finish varies by 0.433 (within a seed). The win
+  chance the 100 turns leave varies by 0.252 from seed to seed (0.180 to 0.291 over resamplings of the seeds). Both
+  are in the error: (0.252² + 0.433² / 5) / 20 is 0.071².
+- **Seeds for a standard error of 0.05:** 101 at one AI finish a seed, 41 at five, 31 at fifteen. AI finishes past
+  five buy little, because they do not touch the seed-to-seed part: with any number of them the count does not fall
+  below 26 seeds.
+- **Are twenty seeds enough for the baseline?** For the error it now has, 0.071. For 0.05 it takes 41 seeds at five
+  AI finishes, twenty-one more (about 78 minutes a seed, 27 hours, no tokens). A player measured the same way on the
+  same twenty seeds carries an error of about the same size, so the difference between a player and the baseline has
+  an error near 0.10 on twenty seeds and near 0.07 on forty-one, unless the pairing by seed takes some of it away,
+  which only a player's rows can show.
+- **The stop turn stays at 500.** None of the 80 further AI finishes reached it undecided (1 of 100 in all, seed 0's
+  finish 0). The 99 ended between turn 214 and turn 500, half of them by turn 378; one was won on turn 500 itself.
+- **How the 99 ended.** 69 by the World Leader vote (Austria 46, the Celts 23), 22 by Domination (the Celts 14,
+  Austria 8), 8 by Culture (the Celts 6, Austria 2).
+- **The formula on five outcomes a position.** It estimates 0.505 over the twenty seeds (standard error over seeds
+  0.033, of the formula 0.065) where 0.438 were won: 0.067 apart, inside the errors. Seed by seed it says little.
+  Its estimates run from 0.27 to 0.77 and go with the share of the five finishes won at +0.22 (twenty seeds; not
+  told from zero). The ten seeds it puts lowest won 16 of 49 (0.327, estimated 0.385), the ten it puts highest 27
+  of 50 (0.540, estimated 0.625): the right direction. But its mean squared gap to a seed's share (0.1025) is no
+  smaller than that of giving every seed the plain 0.438 (0.0967). The formula reads the score share at turn 100
+  alone; on this starting save that does not say which positions the Celts go on to win. It has not been fitted
+  again on these games.
+
 - **The batch** (`logs/boards/scratch/baseline_separate.sh`): the built-in AI plays the 100 turns on seeds 0 to 19 at
   the new spacing with one AI finish each (`--path 10`, stopped at turn 500), rows
   `logs/boards/duel-d/baseline-t100-separate.jsonl`. One run a call, a fresh game process after ten.
 - **Then four more AI finishes a seed** (`baseline_more_finishes.sh`, finishes 1 to 4 of each end save, rows
-  `baseline-t100-separate-more.jsonl`), about twenty-one hours. A file `STOP` in `logs/boards/duel-d` ends either
-  batch before its next run.
+  `baseline-t100-separate-more.jsonl`), played 2026-11-21 05:34 to 2026-11-22 02:06 with two stops: the machine
+  froze during seed 10 (next point), and the repository's folder was moved during seed 13, after which the exit to
+  the main menu failed and the batch was started again from seed 14 (seed 13's four finishes were already in the
+  rows). A file `STOP` in `logs/boards/duel-d` ends either batch before its next run.
+- **A replay that was not the same game (2026-11-21).** The machine froze during seed 10's further finishes, with
+  finishes 1 and 2 already played (kept in `logs/boards/duel-d/seed10-finishes-before-freeze.json`). After the reboot
+  seed 10 was played again whole, from the same end save with the same finish numbers and the same skips (2,000,006
+  and 3,000,009). The games were not the same. Finish 1 ended Diplomatic at turn 431 before the freeze and Domination
+  at turn 436 after it; finish 2 ended Domination at turn 388 before and Diplomatic at turn 408 after. Austria won all
+  four. The readings every ten turns agree at turns 100 and 111 of finish 1 and were taken at different turns after
+  that, so they do not say where the games part. This goes against "the same save and the same AI finish number are
+  the same game" (the rules above, and "The same random numbers are the same game, to the end"), which stood on two
+  games played a second time in the same order in a fresh game process. What differed here: before the freeze the game
+  process had already played seeds 8 and 9 (eight finishes) and the machine was minutes from freezing; after it, seed
+  10 was the first load of a fresh process. Which of the two it is has not been checked. **Not touched by this:** each
+  finish is a game of the built-in AI from the same position at turn 100, so the share of finishes won and its error
+  over seeds stand; the rows file holds the four finishes played after the reboot for seed 10. **Open until checked:**
+  that anyone can compute a single value again from the save and the numbers. The check is seed 10's finish 1 played
+  again twice, once in a process that has played other games and once as a fresh process's first load.
 - **What they are for.** (1) The baseline as a share of AI finishes won, with an error over seeds that are separate
   games. (2) The check the ten-turn runs could not give: are seeds next to each other more alike at turn 100 than
   seeds far apart (`scripts/benchmark_seed_likeness.py`: on the old rows, seeds 17 random numbers apart are alike

@@ -15,3 +15,6 @@ harness/tunerd-seats.json
 tmp*/
 # session notes for whoever resumes the work: local workspace only, never the repository
 docs/SESSION_HANDOFF.md
+
+# a machine's own Claude Code settings: local workspace only, never the repository
+.claude/settings.local.json

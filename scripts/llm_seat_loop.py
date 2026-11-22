@@ -15,7 +15,7 @@ ledger's two are).
 Usage:
   scripts/llm_seat_loop.py --agent codex --seat 0 --dir ~/projects/codex-seat \
       --model gpt-5.6-terra --effort low --turns 20
-  scripts/llm_seat_loop.py --agent grok --seat 1 --dir ~/projects/grok-desk-seat \
+  scripts/llm_seat_loop.py --agent grok --seat 1 --dir ../grok-desk-seat \
       --model grok-4.7 --effort low --turns 20
   scripts/llm_seat_loop.py --agent claude --seat 2 --dir ~/projects/claude-seat \
       --model sonnet --effort low --turns 20
