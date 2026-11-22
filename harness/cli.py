@@ -64,7 +64,8 @@ def cmd_host_hotseat(g: Game, a) -> None:
 
 
 def cmd_start_single(g: Game, a) -> None:
-    print(J(g.start_single_player(civilization=a.civ, handicap=a.handicap, start=not a.no_start)))
+    print(J(g.start_single_player(civilization=a.civ, handicap=a.handicap, start=not a.no_start, world_size=a.world_size,
+                                   map_script=a.map_script, game_speed=a.speed, all_victories=a.all_victories)))
 
 
 def cmd_slots(g: Game, a) -> None:
@@ -109,6 +110,8 @@ def main(argv=None) -> int:
     p.add_argument("--close", type=int, nargs="*", default=[], help="slots to close (SS_CLOSED)"); p.add_argument("--handicap", help="HANDICAP_* type for human slots")
     p = sub.add_parser("host-hotseat"); p.add_argument("--humans", type=int, nargs="+", default=[0, 1]); p.add_argument("--name", default="LLM Harness"); p.add_argument("--nick", nargs="*", help="seat=name"); p.add_argument("--no-launch", action="store_true")
     p = sub.add_parser("start-single"); p.add_argument("--civ", help="CIVILIZATION_* type (default: random leader)"); p.add_argument("--handicap", help="HANDICAP_* type"); p.add_argument("--no-start", action="store_true")
+    p.add_argument("--world-size", help="WORLDSIZE_* type"); p.add_argument("--map-script", help="a script's file name, e.g. pangaea")
+    p.add_argument("--speed", help="GAMESPEED_* type"); p.add_argument("--all-victories", action="store_true", help="every victory type on")
     sub.add_parser("slots"); sub.add_parser("ready"); sub.add_parser("unready"); sub.add_parser("launch"); sub.add_parser("leave")
     p = sub.add_parser("wait-ingame"); p.add_argument("--timeout", type=float, default=600)
     p = sub.add_parser("lua"); p.add_argument("code"); p.add_argument("--state", default="InGame")

@@ -74,8 +74,9 @@ number.
 
 **4. A plain statement of scope.** What the number is about, and what it is not about.
 
-- One starting save: the Celts against Austria, a Duel map, Prince, Quick speed, stock rules, no mod. It is the one
-  save of five screened on which the baseline wins between 0.2 and 0.8 of its games (rule 2).
+- One starting save: the Celts against Austria, a Duel map (Archipelago, four city-states), Prince, Quick speed,
+  stock rules, no mod. It is the one save of five screened on which the baseline wins between 0.2 and 0.8 of its
+  games (rule 2). The save and its manifest are in the repository (`saves/benchmark/board-duel-prince-d`).
 - The first 100 turns of a game, against the built-in AI. Nothing is said about other maps, other civilizations, more
   opponents, the middle or the end of a game, or play against people.
 - A player is a client, a model, an effort setting, a harness version and a prompt file together (rule 3). The number
@@ -256,6 +257,15 @@ run of turns. Then the game's own AI plays that seat and every other to the end 
   The save keeps both. Every player of the game is then on one row, whoever plays the seat: a player, the
   built-in AI and the scripted loop play the same run on the same terms, and so does every AI finish. The
   player plays a game a little kinder than Prince; what is compared is always two players of the same seat.
+- **Made by one command and kept with a manifest** (`scripts/benchmark_save.py`, 2026-11-22). `--host` starts a
+  game from the setup screen with the civilization, world size, map script and speed said and every victory type
+  on, puts the terms in and saves it. `--cut` has the built-in AI play a save for a number of turns on a seed and
+  saves there. Either way the save is then loaded once more and read, and what the game answers is written down
+  beside a copy of the save under `saves/benchmark/`: seat, civilization, opponents, the settings the save carries,
+  where it came from, the game's build and the file's hash. `--install` puts the kept saves where the game loads
+  them from. Kept so far: the Celts duel as hosted, the same game at turn 100 and at turn 200 as the built-in AI played it
+  on seed 0 (3.3 and 6.9 minutes), and a second opening hosted by the command (Siam against the Shoshone, Pangaea).
+  The last three have no baseline and are not in use.
 - Without Time a game runs to a victory someone took: on the first duel the World Leader vote, a Culture
   victory or a conquest, between turn 126 and turn 425.
 - Three kinds by where the run sits: an opening (from turn 0), a middle game, a late game. They are reported apart. A
@@ -268,10 +278,12 @@ run of turns. Then the game's own AI plays that seat and every other to the end 
   save to spend a player on. With ten decided games a value near 0.5 is known to 0.16 either way; a starting save near
   an edge of the range needs more before it is kept or dropped, and a starting save in its middle is the better use of
   the games.
-- **The seats of one map.** Where the same map can be started from each of its seats (a fixed map seed on the setup
-  screen, not yet tried), every seat is a starting save, and a player's spread over the seats of one map is reported
-  beside its mean: the same world from the river valley and from the tundra. Seats outside the 0.2 to 0.8 range above
-  are still dropped.
+- **The seats of one map.** Where the same map can be started from each of its seats, every seat is a starting
+  save, and a player's spread over the seats of one map is reported beside its mean: the same world from the river
+  valley and from the tundra. Seats outside the 0.2 to 0.8 range above are still dropped. Checked 2026-11-22: not
+  by a fixed map seed. This build's setup screen has `PreGame.RandomizeMapSeed` and no call that reads or sets the
+  seed, so a second game hosted with the same settings is another map. Not tried: a map file made in the game's
+  own map editor, which the setup screen can start from any seat.
 - Goal saves (below) are the second kind of test, pass or fail against a runner, and are reported apart.
   One family of them comes in pairs: **the same save with and without one staged event** the seat can see (an
   army gathering at the border, a neighbour two parts from a spaceship, a city-state ally under siege). What

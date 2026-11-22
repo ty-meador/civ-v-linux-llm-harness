@@ -1,0 +1,48 @@
+{
+ "id": "board-duel-prince-d",
+ "save": "board-duel-prince-d.Civ5Save",
+ "sha256": "b6a321d5c1cd9324223559ba01aded3dfafec2235f1564b3d5a307e6fb6c8482",
+ "kind": "opening",
+ "turn": 0,
+ "seat": 0,
+ "civilization": "The Celts",
+ "opponents": [
+  "Austria"
+ ],
+ "turns": 100,
+ "seeds": 20,
+ "settings": {
+  "handicap": "HANDICAP_PRINCE",
+  "speed": "GAMESPEED_QUICK",
+  "max_turns": 0,
+  "time_victory": false,
+  "map_script": "Assets/Maps/Archipelago.lua",
+  "start_era": "ERA_ANCIENT",
+  "city_states": 4,
+  "world_size": "WORLDSIZE_DUEL",
+  "seat_row": "HANDICAP_AI_DEFAULT",
+  "victories": [
+   "VICTORY_SPACE_RACE",
+   "VICTORY_DOMINATION",
+   "VICTORY_CULTURAL",
+   "VICTORY_DIPLOMATIC"
+  ]
+ },
+ "origin": {
+  "how": "hosted",
+  "note": "hosted from the single-player setup screen on 2026-11-17 and made to carry its terms with benchmark_run.py --terms (docs/BENCHMARK.md, \"Three more duels screened\"); this manifest was written from the save on 2026-11-22",
+  "at": "2026-11-17"
+ },
+ "game_build": "1.0.3.279(130961)",
+ "baseline": {
+  "value": 0.438,
+  "standard_error": 0.071,
+  "seeds": 20,
+  "ai_finishes_a_seed": 5,
+  "decided": 99,
+  "won": 43,
+  "played": "2026-11-21 to 2026-11-22",
+  "harness": "2.18.0",
+  "where": "docs/BENCHMARK.md, \"The baseline on separate seeds\""
+ }
+}

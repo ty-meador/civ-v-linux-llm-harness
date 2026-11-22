@@ -1,0 +1,43 @@
+{
+ "id": "board-duel-prince-d-t100",
+ "save": "board-duel-prince-d-t100.Civ5Save",
+ "sha256": "c91d660712b5a729ffae8ea22621a81e231bdfc4c325f83e3158799093fb7dfa",
+ "kind": "middle",
+ "turn": 100,
+ "seat": 0,
+ "civilization": "The Celts",
+ "opponents": [
+  "Austria"
+ ],
+ "turns": 100,
+ "seeds": 20,
+ "settings": {
+  "handicap": "HANDICAP_PRINCE",
+  "speed": "GAMESPEED_QUICK",
+  "max_turns": 0,
+  "time_victory": false,
+  "map_script": "Assets/Maps/Archipelago.lua",
+  "start_era": "ERA_ANCIENT",
+  "city_states": 4,
+  "world_size": "WORLDSIZE_DUEL",
+  "seat_row": "HANDICAP_AI_DEFAULT",
+  "victories": [
+   "VICTORY_SPACE_RACE",
+   "VICTORY_DOMINATION",
+   "VICTORY_CULTURAL",
+   "VICTORY_DIPLOMATIC"
+  ]
+ },
+ "origin": {
+  "how": "cut",
+  "from": "board-duel-prince-d",
+  "played_by": "built-in-ai",
+  "turns": 100,
+  "seed": 0,
+  "skip": 0,
+  "seconds": 199.2,
+  "at": "2026-11-22"
+ },
+ "game_build": "1.0.3.279(130961)",
+ "baseline": null
+}

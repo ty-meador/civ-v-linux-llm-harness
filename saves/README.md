@@ -36,6 +36,10 @@ python -m harness.cli lua "Events.ExitToMainMenu()"            # only if a game 
 A hotseat save loads only through the hotseat listing, which `load_save` searches. After a hotseat load the
 game sits paused on the hand-off screen: `wait_for_my_turn` on the *active* seat clears it.
 
+## The benchmark's starting saves
+
+They are apart, under `saves/benchmark/`, each with a manifest: see `saves/benchmark/README.md`.
+
 ## Making a new one
 
 `quick_save` writes `Saves/single/quick/QuickSave.Civ5Save` for every mode (hotseat too), one slot, so name

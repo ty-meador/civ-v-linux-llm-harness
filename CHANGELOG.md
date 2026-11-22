@@ -16,6 +16,21 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A starting save of the benchmark is made by one command and kept with a manifest (2026-11-22, #194).**
+  `scripts/benchmark_save.py --host NAME --civ ...` starts a game from the single-player setup screen (Prince,
+  Quick, a Duel map and every victory type on unless said otherwise), puts the benchmark's terms in and saves it;
+  `--cut NAME --save S --turns T` has the built-in AI play `S` for `T` turns on a seed and saves there, for a
+  middle or a late starting save; `--describe NAME` does the last step alone for a save made by hand. Each ends
+  by loading the save once more and writing what the game then reads into `saves/benchmark/NAME.json` beside a
+  copy of the save: seat, civilization, opponents, settings, origin, game build, the file's hash. `--install`
+  copies the kept saves to where the game loads them from and overwrites nothing. `harness.cli start-single` and
+  `Game.start_single_player` take the world size, the map script, the speed and "every victory on"; before, they
+  started whatever the setup screen last held (on this machine: Science and Domination only). Kept: the Celts
+  duel the baseline was played on (read from the save: an Archipelago map, four city-states), and the same game
+  at turn 100 and at turn 200 as the built-in AI played it (cut live, 3.3 and 6.9 minutes), and a second opening
+  hosted live by the command (Siam against the Shoshone, Pangaea). Those three have no baseline. Checked and
+  answered no: the same map from another seat by a fixed map seed, since this build's setup screen has
+  `PreGame.RandomizeMapSeed` and no call that reads or sets a seed.
 - **The benchmark's number is the share of AI finishes won (2026-11-22, the user's decisions).**
   `docs/BENCHMARK.md` only, no code. (1) The win-chance formula gives no number: on the twenty separate seeds of
   the baseline it was no closer to a seed's share of AI finishes won than the plain mean is. The estimate of rule 1

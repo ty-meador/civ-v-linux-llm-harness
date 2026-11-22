@@ -189,7 +189,8 @@ than on scrolling. That is what keeps a turn affordable and the game moving whil
   each game several times from where those turns ended. The player's number is the share of those AI finishes
   its civilization won, with a standard error over seeds. The built-in AI playing the same 100 turns is the
   baseline: on the first starting save (a duel at Prince, the Celts against Austria) it won 43 of the 99 decided
-  finishes, 0.438 with a standard error of 0.071 over twenty seeds, at no tokens. No model has a number on
+  finishes, 0.438 with a standard error of 0.071 over twenty seeds, at no tokens. That save is in the
+  repository with a manifest (`saves/benchmark/`), and `scripts/benchmark_save.py` makes another by one command. No model has a number on
   these seeds yet. The method, the rules, every measurement and what is still open are in `docs/BENCHMARK.md`.
 
 <details>

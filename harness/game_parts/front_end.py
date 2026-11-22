@@ -60,10 +60,15 @@ class FrontEndMixin:
         self._save_rejoin("hotseat", human_seats=human_seats, game_name=game_name, nicknames=nicknames)
 
     def start_single_player(self, civilization: str | None = None, handicap: str | None = None,
-                            start: bool = True) -> dict:
+                            start: bool = True, world_size: str | None = None, map_script: str | None = None,
+                            game_speed: str | None = None, all_victories: bool = False) -> dict:
         """From the main menu: Single Player > Set Up Game > (start). `civilization` is a CIVILIZATION_* type,
         None = random leader (the setup screen's own -1). `handicap` is a HANDICAP_* type. Map, size, pace and
-        victory types stay at the persisted "Play Now" settings; the reply lists them."""
+        victory types stay at the persisted "Play Now" settings unless given: `world_size` (WORLDSIZE_*),
+        `map_script` (a script's file name without its folder, "pangaea" or "pangaea.lua"; an exact name, since
+        "continents" is also in "smallcontinents"), `game_speed` (GAMESPEED_*), `all_victories` (every victory
+        type on). The reply lists what the screen holds when the game starts. The map's random seed is not among
+        it: this build's PreGame has RandomizeMapSeed and no call that reads or sets one."""
         c = self.c
         c.exec(c.wait_state("MainMenu", 10), "SinglePlayerClick()", check=False)
         c.exec(c.wait_state("SinglePlayer", 15), "SetupGameClicked()", check=False)
@@ -75,6 +80,24 @@ class FrontEndMixin:
         if len(shown) != 1:
             raise TunerdError(f"expected one visible GameSetupScreen, found {len(shown)}")
         setup = shown[0]
+        if world_size:      # first: a new world size sets the slots again, and with them the civilization
+            c.exec(setup, f"PreGame.SetWorldSize(GameInfo.Worlds[{lua_str(world_size)}].ID); PreGame.SetRandomWorldSize(false)")
+        if map_script:
+            want = map_script.lower().removesuffix(".lua") + ".lua"
+            got = c.exec(setup, f"""
+                for row in GameInfo.MapScripts() do
+                    local f = string.lower(row.FileName or "")
+                    if (f:match("[^/\\\\]+$") or f) == {lua_str(want)} then
+                        PreGame.SetMapScript(row.FileName); PreGame.SetRandomMapScript(false)
+                    end
+                end
+                print(PreGame.IsRandomMapScript() and "random" or PreGame.GetMapScript())""")
+            if not got or not got[0].lower().replace("/", "\\").endswith("\\" + want):
+                raise TunerdError(f"map script {map_script!r} not found; the setup screen holds {got}")
+        if game_speed:
+            c.exec(setup, f"PreGame.SetGameSpeed(GameInfo.GameSpeeds[{lua_str(game_speed)}].ID)")
+        if all_victories:
+            c.exec(setup, "for row in GameInfo.Victories() do PreGame.SetVictory(row.ID, true) end")
         civ = f"GameInfo.Civilizations[{lua_str(civilization)}].ID" if civilization else "-1"
         c.exec(setup, f"PreGame.SetCivilization(0, {civ})")
         if handicap:
