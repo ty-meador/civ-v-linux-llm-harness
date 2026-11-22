@@ -150,6 +150,7 @@ POLL = """
 return {turn = Game.GetGameTurn(), auto = Game.GetAIAutoPlay(), winner = Game.GetWinner(), state = Game.GetGameState(),
   alive = Players[%(seat)d]:IsAlive(), active = Game.GetActivePlayer(), turn_active = Players[%(seat)d]:IsTurnActive(),
   team = Players[%(seat)d]:GetTeam(), victory = (Game.GetVictory() or -1) >= 0 and GameInfo.Victories[Game.GetVictory()].Type or "",
+  saved = BenchmarkCheckpoint and BenchmarkCheckpoint.saved or -1, over = BenchmarkCheckpoint and BenchmarkCheckpoint.over or -1,
   cities = Players[%(seat)d]:GetNumCities(), wars = (function()
     local n, mine = 0, Teams[Players[%(seat)d]:GetTeam()]
     for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
@@ -164,6 +165,38 @@ SKIP = """
 for _ = 1, %(skip)d do Game.Rand(100, "benchmark_run") end
 return {skip = %(skip)d}
 """
+
+# Saves taken while the engine plays the seat (`--checkpoint N`), with no hand-back: a handler inside the game asks for
+# the game's own quick save when the seat's turn on a game turn that is a multiple of N has been processed, and once
+# more when the game is won or the seat is dead. The engine is not interrupted (live 2026-11-22 on the Prince duel:
+# saves at turns 5, 10 and 15 of 17, and one after a winner was named). The event reaches Lua after the seat's turn is
+# over, so a save holds the seat's turn T played and the turn T of the players after it not yet. Such a save is not a
+# starting save: loaded in the game it opens on the observer's slot and the engine plays on with the count it holds.
+CHECKPOINT = """
+local c = BenchmarkCheckpoint or {}
+BenchmarkCheckpoint = c
+c.every, c.seat, c.after, c.saved, c.over, c.error = %(every)d, %(seat)d, %(after)d, -1, -1, ""
+if not c.hooked then
+  c.hooked = true
+  Events.AIProcessingStartedForPlayer.Add(function(pid)
+    local k = BenchmarkCheckpoint
+    if k.every <= 0 or Game.GetAIAutoPlay() == 0 then return end
+    local turn = Game.GetGameTurn()
+    if Game.GetWinner() >= 0 or not Players[k.seat]:IsAlive() then
+      if k.over < 0 then
+        local ok, err = pcall(UI.QuickSave)
+        if ok then k.over = turn else k.error = tostring(err) end
+      end
+    elseif pid == k.seat and turn > k.after and turn %% k.every == 0 and turn ~= k.saved then
+      local ok, err = pcall(UI.QuickSave)
+      if ok then k.saved = turn else k.error = tostring(err) end
+    end
+  end)
+end
+return {ok = true}
+"""
+CHECKPOINT_OFF = "if BenchmarkCheckpoint then BenchmarkCheckpoint.every = 0 end\nreturn {ok = true}\n"
+SAVE_NOW = "UI.QuickSave()\nreturn {ok = true, turn = Game.GetGameTurn()}\n"
 
 BUILT_IN_AI = "built-in-ai"
 THE_SAVE = "save"               # the player name of a --finish-only row: the save itself, finished by the engine's AI
@@ -274,6 +307,28 @@ def save_as(g, name: str, sleep=time.sleep, clock=time.monotonic, wait: float = 
         size = now.st_size if now and now.st_mtime_ns != was else -1
         if clock() - t0 > wait:
             raise Refused("the quick save was not written")
+        sleep(0.5)
+    shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
+    return name
+
+
+def quick_mtime() -> int:
+    quick = saves_dir() / "quick" / "QuickSave.Civ5Save"
+    return quick.stat().st_mtime_ns if quick.exists() else 0
+
+
+def copy_quick(name: str, was: int, sleep=time.sleep, clock=time.monotonic, wait: float = 30.0) -> str | None:
+    """A copy of the quick save's file under `name`, once it is another file than the one of `was` (its time then) and
+    has the same size at two looks. None if no such file came."""
+    quick = saves_dir() / "quick" / "QuickSave.Civ5Save"
+    t0, size = clock(), -1
+    while True:
+        now = quick.stat() if quick.exists() else None
+        if now and now.st_mtime_ns != was and now.st_size == size:
+            break
+        size = now.st_size if now and now.st_mtime_ns != was else -1
+        if clock() - t0 > wait:
+            return None
         sleep(0.5)
     shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
     return name
@@ -559,9 +614,14 @@ def value_of(row: dict, ai_finishes: list[dict]) -> float | None:
 
 def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, poll: float = 3.0, stall: float = 900.0,
              end_save: str | None = None, save_game=save_as, row: str = "own", time_victory: str = "on",
+             checkpoint: int = 0, checkpoint_name: str | None = None,
              sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
     """One run of the starting save by the game's own AI. Loads `save` (the game must be at the main menu), hands the seat over, watches, reads,
-    and leaves for the main menu whatever happened once the seat was handed over."""
+    and leaves for the main menu whatever happened once the seat was handed over.
+
+    With `checkpoint` N the game is saved while the engine plays, on every game turn that is a multiple of N and once
+    when the game is won or the seat is dead (`CHECKPOINT`), as `checkpoint_name`-t<turn> and `checkpoint_name`-game-over.
+    A save that did not come is said in the row and the run goes on."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
         raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -573,6 +633,10 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
         leave(g)
         raise
     how = played(g, seat)
+    checkpoint_name = checkpoint_name or save
+    if checkpoint:
+        g.q(CHECKPOINT % {"every": checkpoint, "seat": seat, "after": before["turn"]})
+    quick_was, last_saved = quick_mtime(), -1
     t0 = clock()
     started = g.q(start_chunk(skip, turns, seat, row, time_victory))
     row: dict = {"player": BUILT_IN_AI, "save": save, "seat": seat, "turns_asked": turns, "skip": skip,
@@ -584,6 +648,8 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
             row["end_reason"] = "not_handed_over"
             row["handed_over"] = started
             return row
+        if checkpoint:
+            row["checkpoints"] = []
         last_turn, last_change, now = before["turn"], clock(), None
         while True:
             sleep(poll)
@@ -591,6 +657,14 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
             if now["turn"] != last_turn:
                 last_turn, last_change = now["turn"], clock()
                 say(f"  turn {now['turn']}  count {now['auto']}  +{clock() - t0:.0f}s")
+            if checkpoint and now.get("saved", -1) > last_saved:
+                last_saved = now["saved"]
+                # a save at the game's end taken since is the file now in the quick slot: this turn's is gone
+                kept = None if now.get("over", -1) >= 0 else copy_quick(f"{checkpoint_name}-t{last_saved:03d}", quick_was,
+                                                                        sleep=sleep, clock=clock)
+                quick_was = quick_mtime() if kept else quick_was
+                row["checkpoints"].append({"turn": last_saved, "save": kept})
+                say(f"  saved turn {last_saved}: {kept or 'no file'}")
             if now["winner"] >= 0 and row["win_turn"] is None:
                 row["win_turn"] = now["turn"]
             if not now["alive"]:
@@ -603,6 +677,13 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
                 row["end_reason"] = "stalled"
             if row["end_reason"]:
                 break
+        if checkpoint and row["end_reason"] in ("game_won", "seat_dead"):
+            over = now.get("over", -1)
+            if over < 0:        # the handler has not seen the end yet: asked for here, the observer may save
+                over = (g.q(SAVE_NOW) or {}).get("turn", now["turn"])
+            row["game_over_save"] = copy_quick(f"{checkpoint_name}-game-over", quick_was, sleep=sleep, clock=clock)
+            row["game_over_save_turn"] = over
+            say(f"  saved at the game's end, turn {over}: {row['game_over_save'] or 'no file'}")
         after = g.q(READ)
         row.update(seconds=round(clock() - t0, 1), end=seat_view(after, seat), winner=after["winner"],
                    victory=after["victory"], turns_played=after["turn"] - before["turn"],
@@ -611,6 +692,11 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
         keep_end(g, row, end_save, save_game, sleep, clock)
         return row
     finally:
+        if checkpoint:
+            try:
+                g.q(CHECKPOINT_OFF)
+            except Exception:       # the run's row stands whatever the game answers here
+                pass
         leave(g)
 
 
@@ -1012,6 +1098,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--keep-end", action="store_true",
                     help="save the game where the turns end even with no AI finish asked, under the name an AI finish "
                          "would load: the position can be read again later, or finished later with --finish-only")
+    ap.add_argument("--checkpoint", type=int, default=0, metavar="N",
+                    help="with the built-in AI on the seat: save the game while it plays, on every game turn that is a "
+                         "multiple of N and once when the game is won or the seat is dead, as <save>--built-in-ai-seed<n>-t<turn> "
+                         "and ...-game-over. The engine is not interrupted. Such a save holds the seat's turn played; loaded "
+                         "in the game it opens on the observer's slot and the engine plays on, so it is not a starting save")
     ap.add_argument("--finish-only", action="store_true",
                     help="no turns played: value --save itself by R AI finishes (--ai-finishes R), a starting save's own worth")
     ap.add_argument("--terms", metavar="NEW",
@@ -1059,6 +1150,8 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--player names a command's player; give the command after --")
     if a.finish_only and (command or a.ai_finishes < 1):
         ap.error("--finish-only takes --ai-finishes R and no command")
+    if a.checkpoint and (command or a.finish_only or a.checkpoint < 1):
+        ap.error("--checkpoint N is for the built-in AI's own run, N at least 1")
     from harness.game import Game
     g = Game()
     if g.has_state("InGame"):
@@ -1087,7 +1180,8 @@ def main(argv: list[str] | None = None) -> int:
                                  keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save)
             else:
                 row = run_once(g, a.save, a.turns, seat=a.seat, skip=skip, stall=a.stall, end_save=end_save, say=say,
-                               row=a.row or "own", time_victory=a.time or "on")
+                               row=a.row or "own", time_victory=a.time or "on", checkpoint=a.checkpoint,
+                               checkpoint_name=f"{a.save}--{BUILT_IN_AI}-seed{n}")
             if a.ai_finishes:
                 row["ai_finishes"] = []
                 partial = a.out.with_name(a.out.name + ".partial")

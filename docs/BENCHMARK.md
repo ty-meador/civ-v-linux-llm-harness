@@ -298,6 +298,9 @@ run of turns. Then the game's own AI plays that seat and every other to the end 
 - Hosted from the single-player setup screen: Prince, the unused slots as the screen leaves them (the observer
   slot autoplay needs), stock rules, no mod. Small maps (Duel to Small) at Quick speed, so that an AI finish
   is minutes.
+- **From 2026-11-22 a new starting save is hosted at King** (the user's decision). The first is
+  `small-king-venice-a`: Venice against five civilizations on a Small Continents map with 12 city-states. What
+  was measured on the Prince saves below stays as measured, and says nothing of a King save.
 - **Then made to carry its terms** (`benchmark_run.py --terms`): the seat is put on the row every AI of the game
   plays on (`HANDICAP_AI_DEFAULT`; the human's Prince row has base happiness 9 against 15, research at 100%
   against 85%, policies at 100% against 75%), and the Time victory is switched off with the turn limit cleared.

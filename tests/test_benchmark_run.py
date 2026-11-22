@@ -70,7 +70,24 @@ class FakeGame:
             return self.played_reply
         if "ExitToMainMenu" in code:
             return {"ok": True}
-        return self.polls.pop(0)
+        if "c.hooked" in code or code == benchmark_run.CHECKPOINT_OFF:
+            return {"ok": True}
+        if code == benchmark_run.SAVE_NOW:
+            self.write_quick("asked at the end")
+            return {"ok": True, "turn": 248}
+        now = self.polls.pop(0)
+        if now.get("wrote"):
+            self.write_quick(now["wrote"])
+        return now
+
+    def write_quick(self, text):
+        """The game's quick save, written again: another file each time, by its time."""
+        self.writes += 1
+        self.quick_file.parent.mkdir(parents=True, exist_ok=True)
+        self.quick_file.write_text(text)
+        os.utime(self.quick_file, ns=(self.writes * 10 ** 9, self.writes * 10 ** 9))
+
+    writes = 0
 
     played_reply = None   # what the game answers the read of rule 7's figures; None stands for a read that failed
 
@@ -212,6 +229,54 @@ class Runs(unittest.TestCase):
         self.assertEqual(row["end_reason"], "not_handed_over")
         self.assertEqual(row["handed_over"]["units"], 0)
         self.assertEqual(g.left, 1)
+
+
+class SavesWhileTheEnginePlays(unittest.TestCase):
+    """`--checkpoint N`: the game saves itself (a handler, CHECKPOINT) and the runner copies each save out of the quick
+    slot. Live 2026-11-22 on the Prince duel: saves at turns 5, 10 and 15 of 17 turns, the engine not interrupted."""
+
+    def checked(self, polls, after):
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"CIV5_SAVES_DIR": d}):
+            g = FakeGame([read(), after], polls=polls)
+            g.quick_file = Path(d) / "quick" / "QuickSave.Civ5Save"
+            row = run(g, checkpoint=10, checkpoint_name="save--built-in-ai-seed0")
+            files = {p.stem: p.read_text() for p in Path(d).glob("*.Civ5Save")}
+        return g, row, files
+
+    def test_every_save_the_game_took_is_kept_under_its_turn_and_the_win_has_one_of_its_own(self):
+        polls = [poll(249, 993), dict(poll(250, 992), saved=250, wrote="turn 250"), dict(poll(255, 987), saved=250),
+                 dict(poll(260, 982), saved=260, wrote="turn 260"),
+                 dict(poll(263, 979, winner=1), saved=260, over=263, wrote="won on turn 263")]
+        g, row, files = self.checked(polls, read(turn=263, winner=1, victory="VICTORY_SPACE_RACE"))
+        self.assertEqual(row["checkpoints"], [{"turn": 250, "save": "save--built-in-ai-seed0-t250"},
+                                              {"turn": 260, "save": "save--built-in-ai-seed0-t260"}])
+        self.assertEqual((row["end_reason"], row["game_over_save"], row["game_over_save_turn"]),
+                         ("game_won", "save--built-in-ai-seed0-game-over", 263))
+        self.assertEqual(files, {"save--built-in-ai-seed0-t250": "turn 250", "save--built-in-ai-seed0-t260": "turn 260",
+                                 "save--built-in-ai-seed0-game-over": "won on turn 263"})
+        handler = next(s for s in g.sent if "c.hooked" in s)
+        self.assertIn("c.every, c.seat, c.after, c.saved, c.over, c.error = 10, 0, 242, -1, -1", handler)
+        self.assertLess(g.sent.index(handler), next(i for i, s in enumerate(g.sent) if "SetAIAutoPlay(10, 0)" in s),
+                        "the handler is in the game before the engine has the seat")
+        self.assertEqual(g.sent[-1], benchmark_run.CHECKPOINT_OFF, "the handler was left saving in the game")
+        json.dumps(row)
+
+    def test_a_win_the_handler_has_not_seen_is_saved_by_the_runners_own_call(self):
+        g, row, files = self.checked([poll(247, 995), poll(248, 994, winner=1)], read(turn=248, winner=1))
+        self.assertIn(benchmark_run.SAVE_NOW, g.sent)
+        self.assertEqual((row["checkpoints"], row["game_over_save_turn"]), ([], 248))
+        self.assertEqual(files, {"save--built-in-ai-seed0-game-over": "asked at the end"})
+
+    def test_a_save_that_did_not_come_is_said_and_the_run_goes_on(self):
+        polls = [dict(poll(250, 992), saved=250), poll(251, 0)]      # the game says saved, the quick slot holds no file
+        _, row, files = self.checked(polls, read(turn=251))
+        self.assertEqual((row["end_reason"], row["checkpoints"], files), ("all_turns_played", [{"turn": 250, "save": None}], {}))
+
+    def test_a_run_with_no_saves_asked_sends_the_game_no_handler(self):
+        g = FakeGame([read(), read(turn=252)], polls=[poll(252, 0)])
+        row = run(g)
+        self.assertFalse(any("BenchmarkCheckpoint = c" in s for s in g.sent))
+        self.assertNotIn("checkpoints", row)
 
 
 class APlayersRun(unittest.TestCase):

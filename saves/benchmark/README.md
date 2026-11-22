@@ -10,6 +10,7 @@ written by `scripts/benchmark_save.py`, which reads the save back from the game 
 | `board-duel-prince-d-t100` | middle | 100 | the same game | cut 2026-11-22: the built-in AI played 100 turns on seed 0 | not measured |
 | `board-duel-prince-d-t200` | late | 200 | the same game | cut 2026-11-22: the built-in AI played 200 turns on seed 0 | not measured |
 | `board-duel-prince-e` | opening | 0 | Siam against the Shoshone, Duel, Pangaea | hosted 2026-11-22 by `--host` | not measured |
+| `small-king-venice-a` | opening | 0 | Venice against the Zulus, Russia, Germany, Korea and Morocco, Small, Continents, 12 city-states, King | hosted 2026-11-22 by `--host` | not measured |
 
 Only the first has the built-in AI's study behind it (its share of AI finishes won; `docs/BENCHMARK.md`). A save
 with `"baseline": null` in its manifest has none. How a player's runs on these saves are scored is in

@@ -16,6 +16,18 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The benchmark moves to King, and the built-in AI's game can be saved while it plays (2026-11-22, the user's
+  decision).** New starting saves are hosted at King. The first is `small-king-venice-a`: Venice against the Zulus,
+  Russia, Germany, Korea and Morocco on a Small Continents map with 12 city-states, Quick speed, the seat on the
+  row every AI plays on and no Time victory (`saves/benchmark/`). `benchmark_run.py --checkpoint N` saves the game
+  on every game turn that is a multiple of N while the engine plays the seat, and once when the game is won or the
+  seat is dead, as `<save>--built-in-ai-seed<n>-t<turn>` and `...-game-over`: a handler inside the game asks for the
+  quick save and the runner copies the file, so the engine is not interrupted (seen live on the Prince duel and on
+  the new save). Such a save holds the seat's turn played and is not a starting save: loaded in the game it opens
+  on the observer's slot and the engine plays on. `start_single_player(world_size=...)` now sets the city-states to
+  the size's own number, as the setup screen's size picker does; a Small map hosted after a Duel had kept the
+  Duel's 4. Its reply and a hosted manifest's `setup_screen` say the number. Four tests.
+
 - **How a player is scored: by the project, from its recording, by a method that is not published (2026-11-22,
   the user's decisions; docs and wording only).** The benchmark is named OMTbench ("one more turn"). A run leaves
   a recording: the run's row, the seat's calls, and the saved game at the end of the turns, which holds the whole

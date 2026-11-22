@@ -81,7 +81,11 @@ class FrontEndMixin:
             raise TunerdError(f"expected one visible GameSetupScreen, found {len(shown)}")
         setup = shown[0]
         if world_size:      # first: a new world size sets the slots again, and with them the civilization
-            c.exec(setup, f"PreGame.SetWorldSize(GameInfo.Worlds[{lua_str(world_size)}].ID); PreGame.SetRandomWorldSize(false)")
+            # The city-states follow the size, as the screen's own size picker does it (selectmapsize.lua:
+            # SetNumMinorCivs(world.DefaultMinorCivs)). Without it a Small map hosted after a Duel kept the Duel's 4
+            # city-states where the size has 12 (live 2026-11-22).
+            c.exec(setup, f"local w = GameInfo.Worlds[{lua_str(world_size)}]; PreGame.SetWorldSize(w.ID); "
+                          f"PreGame.SetRandomWorldSize(false); PreGame.SetNumMinorCivs(w.DefaultMinorCivs)")
         if map_script:
             want = map_script.lower().removesuffix(".lua") + ".lua"
             got = c.exec(setup, f"""
@@ -108,8 +112,8 @@ class FrontEndMixin:
             local ms = PreGame.IsRandomMapScript() and "random" or PreGame.GetMapScript()
             local ws = PreGame.IsRandomWorldSize() and "random" or GameInfo.Worlds[PreGame.GetWorldSize()].Type
             print(PreGame.GetCivilization(0), GameInfo.HandicapInfos[PreGame.GetHandicap(0)].Type, ms, ws,
-                  GameInfo.GameSpeeds[PreGame.GetGameSpeed()].Type, table.concat(v, ","))""")
-        keys = ("civilization_id", "handicap", "map_script", "world_size", "game_speed", "victories")
+                  GameInfo.GameSpeeds[PreGame.GetGameSpeed()].Type, table.concat(v, ","), PreGame.GetNumMinorCivs())""")
+        keys = ("civilization_id", "handicap", "map_script", "world_size", "game_speed", "victories", "city_states")
         settings = dict(zip(keys, out[0].split("\t"))) if out else {}
         if start:
             c.exec(setup, "OnStart()", check=False)
