@@ -545,6 +545,9 @@ def capitals_to_take(ts: dict) -> list[dict]:
                 f"held by {c.get('held_by')}) stands at ({c['x']},{c['y']})")
         if c.get("distance_from_my_capital") is not None:
             said += f", {c['distance_from_my_capital']} plots from your capital"
+        if c.get("in_sight"):
+            said += (f"; in your sight now: {c.get('hp')} of {c.get('max_hp')} hit points, strength {c.get('strength')}, "
+                     f"{c.get('units_in_sight_within_2')} of its owner's combat unit(s) within 2 plots")
         said += f"; you are {'at war' if war else 'at peace'} with {c.get('held_by')}"
         if s.get("of") == 2 and isinstance(s.get("mine"), int) and isinstance(s.get("best"), int) and isinstance(s.get("lowest"), int):
             theirs = s["lowest"] if s.get("rank") == 1 else s["best"]

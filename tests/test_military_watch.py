@@ -632,6 +632,13 @@ class CapitalToTakeTests(unittest.TestCase):
         self.assertIn("you are at war with The Huns. Soldiers on the Demographics screen: yours 25377, theirs 73946", r["detail"])
         self.assertEqual(len(r["actions"]), 1, "no declare-war read for a war already on")
 
+    def test_a_capital_in_sight_says_what_its_banner_shows(self):
+        seen = {**self.ONLY, "capitals": [{**self.ONLY["capitals"][0], "in_sight": True, "hp": 300, "max_hp": 300, "strength": 61,
+                                           "units_in_sight_within_2": 2}]}
+        (r,) = self.rows(only_victory=seen)
+        self.assertIn("in your sight now: 300 of 300 hit points, strength 61, 2 of its owner's combat unit(s) within 2 plots; you are at peace",
+                      r["detail"])
+
     def test_no_row_without_the_one_victory_for_a_capital_i_hold_or_one_i_have_not_found(self):
         self.assertEqual(self.rows(), [])
         held = {**self.ONLY, "capitals": [{"city": "Attila's Court", "civ": "The Huns", "held_by": "you"}]}
@@ -667,6 +674,23 @@ class VictoriesAllowedLuaTests(unittest.TestCase):
         end
         local o = H.only_victory(0)
         assert(o.victory == 'DOMINATION' and #o.capitals == 1 and o.wins:find('original capital', 1, true), H.json(o))
+        assert(o.capitals[1].in_sight == nil and o.capitals[1].hp == nil, 'a capital I do not see has no banner: ' .. H.json(o))
+        SEEN = false
+        local huns = { Units = function() local k = 0; local us = { { IsCombatUnit = function() return true end, IsDelayedDeath = function() return false end,
+                                                                     IsInvisible = function() return false end, GetX = function() return 14 end, GetY = function() return 11 end,
+                                                                     GetPlot = function() return { IsVisible = function() return true end } end } }
+                                 return function() k = k + 1; return us[k] end end }
+        Players[0].GetTeam = function() return 0 end
+        Players[1] = huns
+        Map.GetPlot = function(x, y)
+          return { IsVisible = function() return SEEN end,
+                   GetPlotCity = function() return { GetMaxHitPoints = function() return 300 end, GetDamage = function() return 40 end,
+                                                     GetStrengthValue = function() return 6149 end, GetOwner = function() return 1 end } end }
+        end
+        SEEN = true
+        local c2 = H.only_victory(0).capitals[1]
+        assert(c2.in_sight == true and c2.hp == 260 and c2.max_hp == 300 and c2.strength == 61 and c2.units_in_sight_within_2 == 1, H.json(c2))
+        SEEN = false
         local c = o.capitals[1]
         assert(c.city == "Attila's Court" and c.civ == 'The Huns' and c.held_by == 'The Huns' and c.x == 13 and c.y == 11
                and c.distance_from_my_capital == 13, H.json(o))

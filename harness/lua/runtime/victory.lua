@@ -277,9 +277,29 @@ function H.only_victory(pid)
   local out = { victory = "DOMINATION", wins = "the last player holding their own original capital", capitals = {} }
   for _, row in ipairs(H.domination_capitals(pid)) do
     if not row.controlled_by_us then
-      out.capitals[#out.capitals + 1] = { city = row.city, civ = row.civ, held_by = row.owner_civ, x = row.x, y = row.y,
-                                          player_id = type(row.owner) == "number" and row.owner or nil,
-                                          distance_from_my_capital = row.distance_from_my_capital }
+      local c = { city = row.city, civ = row.civ, held_by = row.owner_civ, x = row.x, y = row.y,
+                  player_id = type(row.owner) == "number" and row.owner or nil,
+                  distance_from_my_capital = row.distance_from_my_capital }
+      -- What its banner shows while I see the plot (a unit in sight of it, or a spy in the city): hit points and
+      -- strength now, and its owner's combat units in sight within 2 plots.
+      pcall(function()
+        local team = Players[pid]:GetTeam()
+        local plot = row.x and Map.GetPlot(row.x, row.y)
+        local city = plot and plot:IsVisible(team, false) and plot:GetPlotCity()
+        if city then
+          c.in_sight = true
+          c.hp, c.max_hp = city:GetMaxHitPoints() - city:GetDamage(), city:GetMaxHitPoints()
+          c.strength = math.floor(city:GetStrengthValue() / 100 + 0.5)
+          local n = 0
+          for u in Players[city:GetOwner()]:Units() do
+            local q = u:GetPlot()
+            if u:IsCombatUnit() and not u:IsDelayedDeath() and q and q:IsVisible(team, false) and not u:IsInvisible(team, false)
+               and Map.PlotDistance(row.x, row.y, u:GetX(), u:GetY()) <= 2 then n = n + 1 end
+          end
+          c.units_in_sight_within_2 = n
+        end
+      end)
+      out.capitals[#out.capitals + 1] = c
     elseif row.original_player ~= pid then
       out.capitals[#out.capitals + 1] = { city = row.city, civ = row.civ, held_by = "you" }
     end
