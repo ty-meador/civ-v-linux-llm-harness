@@ -294,6 +294,13 @@ def decisions(ts: dict, cities: list | None) -> list[dict]:
         # v346: a unit of mine with something to attack this moment, fortified or asleep included (military.lua)
         if isinstance(u, dict) and u.get("id") is not None:
             on = u.get("most_damage_on") if isinstance(u.get("most_damage_on"), dict) else {}
+            if u.get("needs_set_up"):
+                out.append({"kind": "unit_attack", "id": u["id"], "unit": u.get("unit"), "ranged": True, "needs_set_up": True,
+                            "in_range": u.get("in_range"),
+                            "actions": [{"tool": "order", "args": {"to": "unit", "action": "mission", "id": u["id"],
+                                                                   "args": {"mission": "MISSION_SET_UP_FOR_RANGED_ATTACK"}}},
+                                        {"tool": "state", "args": {"what": "unit", "id": u["id"], "view": "tactical"}}]})
+                continue
             shot = {"to": "unit", "action": "mission", "id": u["id"],
                     "args": {"mission": "MISSION_RANGE_ATTACK", "x": on.get("x"), "y": on.get("y")}} if u.get("ranged") \
                 else {"to": "unit", "action": "move", "id": u["id"], "args": {"x": on.get("x"), "y": on.get("y")}}

@@ -832,7 +832,11 @@ class UnitsMixin:
         if f.get("out_of_attacks"):
             return "the unit has already attacked this turn"
         if f.get("needs_setup"):
-            return "a siege unit must set up before it fires (MISSION_SETUP_FOR_RANGED_ATTACK), which takes a turn"
+            # Live 2026-11-23 (Opus, the duel t188): the sentence said the set-up "takes a turn" and named a mission
+            # that does not exist; a Cannon with a move left sets up and fires in the same turn.
+            return ("a siege unit must set up before it fires: order(to='unit', action='mission', id, "
+                    "args={mission: 'MISSION_SET_UP_FOR_RANGED_ATTACK'}) costs one move, and with a move left after it "
+                    "the unit fires in the same turn")
         d = f.get("distance")
         if isinstance(d, int) and d > rng:
             return (f"({x},{y}) is {d} plots from the unit at ({f.get('x')},{f.get('y')}) and its range is {rng}: "

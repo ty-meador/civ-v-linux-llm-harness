@@ -213,7 +213,9 @@ game's, not the harness's. The briefing carries the Military and Foreign advisor
 `status.todo.unit_attacks` lists your units that have something to attack this moment, whatever they are doing:
 a unit that sleeps or stands fortified, a garrison too, is in no other list. One row a unit: `ranged`, `targets`
 (how many), and `most_damage_on`, the target its preview gives the most damage on (`deals`, `takes`, the
-target's `hp`). `state(what="unit", id, view="tactical")` lists every target with the odds; a ranged unit fires
+target's `hp`). A siege unit that has not set up strikes nothing yet: its row has `needs_set_up` and `in_range`,
+the enemy units and cities in your sight within its range; `MISSION_SET_UP_FOR_RANGED_ATTACK` costs one move, and
+with a move left the unit fires in the same turn. `state(what="unit", id, view="tactical")` lists every target with the odds; a ranged unit fires
 with `order(to="unit", action="mission", id, args={mission: "MISSION_RANGE_ATTACK", x, y})`, a melee unit attacks
 by moving onto the target's plot. A turn with such a row is not a quiet one (`woke_because` `todo.unit_attacks`),
 and the briefing lists each as a `unit_attack` decision with the call.

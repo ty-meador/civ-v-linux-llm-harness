@@ -257,7 +257,9 @@ function H.todo(pid)
       if more and more > 0 then todo.unit_attacks_more = more end
       todo.unit_attacks_hint = "state(what='unit', id, view='tactical') lists a unit's targets with the odds; a ranged unit " ..
         "fires with order(to='unit', action='mission', id, args={mission='MISSION_RANGE_ATTACK', x, y}), a melee unit " ..
-        "attacks by order(to='unit', action='move', id, args={x, y}) onto the target's plot"
+        "attacks by order(to='unit', action='move', id, args={x, y}) onto the target's plot; a row with needs_set_up is a " ..
+        "siege unit with enemies in range (in_range) that has not set up: args={mission='MISSION_SET_UP_FOR_RANGED_ATTACK'} " ..
+        "costs one move, and with a move left it fires in the same turn"
     end
   end)
   -- Spy-steal can be pending while another blocker is current (live t181: POLICY in front of

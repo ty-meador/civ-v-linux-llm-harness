@@ -316,6 +316,31 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(#rows == 1 and more == 1, H.json(rows))
         """)
 
+    def test_a_siege_unit_that_has_not_set_up_is_listed_with_what_is_in_its_range(self):
+        self.run_lua("""
+        UNITS[6] = { ID = 6, Type = 'UNIT_CANNON', Combat = 14, RangedCombat = 20, Range = 2 }
+        local cannon = unit(6, 10, 10)
+        cannon.GetID = function() return 9 end; cannon.MovesLeft = function() return 60 end
+        cannon.GetCurrHitPoints = function() return 100 end
+        SET_UP = false
+        cannon.IsMustSetUpToRangedAttack = function() return true end
+        cannon.IsSetUpForRangedAttack = function() return SET_UP end
+        Players[0].units = { cannon }
+        H.ranged_targets = function() return SET_UP and { { x = 12, y = 10, unit = 'PIKEMAN', hp = 100, preview = { expected_damage_dealt = 40, expected_damage_taken = 0 } } } or {} end
+        Map.PlotXYWithRangeCheck = function(x, y, dx, dy, range)
+          return { GetX = function() return x + dx end, GetY = function() return y + dy end }
+        end
+        H.ranged_target_info = function(u, q) if q:GetX() == 12 and q:GetY() == 10 then return { unit = 'PIKEMAN' } end return {} end
+        local rows = H.unit_attacks(0)
+        assert(#rows == 1 and rows[1].id == 9 and rows[1].needs_set_up == true and rows[1].in_range == 1 and rows[1].targets == nil, H.json(rows))
+        SET_UP = true
+        rows = H.unit_attacks(0)
+        assert(#rows == 1 and rows[1].needs_set_up == nil and rows[1].targets == 1 and rows[1].most_damage_on.deals == 40, H.json(rows))
+        SET_UP = false
+        H.ranged_target_info = function() return {} end
+        assert(#H.unit_attacks(0) == 0, 'nothing in range, nothing listed')
+        """)
+
     def test_a_seat_with_no_city_has_its_soldiers_row_and_nothing_else(self):
         self.run_lua("""
         Players[0].cities = {}
@@ -438,6 +463,11 @@ class UnitAttackTests(unittest.TestCase):
                          "args": {"mission": "MISSION_RANGE_ATTACK", "x": 56, "y": 31}}})
         self.assertEqual(rows[1]["actions"][1], {"tool": "order", "args": {"to": "unit", "action": "move", "id": 7,
                          "args": {"x": 58, "y": 32}}})
+        ts["todo"]["unit_attacks"] = [{"id": 9, "unit": "CANNON", "ranged": True, "needs_set_up": True, "in_range": 2}]
+        (row,) = [d for d in decisions(ts, []) if d["kind"] == "unit_attack"]
+        self.assertEqual(row["actions"][0], {"tool": "order", "args": {"to": "unit", "action": "mission", "id": 9,
+                         "args": {"mission": "MISSION_SET_UP_FOR_RANGED_ATTACK"}}})
+        self.assertEqual((row["needs_set_up"], row["in_range"]), (True, 2))
         self.assertEqual([d["kind"] for d in decisions(ts, []) if d["kind"].startswith("unit_attacks")], [],
                          "the hint and the list are not decisions of their own")
 

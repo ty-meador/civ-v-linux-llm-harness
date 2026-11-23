@@ -16,6 +16,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A siege unit that has not set up is said so, and the refusal no longer says the set-up takes a turn
+  (2026-11-23; runtime v346).** From Opus 5.5's report of its siege of Attila's Court (turn 188 of the duel): the
+  refused shot read "a siege unit must set up before it fires (MISSION_SETUP_FOR_RANGED_ATTACK), which takes a
+  turn", a mission name that does not exist and a cost that is wrong (one move; a Cannon with a move left fires in
+  the same turn), and nothing listed a Cannon that had enemies in range and had not set up. The refusal names
+  `MISSION_SET_UP_FOR_RANGED_ATTACK` and its cost, and `todo.unit_attacks` lists such a unit with `needs_set_up`
+  and `in_range` (the enemy units and cities in sight within its range); the briefing's `unit_attack` row carries
+  the set-up order. Two tests.
 - **An attack the game's Military Advisor asks about no longer stops the game (2026-11-23; runtime v346).** The
   game raises a confirmation screen before a melee attack at bad odds and before a first attack on a city
   (`advisormodal.lua`, `BUTTONPOPUP_ADVISOR_MODAL`: "We may want to reconsider this attack; you will do marginal

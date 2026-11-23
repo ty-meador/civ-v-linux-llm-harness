@@ -345,7 +345,28 @@ function H.unit_attacks(pid)
     if u:IsCombatUnit() and not u:IsDelayedDeath() and u:MovesLeft() > 0 then
       local ranged = H.ranged_strength(u) > 0
       local ok, targets = pcall(ranged and H.ranged_targets or H.melee_targets, u, pid)
-      if ok and type(targets) == "table" and #targets > 0 then
+      -- A siege unit that has not set up strikes nothing yet and was in no list: the enemy units and cities in my
+      -- sight within its range are counted for it (the line of fire is the engine's to say once it is set up).
+      -- Live 2026-11-23, Opus's siege of Attila's Court: "A 'can this cannon fire this turn' flag in unit rows".
+      local in_range = 0
+      if ranged and ok and type(targets) == "table" and #targets == 0 then
+        pcall(function()
+          if not (u:IsMustSetUpToRangedAttack() and not u:IsSetUpForRangedAttack()) then return end
+          local row = GameInfo.Units[u:GetUnitType()]
+          local range = row and row.Range or 0
+          for dx = -range, range do for dy = -range, range do
+            local q = Map.PlotXYWithRangeCheck(u:GetX(), u:GetY(), dx, dy, range)
+            if q and (q:GetX() ~= u:GetX() or q:GetY() ~= u:GetY()) and next(H.ranged_target_info(u, q, pid)) ~= nil then
+              in_range = in_range + 1
+            end
+          end end
+        end)
+      end
+      if in_range > 0 then
+        local row = { id = u:GetID(), unit = short(info_type(GameInfo.Units, u:GetUnitType())), x = u:GetX(), y = u:GetY(),
+                      hp = u:GetCurrHitPoints(), ranged = true, needs_set_up = true, in_range = in_range }
+        if #rows < H.MILITARY_ATTACKS_SHOWN then rows[#rows + 1] = row else more = more + 1 end
+      elseif ok and type(targets) == "table" and #targets > 0 then
         local best, most
         for _, t in ipairs(targets) do
           local dealt = type(t.preview) == "table" and t.preview.expected_damage_dealt or 0
