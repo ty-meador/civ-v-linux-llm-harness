@@ -266,16 +266,19 @@ def disband_unit(unit_id: int) -> str:
 
 @retired
 @guarded
-def move_unit(unit_id: int, x: int, y: int, then: str | None = None) -> str:
+def move_unit(unit_id: int, x: int, y: int, then: str | None = None, confirm: bool = False) -> str:
     """Order one of my units to move to plot (x, y) (multi-turn paths allowed, like a right-click).
     Selects the unit like the unit panel does (orders go through the game's network path).
     A unit on a conditional order (give_order) is taken back: the order pauses (`order_paused`).
     then="fortify" | "sleep" | "alert" | "hold": hold once there -- this turn when it arrives with moves left,
-    else the turn it arrives (#105: "go there and hold" is one order, and the unit does not block the finish)."""
+    else the turn it arrives (#105: "go there and hold" is one order, and the unit does not block the finish).
+    confirm=true: make an attack the game's Military Advisor asked about (a melee attack at bad odds, a first
+    attack on a city: the order is refused with the advisor's sentence, and this repeats it as the screen's own
+    Attack button does)."""
     g = core.game()
     # fakes keep the three-argument shape
-    return J(_took_back(g, unit_id, "move_unit",
-                        lambda: g.move_unit(unit_id, x, y, then=then) if then else g.move_unit(unit_id, x, y)))
+    more = {**({"then": then} if then else {}), **({"confirm": True} if confirm else {})}
+    return J(_took_back(g, unit_id, "move_unit", lambda: g.move_unit(unit_id, x, y, **more)))
 
 
 def _took_back(g, unit_id: int, tool: str, command) -> dict:

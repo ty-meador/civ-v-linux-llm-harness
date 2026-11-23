@@ -97,17 +97,19 @@ class UnitsMixin:
     HOLDS = ("fortify", "sleep", "alert", "hold")
 
     def move_unit(self, unit_id: int, x: int, y: int, pid: int | None = None, settle_timeout: float = 1.0,
-                  then: str | None = None) -> dict:
+                  then: str | None = None, confirm: bool = False) -> dict:
         """move-to; when a visible enemy stands on the destination the move is a melee attack, and the
         result carries `attack`: both sides' hp before/after and who died (the unit's x/y do not change
         on an attack unless it kills and advances, so a bare move result read like nothing happened --
         live 2026-09-18). `then` (GitLab #105): fortify / sleep / alert / hold once there -- this turn when the
         unit arrives with moves left, else the turn it arrives (or the next turn start when it arrived with none):
-        one order for "go there and hold", and the unit does not block the finish on arrival."""
+        one order for "go there and hold", and the unit does not block the finish on arrival. `confirm`: the
+        attack the game's Military Advisor asked about is made anyway (see _with_attack_result)."""
         if then is not None and then not in self.HOLDS:
             return {"ok": False, "err": f"then must be one of {list(self.HOLDS)}, not {then!r}"}
         r = self._with_attack_result(
-            unit_id, x, y, lambda: self._move_unit(unit_id, x, y, pid, settle_timeout), pid)
+            unit_id, x, y, lambda: self._move_unit(unit_id, x, y, pid, settle_timeout), pid,
+            **({"confirm": True} if confirm else {}))
         r = self._refusal_names_successor(r, unit_id, pid)   # #169: a retry to an id the ruins replaced
         if then is None or not isinstance(r, dict) or not r.get("ok") or r.get("attack"):
             return r
@@ -229,7 +231,30 @@ class UnitsMixin:
         if happened:
             r["happened"] = happened
 
-    def _with_attack_result(self, unit_id: int, x: int, y: int, act, pid: int | None = None) -> dict:
+    def _advisor_stopped(self, r: dict, x: int, y: int, pid: int | None) -> dict | None:
+        """The refusal for an attack the game's own Military Advisor stopped (runtime v346, H.advisor_modal): the
+        confirmation screen is read and cancelled, as its Cancel button does, and its sentence rides on the reply
+        with the call that attacks anyway. None when the screen is not up. Live 2026-11-23, the duel t106: a
+        Warrior ordered onto a Pikeman left the screen up and nothing could clear it; every later order and the
+        end of the turn were refused and three instances in a row gave the turn up."""
+        try:
+            modal = self.q(self.h("advisor_modal", True, pid=pid))
+        except TunerdError:
+            return None
+        if not isinstance(modal, dict) or not modal.get("up"):
+            return None
+        said = modal.get("text") or "it asks whether to attack anyway"
+        out = {"ok": False, "x": x, "y": y, "advisor": said, "advisor_screen_closed": bool(modal.get("closed")),
+               "err": (f"the game's Military Advisor stopped this attack and asks for a confirmation: {said} The attack "
+                       "was not made and the unit keeps its moves; the same order with args.confirm=true attacks anyway "
+                       "(the screen's own Attack button)")}
+        for k in ("moves", "hp"):
+            if isinstance(r, dict) and r.get(k) is not None:
+                out[k] = r[k]
+        return out
+
+    def _with_attack_result(self, unit_id: int, x: int, y: int, act, pid: int | None = None,
+                            confirm: bool = False) -> dict:
         """Run `act()` and, when a visible enemy stands on (x, y), attach `attack`: both sides' hp
         before/after and who died.
 
@@ -261,7 +286,21 @@ class UnitsMixin:
                 seq0 = self.q(self.h("event_seq_now"))
             except TunerdError:
                 seq0 = None
-        r = act()
+        attack = isinstance(pre, dict) and bool(pre.get("attack")) and not air
+        if attack and confirm:
+            self.q(self.h("combat_warned", True, pid=pid))   # the screen's Attack anyway button, for this one order
+        try:
+            r = act()
+        finally:
+            if attack and confirm:
+                try:
+                    self.q(self.h("combat_warned", False, pid=pid))
+                except TunerdError:
+                    pass
+        if attack and isinstance(r, dict) and not r.get("ok"):
+            stopped = self._advisor_stopped(r, x, y, pid)
+            if stopped:
+                return stopped
         if seq0 is not None and isinstance(r, dict) and r.get("ok"):
             self._attach_move_events(r, seq0, pid)
         if isinstance(pre, dict) and pre.get("attack") and not pre.get("city") and not air and not r.get("ok") \

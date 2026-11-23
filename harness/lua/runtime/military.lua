@@ -368,3 +368,29 @@ function H.unit_attacks(pid)
   end)
   return rows, more
 end
+
+-- The game's own confirmation before an attack it thinks badly of (advisormodal.lua, BUTTONPOPUP_ADVISOR_MODAL):
+-- "We may want to reconsider this attack; you will do marginal damage to your opponent and they will do
+-- considerable damage to you", with Attack anyway and Cancel, raised for a melee attack at bad odds and for a
+-- first attack on a city. Nothing in the harness answered it: live 2026-11-23, the duel t106, a Warrior ordered
+-- onto a Pikeman left the screen up, every later order and the end of the turn were refused, and three instances
+-- in a row gave up on the turn. `close` cancels it, as the Cancel button does (the unit keeps its moves).
+function H.advisor_modal(close, pid)
+  local out = { up = false }
+  local ok, ctx = pcall(function() return ContextPtr:LookUpControl("/InGame/AdvisorModal") end)
+  if not ok or not ctx or ctx:IsHidden() then return out end
+  out.up = true
+  pcall(function() out.text = plain_text(ContextPtr:LookUpControl("/InGame/AdvisorModal/DescriptionLabel"):GetText()) end)
+  pcall(function() out.title = plain_text(ContextPtr:LookUpControl("/InGame/AdvisorModal/TitleLabel"):GetText()) end)
+  if close then
+    out.closed = pcall(function() UIManager:DequeuePopup(ctx) end)
+  end
+  return out
+end
+
+-- What the screen's Attack anyway button sets before it repeats the move (Game.SetCombatWarned): the next attack
+-- order is not asked about. Set for one order and cleared after it by the caller.
+function H.combat_warned(on, pid)
+  Game.SetCombatWarned(on and true or false)
+  return { ok = true, warned = on and true or false }
+end

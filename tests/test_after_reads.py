@@ -31,6 +31,8 @@ def _game(answers):
                 return reply(body) if callable(reply) else reply
         if "H.plot_visible(" in body:   # the fog hint on a refused move: a destination is visible unless a test says otherwise
             return True
+        if "H.advisor_modal(" in body:
+            return {"up": False}     # v346: read after a refused attack; no confirmation screen in these games
         raise AssertionError("unexpected query: " + body)
 
     g.q = q
