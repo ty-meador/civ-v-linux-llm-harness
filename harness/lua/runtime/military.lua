@@ -326,3 +326,43 @@ function H.military_watch(pid)
   if #rows > 0 then out.cities = rows end
   return out
 end
+
+-- My units that have something to attack this moment (v346), the way the unit panel lights the attack buttons: a
+-- ranged unit with a plot it can strike (H.ranged_targets), a melee unit with an enemy unit or city beside it
+-- (H.melee_targets). A unit that sleeps or stands fortified is in no other list: live 2026-11-23, Venice t141, the
+-- city fired on every turn of the siege (todo.city_strikes) and the Crossbowman garrisoned in it never did. One row
+-- a unit: how many targets, and the one the preview gives the most damage on, with both sides' figures as the
+-- panel shows them. MILITARY_ATTACKS_SHOWN rows, ranged first; `more` counts the rest.
+H.MILITARY_ATTACKS_SHOWN = 10
+
+function H.unit_attacks(pid)
+  local p = Players[pid]
+  local rows, more = {}, 0
+  for u in p:Units() do
+    if u:IsCombatUnit() and not u:IsDelayedDeath() and u:MovesLeft() > 0 then
+      local ranged = H.ranged_strength(u) > 0
+      local ok, targets = pcall(ranged and H.ranged_targets or H.melee_targets, u, pid)
+      if ok and type(targets) == "table" and #targets > 0 then
+        local best, most
+        for _, t in ipairs(targets) do
+          local dealt = type(t.preview) == "table" and t.preview.expected_damage_dealt or 0
+          if not best or dealt > most then best, most = t, dealt end
+        end
+        local row = { id = u:GetID(), unit = short(info_type(GameInfo.Units, u:GetUnitType())), x = u:GetX(), y = u:GetY(),
+                      hp = u:GetCurrHitPoints(), ranged = ranged, targets = #targets }
+        local strongest = { x = best.x, y = best.y, hp = best.hp }
+        if best.city then strongest.city = best.city else strongest.unit = best.unit end
+        if type(best.preview) == "table" then
+          strongest.deals, strongest.takes = best.preview.expected_damage_dealt, best.preview.expected_damage_taken
+        end
+        row.most_damage_on = strongest
+        if #rows < H.MILITARY_ATTACKS_SHOWN then rows[#rows + 1] = row else more = more + 1 end
+      end
+    end
+  end
+  table.sort(rows, function(a, b)
+    if a.ranged ~= b.ranged then return a.ranged end
+    return a.id < b.id
+  end)
+  return rows, more
+end

@@ -983,7 +983,8 @@ class TurnMixin:
             # `stacked` is a warning (two of my combat units share a plot; the engine lets the turn end), not a
             # decision: the unit that needs orders is in todo.units already (Codex c41, 2026-09-27: a quiet run
             # woke on "todo.stacked" alone, for a stack its own note called non-blocking).
-            if v and k not in ("steal_tech_hint", "ongoing", "ongoing_note", "automated", "stacked"):
+            if v and k not in ("steal_tech_hint", "ongoing", "ongoing_note", "automated", "stacked",
+                               "unit_attacks_hint", "unit_attacks_more"):
                 reasons.append(f"todo.{k}")
         # #37: an ongoing unit (automated, or on a standing move) is not a decision; it wakes the run only
         # when the runtime attached `attention` -- a visible camp or hostile beside it, or a destination it

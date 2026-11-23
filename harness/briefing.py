@@ -290,6 +290,17 @@ def decisions(ts: dict, cities: list | None) -> list[dict]:
             out.append({"kind": "city_strike", "id": c["id"], "name": c.get("name"), "targets": c.get("targets"),
                         "tool": "state(what='city', view='strikes') then order(to='city', action='strike')",
                         "actions": [R.act("available_city_strikes", city_id=c["id"]), R.pick("city_ranged_attack", ["x", "y"], city_id=c["id"])]})
+    for u in todo.get("unit_attacks") or []:
+        # v346: a unit of mine with something to attack this moment, fortified or asleep included (military.lua)
+        if isinstance(u, dict) and u.get("id") is not None:
+            on = u.get("most_damage_on") if isinstance(u.get("most_damage_on"), dict) else {}
+            shot = {"to": "unit", "action": "mission", "id": u["id"],
+                    "args": {"mission": "MISSION_RANGE_ATTACK", "x": on.get("x"), "y": on.get("y")}} if u.get("ranged") \
+                else {"to": "unit", "action": "move", "id": u["id"], "args": {"x": on.get("x"), "y": on.get("y")}}
+            out.append({"kind": "unit_attack", "id": u["id"], "unit": u.get("unit"), "ranged": bool(u.get("ranged")),
+                        "targets": u.get("targets"), "most_damage_on": on,
+                        "actions": [{"tool": "state", "args": {"what": "unit", "id": u["id"], "view": "tactical"}},
+                                    {"tool": "order", "args": shot}]})
     if todo.get("research_unset"):
         row = {"kind": "research", "tool": "state(what='options', view='research') + order(to='empire', action='research')", "actions": A.research()}
         if no_cities:
@@ -322,7 +333,7 @@ def decisions(ts: dict, cities: list | None) -> list[dict]:
     for k, v in todo.items():
         if k in ("units", "promotions", "cities", "research_unset", "incoming_deal", "steal_tech", "ongoing",
                  "ongoing_note", "automated", "steal_tech_hint", "stacked", "policy", "religion", "league_proposal", "starving", "city_strikes",
-                 "dig_choice"):
+                 "dig_choice", "unit_attacks", "unit_attacks_hint", "unit_attacks_more"):
             continue
         if v:
             out.append({"kind": k, "detail": v})

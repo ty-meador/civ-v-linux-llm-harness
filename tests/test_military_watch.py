@@ -11,7 +11,7 @@ import unittest
 
 import test_mcp_safety as support
 from harness import military
-from harness.briefing import build
+from harness.briefing import build, decisions
 from harness.briefing import warnings as briefing_warnings
 from test_finish_turn import QUIET, ScriptedGame, status
 
@@ -286,6 +286,33 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(watch().advisor == nil and H.advisor_counsel(0) == nil)
         """)
 
+    def test_units_with_something_to_attack_are_listed_whatever_they_are_doing(self):
+        self.run_lua("""
+        local function fighter(id, kind, x, y, moves)
+          local u = unit(kind, x, y)
+          u.GetID = function() return id end; u.MovesLeft = function() return moves end
+          u.GetCurrHitPoints = function() return 80 end
+          return u
+        end
+        Players[0].units = { fighter(7, 1, 10, 10, 60), fighter(8, 2, 10, 10, 60), fighter(9, 2, 11, 10, 0), fighter(10, 1, 20, 20, 60) }
+        H.ranged_targets = function(u)
+          return { { x = 12, y = 10, unit = 'ZULU_IMPI', hp = 76, preview = { expected_damage_dealt = 31, expected_damage_taken = 0 } },
+                   { x = 12, y = 11, unit = 'SWORDSMAN', hp = 100, preview = { expected_damage_dealt = 24, expected_damage_taken = 0 } } }
+        end
+        H.melee_targets = function(u)
+          if u:GetID() ~= 7 then return {} end
+          return { { x = 11, y = 11, city = 'Ulundi', hp = 150, preview = { expected_damage_dealt = 12, expected_damage_taken = 40 } } }
+        end
+        local rows, more = H.unit_attacks(0)
+        assert(#rows == 2 and more == 0, 'no moves, no attack; nothing beside it, no attack: ' .. H.json(rows))
+        assert(rows[1].id == 8 and rows[1].unit == 'ARCHER' and rows[1].ranged == true and rows[1].targets == 2, H.json(rows))
+        assert(rows[1].most_damage_on.unit == 'ZULU_IMPI' and rows[1].most_damage_on.deals == 31 and rows[1].most_damage_on.x == 12, H.json(rows))
+        assert(rows[2].id == 7 and rows[2].ranged == false and rows[2].most_damage_on.city == 'Ulundi' and rows[2].most_damage_on.takes == 40, H.json(rows))
+        H.MILITARY_ATTACKS_SHOWN = 1
+        rows, more = H.unit_attacks(0)
+        assert(#rows == 1 and more == 1, H.json(rows))
+        """)
+
     def test_a_seat_with_no_city_has_its_soldiers_row_and_nothing_else(self):
         self.run_lua("""
         Players[0].cities = {}
@@ -384,6 +411,32 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(military.as_record(old), old)
         rec = military.record({"turn": 61, "military": mil(rank=3, approach={"Zulus": "HOSTILE"})})
         self.assertEqual(military.wake_reasons(rec, old), [])
+
+
+ATTACK = {"id": 8, "unit": "CROSSBOWMAN", "x": 57, "y": 33, "hp": 100, "ranged": True, "targets": 3,
+          "most_damage_on": {"x": 56, "y": 31, "unit": "ZULU_IMPI", "hp": 76, "deals": 31, "takes": 0}}
+
+
+class UnitAttackTests(unittest.TestCase):
+    def test_a_unit_that_can_attack_is_no_quiet_turn_and_its_hint_alone_is(self):
+        todo = {"units": [], "cities": [], "promotions": [], "research_unset": False, "unit_attacks": [ATTACK],
+                "unit_attacks_hint": "state(what='unit', id, view='tactical') ..."}
+        g = ScriptedGame([(status(2, todo=todo), QUIET), (status(3), QUIET)])
+        r = g.finish_turn(skip_quiet_turns=9)
+        self.assertEqual((r["turn"], r["turns_skipped"], r["woke_because"]), (2, 0, ["todo.unit_attacks"]))
+
+    def test_the_briefing_lists_it_as_a_decision_with_the_shot(self):
+        melee = {"id": 7, "unit": "SWORDSMAN", "ranged": False, "targets": 1, "most_damage_on": {"x": 58, "y": 32, "unit": "ZULU_IMPI"}}
+        ts = {"turn": 141, "todo": {"units": [], "cities": [], "unit_attacks": [ATTACK, melee], "unit_attacks_hint": "h"},
+              "blocking_name": "NO_ENDTURN_BLOCKING_TYPE", "pending_popups": []}
+        rows = [d for d in decisions(ts, []) if d["kind"] == "unit_attack"]
+        self.assertEqual([d["id"] for d in rows], [8, 7])
+        self.assertEqual(rows[0]["actions"][1], {"tool": "order", "args": {"to": "unit", "action": "mission", "id": 8,
+                         "args": {"mission": "MISSION_RANGE_ATTACK", "x": 56, "y": 31}}})
+        self.assertEqual(rows[1]["actions"][1], {"tool": "order", "args": {"to": "unit", "action": "move", "id": 7,
+                         "args": {"x": 58, "y": 32}}})
+        self.assertEqual([d["kind"] for d in decisions(ts, []) if d["kind"].startswith("unit_attacks")], [],
+                         "the hint and the list are not decisions of their own")
 
 
 class QuietRunTests(unittest.TestCase):

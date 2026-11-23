@@ -249,6 +249,17 @@ function H.todo(pid)
       end
     end
   end)
+  -- v346: my units with something to attack this moment (military.lua), fortified and sleeping ones included.
+  pcall(function()
+    local rows, more = H.unit_attacks(pid)
+    if type(rows) == "table" and #rows > 0 then
+      todo.unit_attacks = rows
+      if more and more > 0 then todo.unit_attacks_more = more end
+      todo.unit_attacks_hint = "state(what='unit', id, view='tactical') lists a unit's targets with the odds; a ranged unit " ..
+        "fires with order(to='unit', action='mission', id, args={mission='MISSION_RANGE_ATTACK', x, y}), a melee unit " ..
+        "attacks by order(to='unit', action='move', id, args={x, y}) onto the target's plot"
+    end
+  end)
   -- Spy-steal can be pending while another blocker is current (live t181: POLICY in front of
   -- STEAL_TECH). Surface it the same way empty cities / promotions are listed.
   local ok, steal = pcall(H.steal_tech_options, pid)
