@@ -277,7 +277,9 @@ class MilitaryWatchLuaTests(unittest.TestCase):
           return { [0] = { 'The Zulu Kingdom wields an army that could wipe us off the planet.', 'We are nearly defenseless!' },
                    [1] = { 'Unit maintenance costs us 9 [ICON_GOLD] a turn.' }, [2] = {}, [3] = {} }
         end
-        assert(watch().advisor == 'The Zulu Kingdom wields an army that could wipe us off the planet.', H.json(watch()))
+        local said = watch().advisor
+        assert(#said == 2 and said[1] == 'The Zulu Kingdom wields an army that could wipe us off the planet.'
+               and said[2] == 'We are nearly defenseless!', H.json(watch()))
         local c = H.advisor_counsel(0)
         assert(#c.military == 2 and c.foreign == nil and c.science == nil, H.json(c))
         assert(c.economic[1] == 'Unit maintenance costs us 9 Gold a turn.' or c.economic[1]:find('9', 1, true), H.json(c))
@@ -473,6 +475,10 @@ class BriefingWarningTests(unittest.TestCase):
         self.assertEqual((w["mine"], w["rank"], w["of"], w["best"], w["combat_units"]), (4000, 6, 6, 24000, 3))
         self.assertIn("yours 4000, rank 6 of 6; the highest is The Zulus's 24000, 6.0 times yours", w["note"])
         self.assertIn("You have 3 combat unit(s)", w["note"])
+
+    def test_the_lower_of_two_armies_of_a_size_is_no_warning(self):
+        self.assertEqual(self.rows(mil(rank=2, of=2, mine=17436, best=17889, best_civ=None), "military_standing"), [])
+        self.assertEqual(len(self.rows(mil(rank=2, of=2, mine=10000, best=15000), "military_standing")), 1)
 
     def test_a_middling_figure_is_no_warning_and_one_far_behind_the_highest_is(self):
         self.assertEqual(self.rows(mil(rank=3, mine=20000), "military_standing"), [])

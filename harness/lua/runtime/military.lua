@@ -26,11 +26,13 @@ local info_type, plain_text, short = H._ns.info_type, H._ns.plain_text, H._ns.sh
 --   upgrades: my combat units whose Upgrade button the unit panel shows (the target can be trained): `ready` the
 --           ones it would upgrade this moment, with the price; `waiting` the ones it greys, with the panel's
 --           reasons (gold, territory, resources and which, stacking, moved).
---   advisor: the first line the game's own Military Advisor gives on the Advisor Counsel screen this turn (the
---           game orders its counsel by weight). Live 2026-11-23, Venice t108, five units and the lowest Soldiers
---           figure for sixty turns: "The Zulu Kingdom wields an army that could wipe us off the planet. Do
---           everything we can to remain at peace with them and build military as fast as possible to make our
---           situation less perilous." The game says this to a human; the seat had never been shown it.
+--   advisor: what the game's own Military Advisor says on the Advisor Counsel screen this turn, every line, in
+--           the screen's order. Live 2026-11-23, Venice t108, five units and the lowest Soldiers figure for sixty
+--           turns: "The Zulu Kingdom wields an army that could wipe us off the planet. Do everything we can to
+--           remain at peace with them and build military as fast as possible to make our situation less
+--           perilous." The game says this to a human; the seat had never been shown it. All of them, not the
+--           first: on turn 40 of the duel the first was a research suggestion and the second "We are nearly
+--           defenseless! We need to train more units!".
 H.MILITARY_NEAR, H.MILITARY_CLOSE, H.MILITARY_PEACE_MIN, H.MILITARY_UPGRADES_SHOWN = 5, 3, 3, 8
 
 -- The Advisor Counsel screen (advisorcounselpopup.lua: Game.GetAdvisorCounsel(), a list of sentences an advisor,
@@ -197,7 +199,7 @@ function H.military_watch(pid)
   pcall(function() out.upgrades = H.upgrades_waiting(pid) end)
   pcall(function()
     local counsel = H.advisor_counsel(pid)
-    if counsel and counsel.military then out.advisor = counsel.military[1] end
+    if counsel and counsel.military then out.advisor = counsel.military end
   end)
   if #cities == 0 then return out end
   local function nearest_city(x, y)

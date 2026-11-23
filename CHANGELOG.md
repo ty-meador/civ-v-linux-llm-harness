@@ -45,7 +45,7 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   plots of Ravenna, both threatened cities listed with their garrison.
   The Soldiers row alone changed little: on `small-king-venice-a` Sonnet built two more Warriors and an Archer by
   turn 40 and then held five units to turn 128 while the highest figure tripled. Three more pieces went in while
-  that game played (a changed runtime is installed at the next call): `military.advisor`, the first line of the
+  that game played (a changed runtime is installed at the next call): `military.advisor`, the lines of the
   game's own Military Advisor on the Advisor Counsel screen (`Game.GetAdvisorCounsel`; read on turn 108 of that
   game: "The Zulu Kingdom wields an army that could wipe us off the planet. Do everything we can to remain at
   peace with them and build military as fast as possible", "We are nearly defenseless! We need to train more
@@ -57,7 +57,7 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   the one its preview gives the most damage on; the briefing lists each as a `unit_attack` decision. In the
   instance that first saw the advisor's line and the upgrade offers (turn 130) Sonnet upgraded its three Warriors
   and its Archer and bought Walls; Shaka declared war on turn 138, and Venice, destroyed on turn 95 in the game
-  before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196). 48 tests.
+  before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196) and was alive when Korea won the game by Science on turn 322. 44 tests.
 - **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
   `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
   `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:

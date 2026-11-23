@@ -205,9 +205,9 @@ that you see now and have a combat unit within 5 plots of: `x`, `y`, `hp` of `ma
 your units within 3 plots (`my_units_close`) and its owner's in sight there (`enemy_units_close`). `upgrades`
 lists your combat units whose Upgrade button the unit panel shows: `ready` the ones it would upgrade this moment
 with the price (`order(to="unit", action="upgrade", id)`), `waiting` the ones it greys with the panel's reasons
-(`gold`, `territory`, `resources:<NAME>`, `stacking`, `moved`). `advisor` is the first line the game's own
-Military Advisor gives on the Advisor Counsel screen this turn; the game orders its counsel by weight, and the
-words are the game's, not the harness's. The briefing carries the Military and Foreign advisors' whole counsel as
+(`gold`, `territory`, `resources:<NAME>`, `stacking`, `moved`). `advisor` is what the game's own Military
+Advisor says on the Advisor Counsel screen this turn, every line in the screen's order; the words are the
+game's, not the harness's. The briefing carries the Military and Foreign advisors' whole counsel as
 `advisors`. Only units you can see are counted and nothing is estimated.
 
 `status.todo.unit_attacks` lists your units that have something to attack this moment, whatever they are doing:
@@ -222,7 +222,7 @@ sight there (`enemy_forces_near:<civ>:<units>`), when a city is first listed (`c
 hit points (`city_damaged:<name>:<was>-><now>`), when your Soldiers figure becomes the lowest with the highest
 half again yours (`soldiers_rank_lowest`), and when a leader's word turns GUARDED, HOSTILE or WAR
 (`approach_changed:<civ>:<was>-><now>`). The briefing carries the same as `warnings`: `military_standing` (your
-Soldiers figure is the lowest, or the highest is twice yours), `foreign_forces_near`, `enemy_forces_near`,
+Soldiers figure is the lowest with the highest half again yours, or the highest is twice yours), `foreign_forces_near`, `enemy_forces_near`,
 `city_threatened`, `wary_leaders`, `enemy_city_in_reach`. The briefing that carries `civ_rules` also names the
 victories this game can be won by, `victories_allowed`: a game hosted with only Domination on is won by nothing
 else.

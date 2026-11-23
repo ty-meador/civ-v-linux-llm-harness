@@ -90,8 +90,8 @@ def _types(row: dict) -> str:
 
 
 def warnings(ts: dict) -> list[dict]:
-    """The briefing's rows from `status.military`: `military_standing` when my Soldiers figure is the lowest or the
-    highest is FAR_BEHIND times mine, `foreign_forces_near` / `enemy_forces_near` for each army of another
+    """The briefing's rows from `status.military`: `military_standing` when my Soldiers figure is the lowest with the
+    highest half again mine (the margin a quiet run wakes on) or the highest is FAR_BEHIND times mine, `foreign_forces_near` / `enemy_forces_near` for each army of another
     civilization in sight near my cities (the barbarians are the briefing's `threats`), `city_threatened` for each
     city damaged or with hostile units close, `upgrades_ready` when the unit panel offers an upgrade now, `wary_leaders` when the diplomacy list shows a leader as one of WARY,
     `enemy_city_in_reach` for each enemy city in sight near my units. Each row carries the status row and a
@@ -102,7 +102,7 @@ def warnings(ts: dict) -> list[dict]:
     out: list[dict] = []
     s = m.get("soldiers") if isinstance(m.get("soldiers"), dict) else None
     if s and all(isinstance(s.get(k), int) for k in ("mine", "rank", "of", "best", "average")) and s["of"] >= 2 \
-            and s["best"] > s["mine"] and (s["rank"] == s["of"] or s["best"] >= FAR_BEHIND * s["mine"]):
+            and ((s["rank"] == s["of"] and 2 * s["best"] >= 3 * s["mine"]) or s["best"] >= FAR_BEHIND * s["mine"]):
         whose = f"{s['best_civ']}'s" if s.get("best_civ") else "an unmet civilization's"
         times = f", {s['best'] / s['mine']:.1f} times yours" if s["mine"] > 0 else ""
         out.append({"kind": "military_standing", **s, "combat_units": m.get("combat_units"),

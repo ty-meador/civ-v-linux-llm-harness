@@ -738,8 +738,8 @@ def build(ts: dict, summary: dict, cities: list, units: list, board: dict, basel
         # v346: the game's own advisors, as the Advisor Counsel screen has them this turn. The harness adds nothing.
         out["advisors"] = {**{k: v for k, v in counsel.items() if isinstance(v, list) and v},
                            "note": "the game's own Military and Foreign advisors on the Advisor Counsel screen this turn, "
-                                   "each in the game's order; status.military.advisor is the Military Advisor's first "
-                                   "line on every turn"}
+                                   "each in the screen's order; status.military.advisor carries the Military Advisor's "
+                                   "lines on every turn"}
     if include_rules and board.get("traits"):
         out["civ_rules"] = board["traits"]
     if include_rules and isinstance(board.get("victories"), list):
