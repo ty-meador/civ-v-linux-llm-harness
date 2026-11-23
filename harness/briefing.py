@@ -635,6 +635,28 @@ def war_warnings(ts: dict) -> list[dict]:
     return out
 
 
+def only_domination(capitals: list) -> dict:
+    """The briefing's `only_victory` in a game hosted with Domination alone: the Victory Progress screen's capitals
+    (met civilizations; a plot only when revealed) and a sentence that says what the screen shows. A fact of the
+    game's setup, said with the rules; what to do about it is the seat's."""
+    rows = [dict(r) for r in capitals if isinstance(r, dict)]
+    said = []
+    for r in rows:
+        if r.get("controlled_by_us") and r.get("owner_civ") == r.get("civ"):
+            said.append(f"{r.get('city')} (yours, held by you)")
+            continue
+        where = f" at ({r['x']},{r['y']})" if r.get("x") is not None else ", its plot not revealed to you"
+        far = f", {r['distance_from_my_capital']} plots from your capital" if r.get("distance_from_my_capital") is not None else ""
+        holder = "you" if r.get("controlled_by_us") else (r.get("owner_civ") or "a player you have not met")
+        name = r.get("city") or "its capital"
+        said.append(f"{name} ({r.get('civ')}'s, held by {holder}){where}{far}")
+    note = ("Domination is the only victory this game can be won by: it goes to the last player holding their own "
+            "original capital")
+    if said:
+        note += ". The capitals of the players you have met: " + "; ".join(said)
+    return {"victory": "DOMINATION", "capitals": rows, "note": note}
+
+
 #: The prose `tools` map is on its way out: every row carries its calls.
 TOOLS_NOTE = "prose, retired in 2.0.0: each decisions / opportunities row carries `actions` rows for batch(actions=[...])"
 
@@ -745,4 +767,6 @@ def build(ts: dict, summary: dict, cities: list, units: list, board: dict, basel
     if include_rules and isinstance(board.get("victories"), list):
         # v346: with the rules, since it is one: the victories this game can be won by (the Victory Progress screen).
         out["victories_allowed"] = board["victories"]
+        if board["victories"] == ["DOMINATION"] and isinstance(board.get("domination"), list):
+            out["only_victory"] = only_domination(board["domination"])
     return out, snap

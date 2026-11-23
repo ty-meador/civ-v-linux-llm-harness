@@ -211,6 +211,18 @@ function H.briefing_board(pid, since_seq)
       if on then v[#v + 1] = short(row.Type) end
     end
     out.victories = v
+    -- One victory and it is Domination: the Victory Progress screen's capitals (who holds whose, met players only,
+    -- a capital's plot only when revealed), with the distance from my own capital to each one I know the plot of.
+    if #v == 1 and v[1] == "DOMINATION" then
+      local dp = H.domination_progress(pid)
+      local mine = p:GetCapitalCity()
+      for _, row in ipairs(dp.capitals or {}) do
+        if mine and row.x and row.original_player ~= pid then
+          row.distance_from_my_capital = Map.PlotDistance(mine:GetX(), mine:GetY(), row.x, row.y)
+        end
+      end
+      out.domination = dp.capitals
+    end
   end)
   -- v346: what the game's own advisors say this turn (the Advisor Counsel screen), military and foreign.
   pcall(function()

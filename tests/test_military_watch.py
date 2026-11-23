@@ -551,6 +551,21 @@ class VictoriesAllowedTests(unittest.TestCase):
     def test_the_briefing_that_carries_the_rules_names_the_victories_the_game_allows(self):
         self.assertEqual(self.briefing({"victories": ["DOMINATION"]})["victories_allowed"], ["DOMINATION"])
 
+    def test_a_game_only_domination_wins_says_so_with_the_capitals(self):
+        capitals = [{"original_player": 0, "civ": "Rome", "city": "Rome", "owner": 0, "owner_civ": "Rome", "controlled_by_us": True,
+                     "revealed": True, "x": 26, "y": 7, "lost_capital": False},
+                    {"original_player": 1, "civ": "The Huns", "city": "Attila's Court", "owner": 1, "owner_civ": "The Huns",
+                     "controlled_by_us": False, "revealed": True, "x": 30, "y": 19, "distance_from_my_capital": 12, "lost_capital": False}]
+        out = self.briefing({"victories": ["DOMINATION"], "domination": capitals})
+        self.assertEqual(out["only_victory"]["victory"], "DOMINATION")
+        self.assertIn("Domination is the only victory this game can be won by", out["only_victory"]["note"])
+        self.assertIn("Rome (yours, held by you); Attila's Court (The Huns's, held by The Huns) at (30,19), 12 plots from your capital",
+                      out["only_victory"]["note"])
+        hidden = [dict(capitals[1], revealed=False)]
+        del hidden[0]["x"], hidden[0]["y"], hidden[0]["distance_from_my_capital"]
+        self.assertIn("its plot not revealed to you", self.briefing({"victories": ["DOMINATION"], "domination": hidden})["only_victory"]["note"])
+        self.assertNotIn("only_victory", self.briefing({"victories": ["DOMINATION", "CULTURAL"], "domination": capitals}))
+
     def test_the_briefing_carries_what_the_games_advisors_say(self):
         out = self.briefing({"counsel": {"military": ["We are nearly defenseless! We need to train more units!"], "foreign": []}},
                             include_rules=False)

@@ -224,8 +224,10 @@ half again yours (`soldiers_rank_lowest`), and when a leader's word turns GUARDE
 (`approach_changed:<civ>:<was>-><now>`). The briefing carries the same as `warnings`: `military_standing` (your
 Soldiers figure is the lowest with the highest half again yours, or the highest is twice yours), `foreign_forces_near`, `enemy_forces_near`,
 `city_threatened`, `wary_leaders`, `enemy_city_in_reach`. The briefing that carries `civ_rules` also names the
-victories this game can be won by, `victories_allowed`: a game hosted with only Domination on is won by nothing
-else.
+victories this game can be won by, `victories_allowed`. In a game hosted with Domination alone it adds
+`only_victory`: the Victory Progress screen's capitals (each met civilization's original capital, who holds it,
+its plot when revealed and the distance from your own capital) and the sentence that the game goes to the last
+player holding their own original capital.
 
 `status.alerts` is the exception to "quiet means todo is empty": it lists low happiness (2 or below, or an
 unhappy tier) and every revealed strategic resource in deficit, on every status, without blocking anything.

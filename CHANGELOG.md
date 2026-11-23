@@ -57,7 +57,9 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   the one its preview gives the most damage on; the briefing lists each as a `unit_attack` decision. In the
   instance that first saw the advisor's line and the upgrade offers (turn 130) Sonnet upgraded its three Warriors
   and its Archer and bought Walls; Shaka declared war on turn 138, and Venice, destroyed on turn 95 in the game
-  before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196) and was alive when Korea won the game by Science on turn 322. 44 tests.
+  before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196) and was alive when Korea won the game by Science on turn 322. In a game hosted with Domination alone the briefing
+  says so (`only_victory`: the Victory Progress screen's capitals with their plots when revealed, and that the game
+  goes to the last player holding their own original capital). 45 tests.
 - **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
   `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
   `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:
