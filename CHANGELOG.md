@@ -16,6 +16,11 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
+  `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
+  `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:
+  `duel-king-rome-huns-a`, Rome against the Huns on a Duel Pangaea map at King, Quick, with only the Domination
+  victory on (the save is not in the repository). Two tests.
 - **No turn passes unplayed while a rival is close to a victory (2026-11-23, the user's decision; runtime v344).**
   Sonnet's Germany on `small-king-germany-a` had been told in its briefing that America needed one more
   civilization for a Culture victory, and a `skip_quiet_turns=9` run went through the turn the victory landed on

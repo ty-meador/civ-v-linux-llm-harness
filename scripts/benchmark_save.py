@@ -93,11 +93,13 @@ def describe(g, name: str, seat: int | None = None) -> dict:
 
 
 def host(g, name: str, civilization: str, world_size: str, map_script: str | None, speed: str, handicap: str,
-         row: str = "ai", time_victory: str = "off", save_game=run.save_as) -> dict:
+         row: str = "ai", time_victory: str = "off", save_game=run.save_as, opponents: list[str] | None = None,
+         victories: list[str] | None = None) -> dict:
     """A new game from the single-player setup screen, made to carry the terms, saved as `name`. Says what the setup
     screen held when the game started."""
+    more = {k: v for k, v in (("opponents", opponents), ("victories", victories)) if v}
     screen = g.start_single_player(civilization=civilization, handicap=handicap, world_size=world_size,
-                                   map_script=map_script, game_speed=speed, all_victories=True)
+                                   map_script=map_script, game_speed=speed, all_victories=not victories, **more)
     try:
         read = g.q(run.READ)
         seat = run.find_seat(read, None)
@@ -172,6 +174,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--map-script", help="with --host: a script's file name, e.g. pangaea (default: as the screen has it)")
     ap.add_argument("--speed", default="GAMESPEED_QUICK", help="with --host (default GAMESPEED_QUICK)")
     ap.add_argument("--handicap", default="HANDICAP_PRINCE", help="with --host (default HANDICAP_PRINCE)")
+    ap.add_argument("--opponent", action="append", metavar="CIVILIZATION",
+                    help="with --host: the civilization of the next rival slot, a CIVILIZATION_* type (repeat for more; "
+                         "a slot not named gets a random leader)")
+    ap.add_argument("--victories", metavar="TYPES",
+                    help="with --host: only these victories, VICTORY_* types with commas between (default: all, and "
+                         "the terms then switch Time off)")
     ap.add_argument("--save", help="with --cut: the save the built-in AI plays from")
     ap.add_argument("--turns", type=int, help="with --cut: the turns the built-in AI plays")
     ap.add_argument("--seed", type=int, default=0, help="with --cut: the seed it plays them on (default 0)")
@@ -195,7 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         if a.host:
-            origin = host(g, name, a.civ, a.world_size, a.map_script, a.speed, a.handicap)
+            origin = host(g, name, a.civ, a.world_size, a.map_script, a.speed, a.handicap, opponents=a.opponent,
+                          victories=a.victories.split(",") if a.victories else None)
         elif a.cut:
             origin = cut(g, a.save, name, a.turns, a.seed, say=lambda line: print(line, flush=True))
         else:

@@ -165,6 +165,25 @@ class Host(Folders):
                                 "HANDICAP_PRINCE", save_game=lambda *_: self.fail("saved"))
         self.assertEqual(g.left, 1)
 
+    def test_host_names_the_rivals_and_the_only_victories(self):
+        g = FakeGame()
+        benchmark_save.host(g, "duel-war", "CIVILIZATION_ROME", "WORLDSIZE_DUEL", "pangaea", "GAMESPEED_QUICK",
+                            "HANDICAP_KING", save_game=lambda _g, name: name, opponents=["CIVILIZATION_HUNS"],
+                            victories=["VICTORY_DOMINATION"])
+        asked = json.loads(g.sent[0].removeprefix("host "))
+        self.assertEqual(asked["opponents"], ["CIVILIZATION_HUNS"])
+        self.assertEqual(asked["victories"], ["VICTORY_DOMINATION"])
+        self.assertFalse(asked["all_victories"])
+
+    def test_host_without_them_asks_for_every_victory_and_names_no_rival(self):
+        g = FakeGame()
+        benchmark_save.host(g, "board-e", "CIVILIZATION_CELTS", "WORLDSIZE_DUEL", None, "GAMESPEED_QUICK",
+                            "HANDICAP_PRINCE", save_game=lambda _g, name: name)
+        asked = json.loads(g.sent[0].removeprefix("host "))
+        self.assertTrue(asked["all_victories"])
+        self.assertNotIn("opponents", asked)
+        self.assertNotIn("victories", asked)
+
     def test_host_needs_a_civilization(self):
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
             benchmark_save.main(["--host", "board-e"])

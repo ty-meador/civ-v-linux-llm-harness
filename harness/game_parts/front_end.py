@@ -61,14 +61,17 @@ class FrontEndMixin:
 
     def start_single_player(self, civilization: str | None = None, handicap: str | None = None,
                             start: bool = True, world_size: str | None = None, map_script: str | None = None,
-                            game_speed: str | None = None, all_victories: bool = False) -> dict:
+                            game_speed: str | None = None, all_victories: bool = False,
+                            opponents: list[str] | None = None, victories: list[str] | None = None) -> dict:
         """From the main menu: Single Player > Set Up Game > (start). `civilization` is a CIVILIZATION_* type,
         None = random leader (the setup screen's own -1). `handicap` is a HANDICAP_* type. Map, size, pace and
         victory types stay at the persisted "Play Now" settings unless given: `world_size` (WORLDSIZE_*),
         `map_script` (a script's file name without its folder, "pangaea" or "pangaea.lua"; an exact name, since
         "continents" is also in "smallcontinents"), `game_speed` (GAMESPEED_*), `all_victories` (every victory
-        type on). The reply lists what the screen holds when the game starts. The map's random seed is not among
-        it: this build's PreGame has RandomizeMapSeed and no call that reads or sets one."""
+        type on), `victories` (VICTORY_* types: these on and every other off, a duel with only Domination), `opponents`
+        (CIVILIZATION_* types for slots 1, 2, ... in order; a slot not named keeps what the screen holds, a random
+        leader on a fresh setup). The reply lists what the screen holds when the game starts. The map's random seed
+        is not among it: this build's PreGame has RandomizeMapSeed and no call that reads or sets one."""
         c = self.c
         c.exec(c.wait_state("MainMenu", 10), "SinglePlayerClick()", check=False)
         c.exec(c.wait_state("SinglePlayer", 15), "SetupGameClicked()", check=False)
@@ -102,8 +105,29 @@ class FrontEndMixin:
             c.exec(setup, f"PreGame.SetGameSpeed(GameInfo.GameSpeeds[{lua_str(game_speed)}].ID)")
         if all_victories:
             c.exec(setup, "for row in GameInfo.Victories() do PreGame.SetVictory(row.ID, true) end")
+        if victories:
+            want_v = "{" + ", ".join(f"[{lua_str(v)}] = true" for v in victories) + "}"
+            got_v = c.exec(setup, f"""
+                local want, n = {want_v}, 0
+                for row in GameInfo.Victories() do
+                    PreGame.SetVictory(row.ID, want[row.Type] == true)
+                    if want[row.Type] then n = n + 1 end
+                end
+                print(n)""")
+            if not got_v or int(got_v[0]) != len(set(victories)):
+                raise TunerdError(f"victories {victories!r}: the game knows {got_v and got_v[0]} of them")
         civ = f"GameInfo.Civilizations[{lua_str(civilization)}].ID" if civilization else "-1"
         c.exec(setup, f"PreGame.SetCivilization(0, {civ})")
+        for slot, rival in enumerate(opponents or [], start=1):
+            got_o = c.exec(setup, f"""
+                local row = GameInfo.Civilizations[{lua_str(rival)}]
+                if row and PreGame.GetSlotStatus({slot}) == SlotStatus.SS_COMPUTER then
+                    PreGame.SetCivilization({slot}, row.ID)
+                end
+                print(PreGame.GetCivilization({slot}), row and row.ID or -2, PreGame.GetSlotStatus({slot}))""")
+            parts = got_o[0].split("\t") if got_o else []
+            if len(parts) < 2 or parts[0] != parts[1]:
+                raise TunerdError(f"opponent {rival!r} was not set on slot {slot}; the setup screen says {got_o}")
         if handicap:
             c.exec(setup, f"PreGame.SetHandicap(0, GameInfo.HandicapInfos[{lua_str(handicap)}].ID)")
         out = c.exec(setup, """
