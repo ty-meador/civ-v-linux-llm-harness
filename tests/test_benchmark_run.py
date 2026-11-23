@@ -1112,5 +1112,137 @@ class Lua(unittest.TestCase):
                                 f"{name} does not compile")
 
 
+class APlayersSavesOnTheWay(unittest.TestCase):
+    """`--checkpoint N` with a player's command: the seat's own server quick-saves before it ends each turn, and the
+    runner keeps a copy of that file for every game turn that is a multiple of N."""
+
+    def setUp(self):
+        self.dir = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.enterContext(mock.patch.dict(os.environ, {"CIV5_SAVES_DIR": str(self.dir)}))
+        self.quick = self.dir / "quick" / "QuickSave.Civ5Save"
+        self.writes = 0
+
+    def write(self, text):
+        self.writes += 1
+        self.quick.parent.mkdir(parents=True, exist_ok=True)
+        self.quick.write_text(text)
+        os.utime(self.quick, ns=(self.writes * 10 ** 9, self.writes * 10 ** 9))
+
+    def saves(self, every=10, start=242):
+        clock = Clock()
+        return benchmark_run.SavesOnTheWay(every, "save--codex-x-seed0", start,
+                                           copy=lambda name, was: benchmark_run.copy_quick(name, was, sleep=clock.sleep, clock=clock))
+
+    def files(self):
+        return {p.stem: p.read_text() for p in self.dir.glob("*.Civ5Save")}
+
+    def test_the_first_quick_save_written_at_or_past_a_multiple_is_kept_under_it(self):
+        s = self.saves()
+        self.write("turn 248")
+        self.assertIsNone(s.look(249))
+        self.write("turn 249")                       # the seat ends turn 249: its file is of the turn before the multiple
+        self.assertIsNone(s.look(250), "the file that stood when turn 250 was first seen is not turn 250's")
+        self.assertIsNone(s.look(250))
+        self.write("turn 250")
+        self.assertEqual(s.look(250), {"turn": 250, "save": "save--codex-x-seed0-t250", "seen_on_turn": 250})
+        self.write("turn 251")
+        self.assertIsNone(s.look(252))
+        self.assertEqual(self.files(), {"save--codex-x-seed0-t250": "turn 250"})
+        self.assertEqual(s.next, 260)
+
+    def test_a_seat_that_ended_many_turns_between_two_looks_has_one_save_for_them(self):
+        s = self.saves()
+        self.write("turn 249")
+        self.assertIsNone(s.look(263))               # quiet turns skipped: two multiples went by between two looks
+        self.write("turn 263")
+        self.assertEqual(s.look(264), {"turn": 250, "save": "save--codex-x-seed0-t250", "seen_on_turn": 264})
+        self.assertEqual(s.next, 270, "a second file of the same turns for the multiple that went by")
+
+    def test_a_game_with_no_new_quick_save_keeps_nothing(self):
+        s = self.saves()
+        self.write("turn 249")
+        for turn in (250, 251, 252):
+            self.assertIsNone(s.look(turn))
+        self.assertEqual((s.kept, self.files()), ([], {}))
+
+    def test_the_first_multiple_is_the_one_after_the_turn_the_run_starts_on(self):
+        self.assertEqual((self.saves(start=0).next, self.saves(start=250).next, self.saves(every=25, start=30).next), (10, 260, 50))
+
+    def player_run(self, checkpoint):
+        seen = {}
+
+        def watch(g, seat, saves, poll):
+            seen["saves"], seen["ended"] = saves, 0
+            def end():
+                seen["ended"] += 1
+            return end
+
+        def command(cmd, timeout, check):
+            s = seen.get("saves")
+            if s is not None:
+                s.copy = lambda name, was: benchmark_run.copy_quick(name, was, sleep=Clock().sleep, clock=Clock())
+                for turn, text in ((249, "turn 249"), (250, None), (250, "turn 250"), (251, "turn 251"), (252, None)):
+                    if text:
+                        self.write(text)
+                    s.look(turn)
+            return subprocess.CompletedProcess(cmd, 0)
+
+        nb = self.dir / "notes" / "game-seat0.json"
+        g = FakeGame([read(), read(turn=252, players=[player(0, human=True, turn_active=True), player(1)])], polls=[poll(252, 0)])
+        clock = Clock()
+        row = benchmark_run.run_player(g, "save", ["loop"], "codex/x", 10, run=command, watch=watch, checkpoint=checkpoint,
+                                       checkpoint_name="save--codex-x-seed0", sleep=clock.sleep, clock=clock,
+                                       path_of=lambda _g, _seat: nb)
+        return row, seen
+
+    def test_a_players_run_lists_the_saves_kept_on_the_way_and_ends_the_watch(self):
+        row, seen = self.player_run(10)
+        self.assertEqual(row["checkpoints"], [{"turn": 250, "save": "save--codex-x-seed0-t250", "seen_on_turn": 250}])
+        self.assertEqual(self.files(), {"save--codex-x-seed0-t250": "turn 250"})
+        self.assertEqual(seen["ended"], 1, "the watch was left running after the command")
+        self.assertEqual(seen["saves"].next, 260)
+        json.dumps(row)
+
+    def test_a_players_run_with_no_saves_asked_is_not_watched(self):
+        row, seen = self.player_run(0)
+        self.assertEqual((seen, self.files()), ({}, {}))
+        self.assertNotIn("checkpoints", row)
+
+    def test_the_watch_looks_at_the_games_turn_until_it_is_ended_and_a_failed_read_costs_one_look(self):
+        looks = []
+
+        class Saves:
+            def look(self, turn):
+                looks.append(turn)
+
+        class Game:
+            asked = 0
+
+            def q(self, code):
+                self.asked += 1
+                if self.asked == 2:
+                    raise RuntimeError("the game did not answer")
+                return {"turn": 250 + self.asked}
+
+        g = Game()
+        end = benchmark_run.watch_saves(g, 0, Saves(), poll=0.01)
+        import time as _time
+        t0 = _time.monotonic()
+        while len(looks) < 3 and _time.monotonic() - t0 < 5:
+            _time.sleep(0.01)
+        end()
+        asked = g.asked
+        _time.sleep(0.05)
+        self.assertEqual(looks[:3], [251, 253, 254], "the look after the failed read was not made")
+        self.assertEqual(g.asked, asked, "the watch went on after it was ended")
+
+    def test_saves_on_the_way_go_with_a_run_and_not_with_finish_only(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+            benchmark_run.main(["--save", "s", "--out", str(self.dir / "rows.jsonl"), "--checkpoint", "10",
+                                "--finish-only", "--ai-finishes", "1"])
+        self.assertIn("--checkpoint N goes with a run", err.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

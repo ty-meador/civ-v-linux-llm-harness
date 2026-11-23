@@ -74,6 +74,7 @@ import random
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -332,6 +333,62 @@ def copy_quick(name: str, was: int, sleep=time.sleep, clock=time.monotonic, wait
         sleep(0.5)
     shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
     return name
+
+
+class SavesOnTheWay:
+    """A player's saves on the way (`--checkpoint N` with a command). The seat's own server quick-saves before it
+    ends each turn, so the quick slot always holds the seat's last turn played; this keeps a copy of it for every
+    game turn that is a multiple of N. `look(turn)` is called with the game's turn, again and again, while the
+    command plays: once the turn is at or past the next multiple, the first quick save written from then on is
+    copied as <name>-t<multiple>. That file holds the seat's turn played on that game turn, or on a later one when
+    the seat ended more than one turn between two looks (`seen_on_turn` is the turn of the look that copied it).
+    The file itself says its turn; the name says which multiple it stands for."""
+
+    def __init__(self, every: int, name: str, start_turn: int, copy=None, mtime=None):
+        self.every, self.name = every, name
+        self.next = (start_turn // every + 1) * every
+        self.armed: int | None = None
+        self.was = 0
+        self.kept: list[dict] = []
+        self.copy, self.mtime = copy or copy_quick, mtime or quick_mtime
+
+    def look(self, turn: int) -> dict | None:
+        if turn < self.next:
+            return None
+        if self.armed != self.next:              # the first look at or past the multiple: any file from now on will do
+            self.armed, self.was = self.next, self.mtime()
+            return None
+        if self.mtime() == self.was:
+            return None
+        kept = self.copy(f"{self.name}-t{self.next:03d}", self.was)
+        if kept is None:
+            return None
+        entry = {"turn": self.next, "save": kept, "seen_on_turn": turn}
+        self.kept.append(entry)
+        self.next = (turn // self.every + 1) * self.every
+        return entry
+
+
+def watch_saves(g, seat: int, saves: SavesOnTheWay, poll: float = 3.0):
+    """Look at the game's turn every `poll` seconds while a player's command runs, in a thread of its own (the
+    runner itself waits for the command), and let `saves` keep what it keeps. Returns the call that ends it. A
+    read that fails while the player plays costs one look and not the run."""
+    stop = threading.Event()
+
+    def loop():
+        while not stop.wait(poll):
+            try:
+                saves.look(g.q(POLL % {"seat": seat})["turn"])
+            except Exception:
+                continue
+
+    thread = threading.Thread(target=loop, name="saves-on-the-way", daemon=True)
+    thread.start()
+
+    def end():
+        stop.set()
+        thread.join(timeout=60)
+    return end
 
 
 TERMS = """
@@ -730,13 +787,18 @@ def notebook_path(g, seat: int) -> Path:
 def run_player(g, save: str, command: list[str], label: str, turns: int, seat: int | None = None, skip: int = 0,
                notebook: str | None = None, keep_notebook: Path | None = None, claim_wait: float = 0.0,
                timeout: float = 4 * 3600.0, settle: float = 120.0, poll: float = 3.0, run=subprocess.run,
-               end_save: str | None = None, save_game=save_as,
+               end_save: str | None = None, save_game=save_as, checkpoint: int = 0, checkpoint_name: str | None = None,
+               watch=watch_saves,
                path_of=notebook_path, sleep=time.sleep, clock=time.monotonic, now=time.time) -> dict:
     """One run of the starting save by a command that plays the seat and ends. Loads `save`, reads, puts the player's
     notebook in place, runs the command, reads, and leaves for the main menu with the notebook that was on disk
     before put back. The command's own exit code is in the row and decides nothing: the run played its turns
     when the game is `turns` turns on, whatever the command said (a scripted loop gave up at a World Congress
-    proposal four turns into ten and its row read like any other, live 2026-11-16)."""
+    proposal four turns into ten and its row read like any other, live 2026-11-16).
+
+    With `checkpoint` N a copy of the seat's own quick save is kept for every game turn that is a multiple of N while
+    the command plays (`SavesOnTheWay`), as `checkpoint_name`-t<turn>; the row lists them as `checkpoints`. The
+    player is not interrupted and is told nothing of it."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
         raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -767,10 +829,17 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
         sleep(claim_wait)
         quick_was = quick_mtime()
         t0, began = clock(), now()
+        saves = SavesOnTheWay(checkpoint, checkpoint_name or save, before["turn"]) if checkpoint else None
+        end_watch = watch(g, seat, saves, poll) if saves else None
         try:
             row["rc"] = run(command, timeout=timeout, check=False).returncode
         except subprocess.TimeoutExpired:
             row["end_reason"] = "timeout"
+        finally:
+            if end_watch:
+                end_watch()
+        if saves:
+            row["checkpoints"] = saves.kept
         row["seconds"] = round(clock() - t0, 1)
         row["cost"] = {**ledger_counts(ledger_path(), seat, began, now()), "tokens": tokens_of(command)}
         # The command may end while the other players still move: the read waits for the seat's turn.
@@ -1129,7 +1198,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="with the built-in AI on the seat: save the game while it plays, on every game turn that is a "
                          "multiple of N and once when the game is won or the seat is dead, as <save>--built-in-ai-seed<n>-t<turn> "
                          "and ...-game-over. The engine is not interrupted. Such a save holds the seat's turn played; loaded "
-                         "in the game it opens on the observer's slot and the engine plays on, so it is not a starting save")
+                         "in the game it opens on the observer's slot and the engine plays on, so it is not a starting save. "
+                         "With a player's command: a copy of the seat's own quick save is kept for every game turn that is a "
+                         "multiple of N, as <save>--<player>-seed<n>-t<turn>; the player is not interrupted and is told nothing")
     ap.add_argument("--finish-only", action="store_true",
                     help="no turns played: value --save itself by R AI finishes (--ai-finishes R), a starting save's own worth")
     ap.add_argument("--terms", metavar="NEW",
@@ -1177,8 +1248,8 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--player names a command's player; give the command after --")
     if a.finish_only and (command or a.ai_finishes < 1):
         ap.error("--finish-only takes --ai-finishes R and no command")
-    if a.checkpoint and (command or a.finish_only or a.checkpoint < 1):
-        ap.error("--checkpoint N is for the built-in AI's own run, N at least 1")
+    if a.checkpoint and (a.finish_only or a.checkpoint < 1):
+        ap.error("--checkpoint N goes with a run, the built-in AI's or a player's, N at least 1")
     from harness.game import Game
     g = Game()
     if g.has_state("InGame"):
@@ -1201,10 +1272,12 @@ def main(argv: list[str] | None = None) -> int:
                 row = {"player": name, "save": a.save, "seat": a.seat, "turns_asked": 0, "turns_played": 0, "skip": 0,
                        "end_reason": "finish_only", "end_save": a.save}
             elif command:
-                keep = a.out.with_name(f"{a.out.stem}-{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-notebook.json")
+                plain = "".join(c if c.isalnum() else "-" for c in name)
+                keep = a.out.with_name(f"{a.out.stem}-{plain}-seed{n}-notebook.json")
                 words = [part.replace("{seed}", str(n)).replace("{turns}", str(a.turns)) for part in command]
                 row = run_player(g, a.save, words, name, a.turns, seat=a.seat, skip=skip, notebook=a.notebook,
-                                 keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save)
+                                 keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save,
+                                 checkpoint=a.checkpoint, checkpoint_name=f"{a.save}--{plain}-seed{n}")
             else:
                 row = run_once(g, a.save, a.turns, seat=a.seat, skip=skip, stall=a.stall, end_save=end_save, say=say,
                                row=a.row or "own", time_victory=a.time or "on", checkpoint=a.checkpoint,

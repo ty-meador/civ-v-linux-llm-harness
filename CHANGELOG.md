@@ -16,6 +16,15 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A player's run keeps saves on the way too (2026-11-23).** `benchmark_run.py --checkpoint N` now goes with a
+  player's command as well as with the built-in AI's own run: while the command plays, a copy of the seat's own
+  quick save (the seat's server writes it before it ends each turn) is kept for every game turn that is a multiple
+  of N, as `<save>--<player>-seed<n>-t<turn>`, and the row lists them as `checkpoints`. The player is not
+  interrupted and is told nothing of it; the runner looks at the game's turn every few seconds in a thread of its
+  own. A file holds the seat's turn played on that game turn, or on a later one when the seat ended more than one
+  turn between two looks (`seen_on_turn`). Before, a player's recording held one saved game, its end, and the
+  built-in AI's one every N turns. Seen live on `small-king-germany-a`: the scripted loop's 25 turns left saves of
+  turns 10 and 20 and the end save of turn 25. Eight tests.
 - **The benchmark moves to King, and the built-in AI's game can be saved while it plays (2026-11-22, the user's
   decision).** New starting saves are hosted at King. The first is `small-king-venice-a`: Venice against the Zulus,
   Russia, Germany, Korea and Morocco on a Small Continents map with 12 city-states, Quick speed, the seat on the

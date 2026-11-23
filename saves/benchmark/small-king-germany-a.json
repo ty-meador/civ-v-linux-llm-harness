@@ -1,0 +1,42 @@
+{
+ "id": "small-king-germany-a",
+ "save": "small-king-germany-a.Civ5Save",
+ "sha256": "5e7124548e455b8c268a7c1f8701bc3bd8cf21c19762e7f3b699f93a866aae0c",
+ "kind": "opening",
+ "turn": 0,
+ "seat": 0,
+ "civilization": "Germany",
+ "opponents": [
+  "America",
+  "The Huns",
+  "Mongolia",
+  "The Celts",
+  "The Zulus"
+ ],
+ "turns": 100,
+ "seeds": 20,
+ "settings": {
+  "handicap": "HANDICAP_KING",
+  "speed": "GAMESPEED_QUICK",
+  "max_turns": 0,
+  "time_victory": false,
+  "map_script": "Assets\\Maps\\continents.lua",
+  "start_era": "ERA_ANCIENT",
+  "city_states": 12,
+  "world_size": "WORLDSIZE_SMALL",
+  "seat_row": "HANDICAP_AI_DEFAULT",
+  "victories": [
+   "VICTORY_SPACE_RACE",
+   "VICTORY_DOMINATION",
+   "VICTORY_CULTURAL",
+   "VICTORY_DIPLOMATIC"
+  ]
+ },
+ "origin": {
+  "how": "described",
+  "note": "the save was made before this command; see docs/BENCHMARK.md",
+  "at": "2026-11-22"
+ },
+ "game_build": "1.0.3.279(130961)",
+ "baseline": null
+}
