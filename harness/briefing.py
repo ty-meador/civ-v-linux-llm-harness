@@ -713,6 +713,13 @@ def build(ts: dict, summary: dict, cities: list, units: list, board: dict, basel
                 "note": (f"{t.get('civ')} is influential on {t.get('influential_on')} of {t.get('needed')} civilizations: one more "
                          f"wins it the game. On you: {on_me.get('level')}, {on_me.get('trend')}, turns to influential: "
                          f"{on_me.get('turns_to_influential')}. Your own culture per turn is the defence (state(what='screen', view='culture'))")})
+    for w in (ts.get("victory_watch") if isinstance(ts, dict) else None) or []:
+        # v344: a rival close to a Science, Diplomatic or Domination victory (status.victory_watch); the Culture
+        # row is the warning above. Quiet turns do not pass while any of them is listed.
+        if isinstance(w, dict) and w.get("victory") and w["victory"] != "culture":
+            out.setdefault("warnings", []).append({
+                "kind": "victory_threat", **w,
+                "note": f"{w.get('note') or w.get('civ')}: close to a {str(w['victory']).capitalize()} victory"})
     if include_rules and board.get("traits"):
         out["civ_rules"] = board["traits"]
     return out, snap

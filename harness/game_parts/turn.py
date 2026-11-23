@@ -891,11 +891,27 @@ class TurnMixin:
             reasons = self._wake_reasons(ts, digest, wake_words)
             if skipped >= skip_quiet_turns or reasons:
                 out["woke_because"] = reasons or (["quiet_turn_budget_used"] if skip_quiet_turns else ["turn_started"])
+                held = self._quiet_turns_held(ts, skip_quiet_turns)
+                if held:
+                    out["quiet_turns_held"] = held
                 return out
             skipped += 1
             out_turn = ts.get("turn")
             if on_wait is not None:
                 on_wait(0.0, {**ts, "skipping_quiet_turn": out_turn})
+
+    @staticmethod
+    def _quiet_turns_held(ts: dict, skip_quiet_turns: int) -> str | None:
+        """What a finish that asked for quiet turns is told when a rival is close to a victory (status.victory_watch,
+        runtime v344): no turn passes unplayed while one is listed. None when no turns were asked or none is listed.
+        Live 2026-11-23 (Germany t325): a skip_quiet_turns=9 run went through the turn America's Culture victory
+        landed on, a turn after the briefing had said America needed one more civilization."""
+        rows = [w for w in ts.get("victory_watch") or [] if isinstance(w, dict) and w.get("victory")]
+        if not rows or skip_quiet_turns <= 0:
+            return None
+        said = "; ".join(str(w.get("note") or f"{w.get('civ')} ({w['victory']})") for w in rows)
+        return ("skip_quiet_turns passes no turn while a rival is close to a victory, so every turn comes back to "
+                f"you until none is: {said}. status.victory_watch lists them on every turn")
 
     def _victory_from_log(self) -> dict | None:
         """Who won and how, from the game's own notification ("Catherine has won the game through a Science
@@ -979,6 +995,10 @@ class TurnMixin:
                 reasons.append(k)
         if ts.get("alive") is False:
             reasons.append("dead")
+        # v344: a rival close to a victory (status.victory_watch) is never a quiet turn, on every turn it is listed.
+        for w in ts.get("victory_watch") or []:
+            if isinstance(w, dict) and w.get("victory"):
+                reasons.append(f"rival_close_to_victory:{w.get('civ')}:{w['victory']}")
         reasons.extend(self._alert_wake_reasons(ts))   # #39: a drop or a new tier/deficit, not a steady low total
         words = tuple(w.lower() for w in self.WAKE_WORDS) + wake_words
         for e in digest.get("events") or []:

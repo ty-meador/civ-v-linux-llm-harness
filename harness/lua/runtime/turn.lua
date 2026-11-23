@@ -667,6 +667,9 @@ function H.turn_state(pid)
     -- v265: the wars this seat is in and whether peace can be asked for (the leader screen's Negotiate Peace gate).
     local ok, wars = pcall(H.wars, pid)
     if ok and wars then t.wars = wars end
+    -- v344: the rivals close to a victory (victory.lua); a run of quiet turns passes no turn while one is listed.
+    local okw, watch = pcall(H.victory_watch, pid)
+    if okw and type(watch) == "table" and #watch > 0 then t.victory_watch = watch end
   end
   if t.game_over then
     -- GitLab #92 (live Assyria t273, after the Science Victory): the status kept ENDTURN_BLOCKING_LEAGUE_CALL_FOR_

@@ -72,6 +72,131 @@ function H.culture_threats(pid)
   return out
 end
 
+-- v344: the rivals close to a victory, for every status of this seat's own turn. A run of quiet turns passes no
+-- turn while one is listed (the user's decision of 2026-11-23: Sonnet's Germany was told America needed one more
+-- civilization and a skip_quiet_turns=9 run went through the turn America won on, t325). Only what the Victory
+-- Progress screen shows a human about a civilization it has met, and only a victory this game's options allow:
+--   culture     one civilization short of the number it must be influential on, and either influential on one
+--               already or popular with the one it lacks (two civilizations left alive are always "one short")
+--   science     Apollo finished and at least half of the spaceship's parts in the ship
+--   diplomatic  the United Nations in being and four fifths of the delegates a World Leader needs
+--   domination  three or more civilizations in the game and only two still hold their own capital
+function H.victory_watch(pid)
+  local out = {}
+  local me = Players[pid]
+  if not me then return out end
+  local myTeamId = me:GetTeam()
+  local myTeam = Teams[myTeamId]
+  local function allowed(vtype)
+    local ok, on = pcall(function()
+      local v = GameInfo.Victories[vtype]
+      return v and PreGame.IsVictory(v.ID)
+    end)
+    return not (ok and on == false)   -- a read that fails leaves the victory counted as allowed
+  end
+  local function rival(i)
+    local q = Players[i]
+    return i ~= pid and q and q:IsAlive() and not q:IsMinorCiv() and q:GetTeam() ~= myTeamId
+  end
+  local function met(i) return myTeam:IsHasMet(Players[i]:GetTeam()) end
+  if allowed("VICTORY_CULTURAL") then
+    local ok, cv = pcall(H.culture_overview, pid)
+    for _, row in ipairs(ok and type(cv) == "table" and cv.civs or {}) do
+      if rival(row.player) and type(row.needed) == "number" and type(row.influential_on) == "number" and row.needed > 0 then
+        local popular = false
+        for _, e in ipairs(row.on or {}) do if e.level == "popular" then popular = true end end
+        if row.needed - row.influential_on <= 1 and (row.influential_on >= 1 or popular) then
+          out[#out + 1] = { victory = "culture", player = row.player, civ = row.civ,
+                            influential_on = row.influential_on, needed = row.needed,
+                            note = row.civ .. " is influential on " .. row.influential_on .. " of the " .. row.needed ..
+                                   " civilizations a Culture victory needs" }
+        end
+      end
+    end
+  end
+  if allowed("VICTORY_SPACE_RACE") then
+    pcall(function()
+      local apollo = GameInfoTypes.PROJECT_APOLLO_PROGRAM
+      if not apollo then return end
+      local parts, total = {}, 0
+      for v in GameInfo.Project_VictoryThresholds() do
+        local proj = GameInfoTypes[v.ProjectType]
+        if proj and proj ~= apollo and (v.Threshold or 0) > 0 then
+          parts[#parts + 1] = { proj = proj, needed = v.Threshold }
+          total = total + v.Threshold
+        end
+      end
+      if total <= 0 then return end
+      for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
+        if rival(i) and met(i) then
+          local qt = Teams[Players[i]:GetTeam()]
+          if qt:GetProjectCount(apollo) >= 1 then
+            local have = 0
+            for _, part in ipairs(parts) do have = have + math.min(qt:GetProjectCount(part.proj), part.needed) end
+            if have * 2 >= total then
+              local civ = Players[i]:GetCivilizationShortDescription()
+              out[#out + 1] = { victory = "science", player = i, civ = civ, parts_in_ship = have, parts_needed = total,
+                                note = civ .. " has " .. have .. " of the " .. total .. " spaceship parts in its ship" }
+            end
+          end
+        end
+      end
+    end)
+  end
+  if allowed("VICTORY_DIPLOMATIC") then
+    pcall(function()
+      if not (Game.IsUnitedNationsActive and Game.IsUnitedNationsActive()) then return end
+      if not (Game.GetNumActiveLeagues and Game.GetNumActiveLeagues() > 0) then return end
+      local league = Game.GetActiveLeague()
+      local needed = Game.GetVotesNeededForDiploVictory()
+      if not league or type(needed) ~= "number" or needed <= 0 then return end
+      for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
+        if rival(i) and met(i) and league:IsMember(i) then
+          local votes = league:CalculateStartingVotesForMember(i)
+          if type(votes) == "number" and votes * 5 >= needed * 4 then
+            local civ = Players[i]:GetCivilizationShortDescription()
+            local row = { victory = "diplomatic", player = i, civ = civ, delegates = votes, needed = needed,
+                          note = civ .. " has " .. votes .. " of the " .. needed .. " delegates a World Leader needs" }
+            local t = league:GetTurnsUntilVictorySession()
+            if t and t < 999 then
+              row.turns_until_world_leader_vote = t
+              row.note = row.note .. (t <= 0 and "; the vote is this turn" or ("; the vote is in " .. t .. " turns"))
+            end
+            out[#out + 1] = row
+          end
+        end
+      end
+    end)
+  end
+  if allowed("VICTORY_DOMINATION") then
+    pcall(function()
+      local ever, holders = 0, {}
+      for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
+        local q = Players[i]
+        if q and q:IsEverAlive() and not q:IsMinorCiv() then
+          ever = ever + 1
+          if q:IsAlive() and not q:IsHasLostCapital() then holders[#holders + 1] = i end
+        end
+      end
+      if ever < 3 or #holders ~= 2 then return end
+      for k, i in ipairs(holders) do
+        if rival(i) then
+          local other = holders[3 - k]
+          local known = met(i)
+          local civ = known and Players[i]:GetCivilizationShortDescription() or "unknown"
+          local last = other == pid and "yours" or
+                       (met(other) and Players[other]:GetCivilizationShortDescription() .. "'s" or "an unmet civilization's")
+          out[#out + 1] = { victory = "domination", player = known and i or nil, civ = civ, capitals_left = 1,
+                            last_capital_mine = (other == pid) or nil,
+                            note = civ .. " and one other civilization are the last two holding their own capital: " ..
+                                   civ .. " wins by Domination when it takes " .. last }
+        end
+      end
+    end)
+  end
+  return out
+end
+
 -- The Victory Progress screen's space race (victoryprogress.lua SetProjectValue: Team:GetProjectCount against
 -- Project_VictoryThresholds, shown for every known civ that finished Apollo), plus what the tech tree / city
 -- screens show a human about the parts: prerequisite tech, whether we have it, finished part units waiting to

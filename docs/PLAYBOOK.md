@@ -178,6 +178,16 @@ never gives an order for you. The digests of the skipped turns are merged into t
 `turns_skipped` / `woke_because` say what happened. Use it the way a human presses End Turn a few times while
 a wonder builds: with a plan in the notebook and units fortified or sleeping, not mid-war.
 
+No turn passes unplayed while a rival is close to a victory. `status.victory_watch` lists every met civilization
+that is, on every status of your own turn: one civilization short of a Culture victory (and influential on one
+already, or popular with the one it lacks), Apollo finished and half the spaceship's parts in the ship, the
+United Nations in being and four fifths of the delegates a World Leader needs, or one of the last two
+civilizations holding its own capital in a game of three or more. Each row has `victory`, `civ` and a `note`
+with the figures; only a victory this game's options allow is listed. While the list is not empty every turn
+comes back with `woke_because` `rival_close_to_victory:<civ>:<victory>`, whatever `skip_quiet_turns` asked, and
+the reply says so in `quiet_turns_held`. The briefing warns of the same rivals (`warnings`, kind
+`culture_victory_threat` or `victory_threat`).
+
 `status.alerts` is the exception to "quiet means todo is empty": it lists low happiness (2 or below, or an
 unhappy tier) and every revealed strategic resource in deficit, on every status, without blocking anything.
 A run wakes on it only when the figure worsens against the previous turn this seat saw (`woke_because`

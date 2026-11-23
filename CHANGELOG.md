@@ -16,6 +16,23 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **No turn passes unplayed while a rival is close to a victory (2026-11-23, the user's decision; runtime v344).**
+  Sonnet's Germany on `small-king-germany-a` had been told in its briefing that America needed one more
+  civilization for a Culture victory, and a `skip_quiet_turns=9` run went through the turn the victory landed on
+  (turn 325). The status of the seat's own turn now lists the rivals that are close, `victory_watch`: a met
+  civilization one civilization short of a Culture victory (and influential on one already, or popular with the
+  one it lacks, so that two civilizations left alive are not "one short" from their first turn), Apollo finished
+  and half the spaceship's parts in the ship, the United Nations in being and four fifths of the delegates a
+  World Leader needs, or one of the last two civilizations holding its own capital in a game of three or more.
+  Only a victory the game's options allow is listed, and only what the Victory Progress screen shows a human.
+  While the list is not empty a run of quiet turns stops on every turn (`woke_because`
+  `rival_close_to_victory:<civ>:<victory>`), a finish that asked for quiet turns is told why (`quiet_turns_held`),
+  and the briefing warns of a rival close to a Science, Diplomatic or Domination victory as it did of Culture
+  (`warnings`, kind `victory_threat`). `docs/PLAYBOOK.md`, "Letting quiet turns pass". **Live 2026-11-23** on the
+  game's own autosave of that game at turn 320, loaded as a scratch game: the status of turn 321 listed America
+  for Culture (influential on 2 of 3) and for Science (3 of the 6 parts in its ship) and the Celts for the
+  World Leader vote (30 of 33 delegates), and the turn's `woke_because` named all three. A run of quiet turns
+  stopping on it is in the tests, not seen live. Fourteen tests.
 - **A player's run keeps saves on the way too (2026-11-23).** `benchmark_run.py --checkpoint N` now goes with a
   player's command as well as with the built-in AI's own run: while the command plays, a copy of the seat's own
   quick save (the seat's server writes it before it ends each turn) is kept for every game turn that is a multiple
