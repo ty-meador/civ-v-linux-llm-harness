@@ -103,6 +103,7 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(m.soldiers.mine == 4000 and m.soldiers.rank == 4 and m.soldiers.of == 4, H.json(m))
         assert(m.soldiers.best == 20000 and m.soldiers.best_civ == 'The Zulus', H.json(m))
         assert(m.soldiers.average == math.floor((4000 + 20000 + 12000 + 6000) / 4 + 0.5), H.json(m))
+        assert(m.soldiers.lowest == 4000, H.json(m))
         assert(m.combat_units == 2, 'a Worker is no combat unit: ' .. H.json(m))
         assert(m.forces == nil and m.cities == nil and m.sieges == nil, H.json(m))
         """)
@@ -577,6 +578,46 @@ class VictoriesAllowedTests(unittest.TestCase):
     def test_a_later_briefing_and_an_older_runtime_carry_none(self):
         self.assertNotIn("victories_allowed", self.briefing({"victories": ["DOMINATION"]}, include_rules=False))
         self.assertNotIn("victories_allowed", self.briefing({}))
+
+
+class CapitalToTakeTests(unittest.TestCase):
+    ONLY = {"victory": "DOMINATION", "wins": "the last player holding their own original capital",
+            "capitals": [{"city": "Attila's Court", "civ": "The Huns", "held_by": "The Huns", "player_id": 1, "x": 13, "y": 11,
+                          "distance_from_my_capital": 15}]}
+
+    def rows(self, **ts):
+        from harness.briefing import opportunities
+        return [r for r in opportunities({}, {"turn": 180, **ts}) if r["kind"] == "capital_to_take"]
+
+    def test_the_capital_that_wins_the_game_is_an_opportunity_with_where_it_is_and_both_armies(self):
+        m = {"soldiers": {"mine": 105071, "rank": 1, "of": 2, "best": 105071, "best_civ": "you", "average": 90000, "lowest": 74929}}
+        (r,) = self.rows(only_victory=self.ONLY, military=m)
+        self.assertEqual((r["city"], r["x"], r["y"], r["at_war"]), ("Attila's Court", 13, 11, False))
+        self.assertIn("Domination, the only victory of this game, goes to the last player holding their own original capital", r["detail"])
+        self.assertIn("Attila's Court (The Huns's, held by The Huns) stands at (13,11), 15 plots from your capital; you are at peace with The Huns", r["detail"])
+        self.assertIn("Soldiers on the Demographics screen: yours 105071, theirs 74929", r["detail"])
+        self.assertEqual(r["actions"], [{"tool": "state", "args": {"what": "map", "view": "window", "x": 13, "y": 11}},
+                                        {"tool": "state", "args": {"what": "civ", "id": 1, "view": "war"}}])
+
+    def test_at_war_it_says_so_and_the_weaker_side_reads_the_highest_figure(self):
+        m = {"soldiers": {"mine": 25377, "rank": 2, "of": 2, "best": 73946, "average": 49662, "lowest": 25377}}
+        wars = {"majors": [{"player_id": 1, "civ": "The Huns"}], "minors": []}
+        (r,) = self.rows(only_victory=self.ONLY, military=m, wars=wars)
+        self.assertTrue(r["at_war"])
+        self.assertIn("you are at war with The Huns. Soldiers on the Demographics screen: yours 25377, theirs 73946", r["detail"])
+        self.assertEqual(len(r["actions"]), 1, "no declare-war read for a war already on")
+
+    def test_no_row_without_the_one_victory_for_a_capital_i_hold_or_one_i_have_not_found(self):
+        self.assertEqual(self.rows(), [])
+        held = {**self.ONLY, "capitals": [{"city": "Attila's Court", "civ": "The Huns", "held_by": "you"}]}
+        self.assertEqual(self.rows(only_victory=held), [])
+        unknown = {**self.ONLY, "capitals": [{"city": "Attila's Court", "civ": "The Huns", "held_by": "The Huns", "player_id": 1}]}
+        self.assertEqual(self.rows(only_victory=unknown), [])
+
+    def test_three_civilizations_give_no_figure_for_the_other(self):
+        m = {"soldiers": {"mine": 100, "rank": 1, "of": 3, "best": 100, "average": 80, "lowest": 60}}
+        (r,) = self.rows(only_victory=self.ONLY, military=m)
+        self.assertNotIn("Soldiers", r["detail"])
 
 
 class VictoriesAllowedLuaTests(unittest.TestCase):

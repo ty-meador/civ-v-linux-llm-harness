@@ -517,6 +517,44 @@ def opportunities(summary: dict, ts: dict) -> list[dict]:
             # live t152: Venice read "4 free slots: build or buy" while the engine refused both kinds
             row["blocked"] = summary["trade_units_blocked"]
         out.append(row)
+    out.extend(capitals_to_take(ts))
+    return out
+
+
+def capitals_to_take(ts: dict) -> list[dict]:
+    """In a game that Domination alone wins (status.only_victory, runtime v346): one row for each original capital
+    that is not in my hands and whose plot I know, with what the screens say of it now: where it is, whether I am
+    at war with its holder, both Soldiers figures when the Demographics screen gives the other one (a game of two).
+    Live 2026-11-23, the duel: the win and the Huns' capital stood in the briefing and on every status for forty
+    turns, Rome held the larger army from turn 137, and no instance wrote a plan for it; what the seat acts on is
+    `decisions`, `warnings` and `opportunities`. The row states what is so and carries the two reads; whether and
+    when is the seat's."""
+    only = ts.get("only_victory") if isinstance(ts, dict) and isinstance(ts.get("only_victory"), dict) else None
+    if not only or only.get("victory") != "DOMINATION":
+        return []
+    wars = ts.get("wars") if isinstance(ts.get("wars"), dict) else {}
+    at_war = {w.get("player_id") for w in wars.get("majors") or [] if isinstance(w, dict)}
+    mil = ts.get("military") if isinstance(ts.get("military"), dict) else {}
+    s = mil.get("soldiers") if isinstance(mil.get("soldiers"), dict) else {}
+    out = []
+    for c in only.get("capitals") or []:
+        if not isinstance(c, dict) or c.get("held_by") == "you" or c.get("x") is None:
+            continue
+        war = c.get("player_id") in at_war
+        said = (f"Domination, the only victory of this game, goes to {only.get('wins')}. {c.get('city')} ({c.get('civ')}'s, "
+                f"held by {c.get('held_by')}) stands at ({c['x']},{c['y']})")
+        if c.get("distance_from_my_capital") is not None:
+            said += f", {c['distance_from_my_capital']} plots from your capital"
+        said += f"; you are {'at war' if war else 'at peace'} with {c.get('held_by')}"
+        if s.get("of") == 2 and isinstance(s.get("mine"), int) and isinstance(s.get("best"), int) and isinstance(s.get("lowest"), int):
+            theirs = s["lowest"] if s.get("rank") == 1 else s["best"]
+            said += f". Soldiers on the Demographics screen: yours {s['mine']}, theirs {theirs}"
+        row = {"kind": "capital_to_take", "city": c.get("city"), "civ": c.get("civ"), "held_by": c.get("held_by"),
+               "x": c["x"], "y": c["y"], "at_war": war, "detail": said,
+               "actions": [{"tool": "state", "args": {"what": "map", "view": "window", "x": c["x"], "y": c["y"]}}]}
+        if c.get("player_id") is not None and not war:
+            row["actions"].append({"tool": "state", "args": {"what": "civ", "id": c["player_id"], "view": "war"}})
+        out.append(row)
     return out
 
 

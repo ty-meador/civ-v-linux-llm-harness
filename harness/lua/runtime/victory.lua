@@ -278,6 +278,7 @@ function H.only_victory(pid)
   for _, row in ipairs(H.domination_capitals(pid)) do
     if not row.controlled_by_us then
       out.capitals[#out.capitals + 1] = { city = row.city, civ = row.civ, held_by = row.owner_civ, x = row.x, y = row.y,
+                                          player_id = type(row.owner) == "number" and row.owner or nil,
                                           distance_from_my_capital = row.distance_from_my_capital }
     elseif row.original_player ~= pid then
       out.capitals[#out.capitals + 1] = { city = row.city, civ = row.civ, held_by = "you" }

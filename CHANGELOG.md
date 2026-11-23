@@ -70,7 +70,9 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196) and was alive when Korea won the game by Science on turn 322. In a game hosted with Domination alone the briefing
   says so (`only_victory`: the Victory Progress screen's capitals with their plots when revealed, and that the game
   goes to the last player holding their own original capital), and so does every status of the seat's own turn
-  (`status.only_victory`: the capitals not in the seat's hands). 46 tests.
+  (`status.only_victory`: the capitals not in the seat's hands); the briefing lists each one whose plot is known
+  among its `opportunities` (`capital_to_take`: where it stands, at war with its holder or not, both Soldiers
+  figures in a game of two; the Soldiers row carries the screen's `lowest` for that). 50 tests.
 - **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
   `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
   `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:

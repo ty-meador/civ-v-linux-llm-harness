@@ -190,7 +190,7 @@ the reply says so in `quiet_turns_held`. The briefing warns of the same rivals (
 
 `status.military` is on every status of your own turn: what a player watching the screen knows of the military
 situation without asking. `soldiers` is the Soldiers row of the Demographics screen (`mine`, `rank` of `of` living
-civilizations, `best` with `best_civ` when that civilization is met, `average`); `combat_units` is your own count.
+civilizations, `best` with `best_civ` when that civilization is met, `average`, `lowest`); `combat_units` is your own count.
 `forces` lists the combat units of other players in sight within 5 plots of one of your cities, a row an owner
 (`units`, `types`, summed `strength`, `nearest` city and distance, `in_my_land`): a civilization at peace with you
 from three units up, with the `approach_guess` the diplomacy list shows for its leader; one you are at war with, a
@@ -236,7 +236,9 @@ victories this game can be won by, `victories_allowed`. In a game hosted with Do
 its plot when revealed and the distance from your own capital) and the sentence that the game goes to the last
 player holding their own original capital. In such a game every status of your own turn carries `only_victory` too:
 `wins` (the last player holding their own original capital) and `capitals`, the original capitals that are not
-in your hands (`city`, `civ`, `held_by`, `x` and `y` when you know the plot, `distance_from_my_capital`).
+in your hands (`city`, `civ`, `held_by`, `x` and `y` when you know the plot, `distance_from_my_capital`). The
+briefing lists each of them whose plot you know as an `opportunities` row, `capital_to_take`: where it stands,
+whether you are at war with its holder, and in a game of two both Soldiers figures of the Demographics screen.
 
 `status.alerts` is the exception to "quiet means todo is empty": it lists low happiness (2 or below, or an
 unhappy tier) and every revealed strategic resource in deficit, on every status, without blocking anything.

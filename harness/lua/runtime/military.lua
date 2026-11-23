@@ -8,8 +8,8 @@ local info_type, plain_text, short = H._ns.info_type, H._ns.plain_text, H._ns.sh
 -- and the war was on; the city fell on turn 95. A human had seen the Soldiers row of the Demographics screen and
 -- the Zulu army on the map for forty turns. Nothing here is estimated and nothing is hidden from a human:
 --   soldiers: the Demographics screen's Soldiers row (the same figure, sqrt(might) * 2000): mine, my rank among
---           the living civilizations, the highest (named when it is met, as the screen shows its leader) and the
---           average.
+--           the living civilizations, the highest (named when it is met, as the screen shows its leader), the
+--           average and the lowest.
 --   combat_units: my own.
 --   forces: combat units of another player in sight within MILITARY_NEAR plots of one of my cities, by owner: a
 --           civilization at peace with me from MILITARY_PEACE_MIN units up (an army at the border, not a scout
@@ -105,18 +105,19 @@ function H.soldiers_standing(pid)
   local team = Teams[me:GetTeam()]
   local function soldiers(p) return math.floor(math.sqrt(p:GetMilitaryMight()) * 2000 + 0.5) end
   local mine = soldiers(me)
-  local best, best_id, total, count, rank = nil, nil, 0, 0, 1
+  local best, best_id, worst, total, count, rank = nil, nil, nil, 0, 0, 1
   for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
     local p = Players[i]
     if p and p:IsAlive() and not p:IsMinorCiv() then
       local v = soldiers(p)
       if best == nil or v > best then best, best_id = v, i end
+      if worst == nil or v < worst then worst = v end
       if v > mine then rank = rank + 1 end
       total, count = total + v, count + 1
     end
   end
   if count < 2 then return nil end
-  local row = { mine = mine, rank = rank, of = count, best = best, average = math.floor(total / count + 0.5) }
+  local row = { mine = mine, rank = rank, of = count, best = best, average = math.floor(total / count + 0.5), lowest = worst }
   if best_id == pid then
     row.best_civ = "you"
   elseif team:IsHasMet(Players[best_id]:GetTeam()) then
