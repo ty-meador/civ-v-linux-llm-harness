@@ -58,6 +58,7 @@ function H.defence_purchases(city, p)
   local gold = p:GetGold()
   local out = { gold = gold, units = {}, buildings = {} }
   local cheapest
+  local priced = {}      -- listed and within the treasury, whether or not the engine sells it this moment
   for u in GameInfo.Units() do
     local strength = math.max(u.Combat or 0, u.RangedCombat or 0)
     if strength > 0 then
@@ -66,22 +67,31 @@ function H.defence_purchases(city, p)
         local okc, cost = pcall(function() return city:GetUnitPurchaseCost(u.ID) end)
         if okc and type(cost) == "number" and cost > 0 then
           if not cheapest or cost < cheapest.gold then cheapest = { item = u.Type, gold = cost } end
+          local row = { item = u.Type, gold = cost, strength = u.Combat or 0 }
+          if (u.RangedCombat or 0) > 0 then row.ranged = u.RangedCombat end
           local okb, can = pcall(function() return city:IsCanPurchase(true, true, u.ID, -1, -1, gold_y) end)
-          if okb and can then
-            local row = { item = u.Type, gold = cost, strength = u.Combat or 0 }
-            if (u.RangedCombat or 0) > 0 then row.ranged = u.RangedCombat end
-            out.units[#out.units + 1] = row
-          end
+          if okb and can then out.units[#out.units + 1] = row
+          elseif cost <= gold then priced[#priced + 1] = row end
         end
       end
     end
   end
-  table.sort(out.units, function(a, b)
+  local function strongest_first(a, b)
     local sa, sb = math.max(a.strength, a.ranged or 0), math.max(b.strength, b.ranged or 0)
     if sa ~= sb then return sa > sb end
     return a.item < b.item
-  end)
+  end
+  table.sort(out.units, strongest_first)
   while #out.units > 5 do table.remove(out.units) end
+  -- The treasury covers a unit and the engine still sells none: the bought unit appears on the city's tile, and a
+  -- tile holds one combat unit (live 2026-11-23, Ravenna t120: 172 gold, a Warrior garrisoned, nothing for sale).
+  if #out.units == 0 and #priced > 0 then
+    table.sort(priced, strongest_first)
+    while #priced > 5 do table.remove(priced) end
+    out.blocked = priced
+    out.blocked_note = "the treasury covers these, and none is for sale while a combat unit of the same kind (land, or sea) " ..
+                       "stands on the city's tile: a bought unit appears there and a tile holds one"
+  end
   for b in GameInfo.Buildings() do
     if (b.Defense or 0) > 0 then
       local okb, can = pcall(function() return city:IsCanPurchase(true, true, -1, b.ID, -1, gold_y) end)
@@ -93,7 +103,7 @@ function H.defence_purchases(city, p)
       end
     end
   end
-  if #out.units == 0 and cheapest then out.cheapest_unit = cheapest end
+  if #out.units == 0 and not out.blocked and cheapest then out.cheapest_unit = cheapest end
   if #out.buildings == 0 then out.buildings = nil end
   return out
 end

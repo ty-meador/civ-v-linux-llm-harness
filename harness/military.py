@@ -135,6 +135,10 @@ def warnings(ts: dict) -> list[dict]:
             walls = ", ".join(f"{b.get('item')} {b.get('gold')}" for b in buy.get("buildings") or [] if isinstance(b, dict))
             cheapest = buy.get("cheapest_unit") if isinstance(buy.get("cheapest_unit"), dict) else None
             listed = "; ".join(x for x in (units, walls) if x)
+            blocked = ", ".join(f"{u.get('item')} {u.get('gold')}" for u in buy.get("blocked") or [] if isinstance(u, dict))
+            if blocked:
+                listed = "; ".join(x for x in (f"no combat unit while one stands on the city's tile (a bought unit "
+                                               f"appears there and a tile holds one; the gold covers {blocked})", walls) if x)
             if listed:
                 said += f"; the treasury ({buy.get('gold')} gold) buys here now: {listed}"
             elif cheapest:

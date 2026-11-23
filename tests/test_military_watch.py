@@ -213,6 +213,29 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(c.can_buy.cheapest_unit.item == 'UNIT_WARRIOR' and c.can_buy.cheapest_unit.gold == 110, H.json(c))
         """)
 
+    def test_a_unit_on_the_citys_tile_blocks_the_purchase_and_the_row_says_so(self):
+        self.run_lua("""
+        WAR[1] = true
+        zulus(1, 11, 11)
+        local sells = VENICE.IsCanPurchase
+        VENICE.IsCanPurchase = function(c, test_gold, x, uid, bid) if test_gold and uid >= 0 then return false end return sells(c, test_gold, x, uid, bid) end
+        local buy = watch().cities[1].can_buy
+        assert(#buy.units == 0 and #buy.blocked == 2 and buy.blocked[1].item == 'UNIT_WARRIOR', H.json(buy))
+        assert(buy.blocked_note:find('a tile holds one', 1, true) and buy.cheapest_unit == nil, H.json(buy))
+        assert(#buy.buildings == 1, 'a building is still for sale: ' .. H.json(buy))
+        """)
+
+    def test_no_culture_victory_no_culture_threat(self):
+        self.run_lua("""
+        local rows = { VICTORY_CULTURAL = { ID = 2 } }
+        GameInfo.Victories = rows
+        H.culture_overview = function() return { civs = { { civ = 'The Huns', needed = 1, influential_on = 0, on = {} } } } end
+        Game.IsVictoryValid = function(id) return true end
+        assert(#H.culture_threats(0) == 1, H.json(H.culture_threats(0)))
+        Game.IsVictoryValid = function(id) return id ~= 2 end
+        assert(#H.culture_threats(0) == 0, H.json(H.culture_threats(0)))
+        """)
+
     def test_a_city_only_barbarians_stand_by_lists_no_purchases_until_it_is_damaged(self):
         self.run_lua("""
         Players[63].units = { unit(1, 11, 10) }
@@ -382,6 +405,10 @@ class BriefingWarningTests(unittest.TestCase):
         self.assertIn("Venice: 140 of 200 hit points, strength 15, no unit garrisoned", w["note"])
         self.assertIn("3 hostile unit(s) within 3 plots (2 IMPI, 1 SWORDSMAN)", w["note"])
         self.assertIn("the treasury (300 gold) buys here now: UNIT_ARCHER 180; BUILDING_WALLS 280", w["note"])
+        blocked = {"gold": 172, "units": [], "blocked": [{"item": "UNIT_SCOUT", "gold": 100, "strength": 5}]}
+        (w,) = self.rows(mil(cities=[city(200, garrison="WARRIOR", can_buy=blocked)]), "city_threatened")
+        self.assertIn("buys here now: no combat unit while one stands on the city's tile", w["note"])
+        self.assertIn("the gold covers UNIT_SCOUT 100", w["note"])
         short = {"gold": 90, "units": [], "cheapest_unit": {"item": "UNIT_WARRIOR", "gold": 110}}
         (w,) = self.rows(mil(cities=[city(140, garrison="WARRIOR", can_buy=short)]), "city_threatened")
         self.assertIn("garrison WARRIOR", w["note"])

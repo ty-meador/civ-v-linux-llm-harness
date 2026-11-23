@@ -55,8 +55,24 @@ end
 
 -- The culture-victory danger rows for the briefing's warnings (#88): every met civ one civilization short of the
 -- number it must be influential on, with its row on this seat (level, trend, the turns estimate).
+-- Whether this game can be won by `vtype`: the game's own word first (Game.IsVictoryValid, which also holds a
+-- victory switched off after the game was hosted, as the benchmark's terms do with Time), the setup screen's
+-- (PreGame.IsVictory) without it. A read that fails leaves the victory counted as allowed.
+function H.victory_allowed(vtype)
+  local ok, on = pcall(function()
+    local v = GameInfo.Victories[vtype]
+    if not v then return nil end
+    if Game.IsVictoryValid then return Game.IsVictoryValid(v.ID) end
+    return PreGame.IsVictory(v.ID)
+  end)
+  return not (ok and on == false)
+end
+
 function H.culture_threats(pid)
   local out = {}
+  -- v346: no Culture victory, no threat of one (live 2026-11-23, a duel with only Domination on: the briefing
+  -- warned of the Huns' culture_victory_threat for sixty turns).
+  if not H.victory_allowed("VICTORY_CULTURAL") then return out end
   local ok, cv = pcall(H.culture_overview, pid)
   if not ok or type(cv) ~= "table" then return out end
   for _, row in ipairs(cv.civs or {}) do
@@ -87,17 +103,7 @@ function H.victory_watch(pid)
   if not me then return out end
   local myTeamId = me:GetTeam()
   local myTeam = Teams[myTeamId]
-  local function allowed(vtype)
-    -- v345: the game's own word first (Game.IsVictoryValid), which also holds a victory switched off after the
-    -- game was hosted, as the benchmark's terms do with Time; the setup screen's (PreGame.IsVictory) without it.
-    local ok, on = pcall(function()
-      local v = GameInfo.Victories[vtype]
-      if not v then return nil end
-      if Game.IsVictoryValid then return Game.IsVictoryValid(v.ID) end
-      return PreGame.IsVictory(v.ID)
-    end)
-    return not (ok and on == false)   -- a read that fails leaves the victory counted as allowed
-  end
+  local allowed = H.victory_allowed   -- v345: the game's own word, the setup screen's without it
   local function rival(i)
     local q = Players[i]
     return i ~= pid and q and q:IsAlive() and not q:IsMinorCiv() and q:GetTeam() ~= myTeamId

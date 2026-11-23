@@ -372,6 +372,7 @@
   "upgrade_blocked",
   "upgrade_unit",
   "upgrade_unit_check",
+  "victory_allowed",
   "victory_set",
   "victory_watch",
   "vote_commitment_catalog",
