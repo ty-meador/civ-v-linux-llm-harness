@@ -670,6 +670,10 @@ function H.turn_state(pid)
     -- v344: the rivals close to a victory (victory.lua); a run of quiet turns passes no turn while one is listed.
     local okw, watch = pcall(H.victory_watch, pid)
     if okw and type(watch) == "table" and #watch > 0 then t.victory_watch = watch end
+    -- v346: the military situation as the screen shows it without asking (military.lua): the Soldiers row of the
+    -- Demographics screen, armies of other players in sight near my cities, at peace too, and each city under threat.
+    local okm, mil = pcall(H.military_watch, pid)
+    if okm and type(mil) == "table" then t.military = mil end
   end
   if t.game_over then
     -- GitLab #92 (live Assyria t273, after the Science Victory): the status kept ENDTURN_BLOCKING_LEAGUE_CALL_FOR_
@@ -677,7 +681,7 @@ function H.turn_state(pid)
     -- finished game; the engine's stale blocker is not a chore.
     t.blocking, t.blocking_name, t.blocking_hint, t.blocking_stale = -1, "NO_ENDTURN_BLOCKING_TYPE", nil, nil
     t.todo = { units = {}, promotions = {}, cities = {}, research_unset = false }
-    t.expiring_deals, t.expiring_friendships, t.wars, t.alerts = nil, nil, nil, nil
+    t.expiring_deals, t.expiring_friendships, t.wars, t.alerts, t.military = nil, nil, nil, nil, nil
     t.num_units_needing_moves = 0
   end
   return t

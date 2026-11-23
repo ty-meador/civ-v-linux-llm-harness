@@ -23,6 +23,7 @@ from typing import Any
 
 from . import affordances as A
 from . import gate
+from . import military
 from . import rows as R
 
 # Totals compared turn to turn. Names are overview()'s.
@@ -520,6 +521,7 @@ def warnings(ts: dict) -> list[dict]:
                 continue   # v258: a deal already renewed (turn_status still lists it, renewed_until) warns of nothing
             out.append({"kind": k, **row} if isinstance(row, dict) else {"kind": k, "detail": row})
     out.extend(war_warnings(ts))
+    out.extend(military.warnings(ts))   # v346: my Soldiers standing, armies near my cities, cities under threat
     return out
 
 
@@ -722,4 +724,7 @@ def build(ts: dict, summary: dict, cities: list, units: list, board: dict, basel
                 "note": f"{w.get('note') or w.get('civ')}: close to a {str(w['victory']).capitalize()} victory"})
     if include_rules and board.get("traits"):
         out["civ_rules"] = board["traits"]
+    if include_rules and isinstance(board.get("victories"), list):
+        # v346: with the rules, since it is one: the victories this game can be won by (the Victory Progress screen).
+        out["victories_allowed"] = board["victories"]
     return out, snap

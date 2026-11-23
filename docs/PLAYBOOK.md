@@ -188,6 +188,23 @@ comes back with `woke_because` `rival_close_to_victory:<civ>:<victory>`, whateve
 the reply says so in `quiet_turns_held`. The briefing warns of the same rivals (`warnings`, kind
 `culture_victory_threat` or `victory_threat`).
 
+`status.military` is on every status of your own turn: what a player watching the screen knows of the military
+situation without asking. `soldiers` is the Soldiers row of the Demographics screen (`mine`, `rank` of `of` living
+civilizations, `best` with `best_civ` when that civilization is met, `average`); `combat_units` is your own count.
+`forces` lists the combat units of other players in sight within 5 plots of one of your cities, a row an owner
+(`units`, `types`, summed `strength`, `nearest` city and distance, `in_my_land`): a civilization at peace with you
+from three units up, with the `approach_guess` the diplomacy list shows for its leader; one you are at war with, a
+city-state at war with you and the barbarians from the first unit. `cities` lists each of your cities that is
+damaged or has a hostile unit within 3 plots: `hp` of `max_hp`, `strength`, `garrison` (a unit type or false),
+`hostile_close`, and `can_buy`: the combat units (strongest first) and Defense buildings its purchase list holds
+for the gold in the treasury now, or `cheapest_unit` with its price when the gold buys none. Only units you can see
+are counted and nothing is estimated. A run of quiet turns stops when an army at peace comes into sight near a
+city or grows by two (`woke_because` `foreign_forces_near:<civ>:<was>-><now>`), on every turn an enemy army is in
+sight there (`enemy_forces_near:<civ>:<units>`), when a city is first listed (`city_threatened:<name>`) or loses
+hit points (`city_damaged:<name>:<was>-><now>`), and when your Soldiers figure becomes the lowest
+(`soldiers_rank_lowest`). The briefing carries the same as `warnings`: `military_standing` (your Soldiers figure
+is the lowest, or the highest is twice yours), `foreign_forces_near`, `enemy_forces_near`, `city_threatened`.
+
 `status.alerts` is the exception to "quiet means todo is empty": it lists low happiness (2 or below, or an
 unhappy tier) and every revealed strategic resource in deficit, on every status, without blocking anything.
 A run wakes on it only when the figure worsens against the previous turn this seat saw (`woke_because`

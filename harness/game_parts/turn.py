@@ -7,6 +7,7 @@ import time
 from ..action_lock import LockBusy
 from ..client import TunerdError, TunerConnectionLost
 
+from .. import military
 from .support import _game_busy_error
 
 # The words the game's own notification uses for each victory ("... through a Science Victory!").
@@ -73,6 +74,7 @@ class TurnMixin:
             ts.update(flags)
         if pid is None or pid == self.seat:
             self._note_happiness(ts)
+            self._note_military(ts)
         if flags["leader_greeting_pending"] or flags["discussion_pending"]:
             # The engine does not re-evaluate the end-turn blocker while a leader screen is up: live t12,
             # ENDTURN_BLOCKING_POLICY stayed reported after the policy was adopted, until the greeting closed.
@@ -635,6 +637,29 @@ class TurnMixin:
         """The previous turn's last happiness record for this seat, or None (no baseline yet)."""
         return self._happiness_tuple((self.memo(self.HAPPINESS_MEMO) or {}).get("prev"))
 
+    MILITARY_MEMO = "military"     # the memo key: {"seen": record, "prev": record | None} (harness/military.py)
+
+    def _note_military(self, ts: dict) -> None:
+        """Remember what this status says of armies near my cities, as _note_happiness does for happiness: the
+        record of the turn being read is the last one read, the one it replaced when the turn number went up is
+        the baseline, and a turn number going backwards (a loaded save) leaves none."""
+        rec = military.record(ts)
+        if rec is None:
+            return
+        kept = self.memo(self.MILITARY_MEMO) or {}
+        cur, prev = military.as_record(kept.get("seen")), military.as_record(kept.get("prev"))
+        if cur is None or cur["turn"] != rec["turn"]:
+            prev = cur if (cur is not None and rec["turn"] > cur["turn"]) else None
+        if (rec, prev) != (cur, military.as_record(kept.get("prev"))):
+            self.set_memo(self.MILITARY_MEMO, {"seen": rec, "prev": prev})
+
+    def _military_wake_reasons(self, ts: dict) -> list[str]:
+        """Why status.military ends a run of quiet turns (military.wake_reasons): an enemy army in sight near a
+        city on every turn, an army at peace that appeared or grew, a city newly threatened or damaged further,
+        my Soldiers figure becoming the lowest."""
+        prev = military.as_record((self.memo(self.MILITARY_MEMO) or {}).get("prev"))
+        return military.wake_reasons(military.record(ts), prev)
+
     def _alert_wake_reasons(self, ts: dict) -> list[str]:
         """Why the alerts on `ts` end a quiet-turn run: happiness below the previous turn's last value, an
         unhappy tier beginning or deepening, a strategic deficit appearing or deepening. Nothing without
@@ -752,6 +777,7 @@ class TurnMixin:
             with self.lock():
                 ts = self.turn_state()
                 self._note_happiness(ts)
+                self._note_military(ts)
                 # Under our own hand-off screen my_turn already reads true; that turn has not been seen yet,
                 # so it is not ours to end (a finish_turn retried after a client timeout would otherwise end
                 # the new turn blind): the wait below presses Continue and hands it back instead.
@@ -846,6 +872,7 @@ class TurnMixin:
                     ts["digest"] = merged
                 return ts
             self._note_happiness(ts)
+            self._note_military(ts)
             with self.lock():
                 digest = self.turn_digest()
             self._merge_digest(merged, digest)
@@ -1000,6 +1027,7 @@ class TurnMixin:
             if isinstance(w, dict) and w.get("victory"):
                 reasons.append(f"rival_close_to_victory:{w.get('civ')}:{w['victory']}")
         reasons.extend(self._alert_wake_reasons(ts))   # #39: a drop or a new tier/deficit, not a steady low total
+        reasons.extend(self._military_wake_reasons(ts))   # v346: an army near my cities, a city under threat
         words = tuple(w.lower() for w in self.WAKE_WORDS) + wake_words
         for e in digest.get("events") or []:
             kind = str(e.get("kind", ""))

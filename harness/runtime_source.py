@@ -77,6 +77,7 @@ MANIFEST: tuple[str, ...] = (
     "victory.lua",            # culture overview, spaceship status
     "reference.lua",          # the rule book: static database reads
     "briefing.lua",           # briefing board
+    "military.lua",           # status.military: the Soldiers row, armies in sight near my cities, cities under threat
     "assignments.lua",        # assignment facts
     "comparisons.lua",        # compare_* reads (#34)
     "dispatch.lua",           # H._call: the daemon's entry, inserts the bound seat at the entry's slot

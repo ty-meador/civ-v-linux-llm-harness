@@ -200,6 +200,18 @@ function H.briefing_board(pid, since_seq)
     end
     out.traits = traits
   end)
+  -- v346: the victories this game can be won by, as the Victory Progress screen lists them (the game's own word,
+  -- which holds one switched off after the game was hosted; the setup screen's without it). A duel hosted with
+  -- only Domination on is won by nothing else, and no read said so.
+  pcall(function()
+    local v = {}
+    for row in GameInfo.Victories() do
+      local on
+      if Game.IsVictoryValid then on = Game.IsVictoryValid(row.ID) else on = PreGame.IsVictory(row.ID) end
+      if on then v[#v + 1] = short(row.Type) end
+    end
+    out.victories = v
+  end)
   return out
 end
 

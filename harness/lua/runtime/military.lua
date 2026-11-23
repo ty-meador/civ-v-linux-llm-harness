@@ -1,0 +1,240 @@
+-- Shared by earlier fragments (load order: harness/runtime_source.py MANIFEST).
+local info_type, short = H._ns.info_type, H._ns.short
+
+-- What a player watching the screen knows of the military situation without asking, on every status of the
+-- seat's own turn (v346; the user, 2026-11-23: "giving the LLM the info it needs in real time"). Live,
+-- small-king-venice-a, Sonnet 5.5: Venice held two Warriors and a Scout beside the Zulus at turn 88, had bought a
+-- Market with 380 gold on turn 82, and was told of an army only once Shaka's units stood 4 plots from the city
+-- and the war was on; the city fell on turn 95. A human had seen the Soldiers row of the Demographics screen and
+-- the Zulu army on the map for forty turns. Nothing here is estimated and nothing is hidden from a human:
+--   soldiers: the Demographics screen's Soldiers row (the same figure, sqrt(might) * 2000): mine, my rank among
+--           the living civilizations, the highest (named when it is met, as the screen shows its leader) and the
+--           average.
+--   combat_units: my own.
+--   forces: combat units of another player in sight within MILITARY_NEAR plots of one of my cities, by owner: a
+--           civilization at peace with me from MILITARY_PEACE_MIN units up (an army at the border, not a scout
+--           passing) with the approach the diplomacy list shows for its leader, one I am at war with, a
+--           city-state at war with me and the barbarians from the first unit.
+--   cities: each of my cities that is damaged or has a hostile unit (at war, or barbarian) within MILITARY_CLOSE
+--           plots: hit points, strength, the unit garrisoned, the hostile units that close, and what its purchase
+--           list holds for the gold in the treasury now (combat units, buildings with a Defense value).
+--   approach: the word the diplomacy list shows for each met AI leader I am not at war with (the visible guess,
+--           never the AI's hidden approach), by civilization.
+--   sieges: each city of a player I am at war with that I see now and have a combat unit within MILITARY_NEAR
+--           plots of: where it is, its hit points and strength as its banner shows them, whether it is that
+--           player's capital, my combat units within MILITARY_CLOSE plots of it and the enemy's units in sight there.
+H.MILITARY_NEAR, H.MILITARY_CLOSE, H.MILITARY_PEACE_MIN = 5, 3, 3
+
+function H.soldiers_standing(pid)
+  local me = Players[pid]
+  local team = Teams[me:GetTeam()]
+  local function soldiers(p) return math.floor(math.sqrt(p:GetMilitaryMight()) * 2000 + 0.5) end
+  local mine = soldiers(me)
+  local best, best_id, total, count, rank = nil, nil, 0, 0, 1
+  for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do
+    local p = Players[i]
+    if p and p:IsAlive() and not p:IsMinorCiv() then
+      local v = soldiers(p)
+      if best == nil or v > best then best, best_id = v, i end
+      if v > mine then rank = rank + 1 end
+      total, count = total + v, count + 1
+    end
+  end
+  if count < 2 then return nil end
+  local row = { mine = mine, rank = rank, of = count, best = best, average = math.floor(total / count + 0.5) }
+  if best_id == pid then
+    row.best_civ = "you"
+  elseif team:IsHasMet(Players[best_id]:GetTeam()) then
+    row.best_civ = Players[best_id]:GetCivilizationShortDescription()
+  end
+  return row
+end
+
+-- What the city's purchase list holds for the treasury now: the combat units (strongest first, five at most) and
+-- the buildings with a Defense value, each with its price; and the cheapest combat unit the list shows at any
+-- price, so a treasury that buys nothing says how far short it is. The same uid/bid pairs as CMP.purchase.
+function H.defence_purchases(city, p)
+  local gold_y = YieldTypes and YieldTypes.YIELD_GOLD or 2
+  local gold = p:GetGold()
+  local out = { gold = gold, units = {}, buildings = {} }
+  local cheapest
+  for u in GameInfo.Units() do
+    local strength = math.max(u.Combat or 0, u.RangedCombat or 0)
+    if strength > 0 then
+      local okl, listed = pcall(function() return city:IsCanPurchase(false, true, u.ID, -1, -1, gold_y) end)
+      if okl and listed then
+        local okc, cost = pcall(function() return city:GetUnitPurchaseCost(u.ID) end)
+        if okc and type(cost) == "number" and cost > 0 then
+          if not cheapest or cost < cheapest.gold then cheapest = { item = u.Type, gold = cost } end
+          local okb, can = pcall(function() return city:IsCanPurchase(true, true, u.ID, -1, -1, gold_y) end)
+          if okb and can then
+            local row = { item = u.Type, gold = cost, strength = u.Combat or 0 }
+            if (u.RangedCombat or 0) > 0 then row.ranged = u.RangedCombat end
+            out.units[#out.units + 1] = row
+          end
+        end
+      end
+    end
+  end
+  table.sort(out.units, function(a, b)
+    local sa, sb = math.max(a.strength, a.ranged or 0), math.max(b.strength, b.ranged or 0)
+    if sa ~= sb then return sa > sb end
+    return a.item < b.item
+  end)
+  while #out.units > 5 do table.remove(out.units) end
+  for b in GameInfo.Buildings() do
+    if (b.Defense or 0) > 0 then
+      local okb, can = pcall(function() return city:IsCanPurchase(true, true, -1, b.ID, -1, gold_y) end)
+      if okb and can then
+        local okc, cost = pcall(function() return city:GetBuildingPurchaseCost(b.ID) end)
+        if okc and type(cost) == "number" and cost > 0 then
+          out.buildings[#out.buildings + 1] = { item = b.Type, gold = cost }
+        end
+      end
+    end
+  end
+  if #out.units == 0 and cheapest then out.cheapest_unit = cheapest end
+  if #out.buildings == 0 then out.buildings = nil end
+  return out
+end
+
+function H.military_watch(pid)
+  local me = Players[pid]
+  if not me then return nil end
+  local teamId = me:GetTeam()
+  local team = Teams[teamId]
+  local out = {}
+  pcall(function() out.soldiers = H.soldiers_standing(pid) end)
+  local cities, own = {}, 0
+  for c in me:Cities() do cities[#cities + 1] = c end
+  for u in me:Units() do
+    if u:IsCombatUnit() and not u:IsDelayedDeath() then own = own + 1 end
+  end
+  out.combat_units = own
+  if #cities == 0 then return out end
+  local function nearest_city(x, y)
+    local best, bd
+    for _, c in ipairs(cities) do
+      local d = Map.PlotDistance(c:GetX(), c:GetY(), x, y)
+      if not bd or d < bd then best, bd = c, d end
+    end
+    return best, bd
+  end
+  local forces, close, enemy_near, approach, sieges = {}, {}, {}, nil, {}
+  for other = 0, 63 do
+    local o = Players[other]
+    if other ~= pid and o and (not o.IsAlive or o:IsAlive()) and o:GetTeam() ~= teamId then
+      local barbarian = o:IsBarbarian() or false
+      local war = barbarian or team:IsAtWar(o:GetTeam()) or false
+      if not war and not o:IsMinorCiv() and not o:IsHuman() and team:IsHasMet(o:GetTeam()) then
+        pcall(function()
+          local word = tostring(H.approach_name(me:GetApproachTowardsUsGuess(other))):gsub("^MAJOR_CIV_APPROACH_", "")
+          approach = approach or {}
+          approach[o:GetCivilizationShortDescription()] = word
+        end)
+      end
+      if war and not barbarian then
+        for c in o:Cities() do
+          local q = c:Plot()
+          if q and q:IsVisible(teamId, false) then
+            local mine_close, mine_near = { units = 0, types = {} }, false
+            for u in me:Units() do
+              if u:IsCombatUnit() and not u:IsDelayedDeath() then
+                local d = Map.PlotDistance(c:GetX(), c:GetY(), u:GetX(), u:GetY())
+                if d <= H.MILITARY_NEAR then mine_near = true end
+                if d <= H.MILITARY_CLOSE then
+                  local kind = short(info_type(GameInfo.Units, u:GetUnitType()))
+                  mine_close.units = mine_close.units + 1
+                  mine_close.types[kind] = (mine_close.types[kind] or 0) + 1
+                end
+              end
+            end
+            if mine_near then
+              local row = { city = c:GetName(), id = c:GetID(), civ = H.owner_label(other, pid), player_id = other,
+                            x = c:GetX(), y = c:GetY(), capital = c:IsCapital() or false,
+                            hp = c:GetMaxHitPoints() - c:GetDamage(), max_hp = c:GetMaxHitPoints(),
+                            strength = math.floor(c:GetStrengthValue() / 100 + 0.5), my_units_close = mine_close }
+              local defenders = { units = 0, types = {} }
+              for u in o:Units() do
+                local uq = u:GetPlot()
+                if u:IsCombatUnit() and not u:IsDelayedDeath() and uq and uq:IsVisible(teamId, false)
+                   and not u:IsInvisible(teamId, false)
+                   and Map.PlotDistance(c:GetX(), c:GetY(), u:GetX(), u:GetY()) <= H.MILITARY_CLOSE then
+                  local kind = short(info_type(GameInfo.Units, u:GetUnitType()))
+                  defenders.units = defenders.units + 1
+                  defenders.types[kind] = (defenders.types[kind] or 0) + 1
+                end
+              end
+              row.enemy_units_close = defenders
+              sieges[#sieges + 1] = row
+            end
+          end
+        end
+      end
+      if war or not o:IsMinorCiv() then
+        local row
+        for u in o:Units() do
+          local q = u:GetPlot()
+          if u:IsCombatUnit() and not u:IsDelayedDeath() and q and q:IsVisible(teamId, false)
+             and not u:IsInvisible(teamId, false) then
+            local c, d = nearest_city(u:GetX(), u:GetY())
+            if d <= H.MILITARY_NEAR then
+              row = row or { civ = H.owner_label(other, pid), player_id = other, at_war = war, units = 0,
+                             strength = 0, types = {}, in_my_land = 0 }
+              local kind = short(info_type(GameInfo.Units, u:GetUnitType()))
+              row.units = row.units + 1
+              row.strength = row.strength + math.max(u:GetBaseCombatStrength(), H.ranged_strength(u))
+              row.types[kind] = (row.types[kind] or 0) + 1
+              if q:GetOwner() == pid then row.in_my_land = row.in_my_land + 1 end
+              if not row.nearest or d < row.nearest.distance then row.nearest = { city = c:GetName(), distance = d } end
+              if war then
+                enemy_near[c:GetID()] = true
+                if d <= H.MILITARY_CLOSE then
+                  local k = close[c:GetID()] or { units = 0, types = {} }
+                  k.units = k.units + 1
+                  k.types[kind] = (k.types[kind] or 0) + 1
+                  close[c:GetID()] = k
+                end
+              end
+            end
+          end
+        end
+        if row and (war or row.units >= H.MILITARY_PEACE_MIN) then
+          if barbarian then row.player_id = nil end
+          -- the diplomacy list's word for an AI leader (diplomacy.lua: the visible guess, blank for a human)
+          if not war and not o:IsMinorCiv() and not o:IsHuman() then
+            pcall(function() row.approach_guess = H.approach_name(me:GetApproachTowardsUsGuess(other)) end)
+          end
+          forces[#forces + 1] = row
+        end
+      end
+    end
+  end
+  table.sort(forces, function(a, b)
+    if a.at_war ~= b.at_war then return a.at_war end
+    if a.units ~= b.units then return a.units > b.units end
+    return tostring(a.civ) < tostring(b.civ)
+  end)
+  if #forces > 0 then out.forces = forces end
+  if approach then out.approach = approach end
+  if #sieges > 0 then out.sieges = sieges end
+  local rows = {}
+  for _, c in ipairs(cities) do
+    local hostile, damage = close[c:GetID()], c:GetDamage()
+    if hostile or damage > 0 then
+      local row = { id = c:GetID(), name = c:GetName(), hp = c:GetMaxHitPoints() - damage, max_hp = c:GetMaxHitPoints(),
+                    strength = math.floor(c:GetStrengthValue() / 100 + 0.5), garrison = false }
+      pcall(function()
+        local g = c:GetGarrisonedUnit()
+        if g then row.garrison = short(info_type(GameInfo.Units, g:GetUnitType())) end
+      end)
+      if hostile then row.hostile_close = hostile end
+      if enemy_near[c:GetID()] or damage > 0 then
+        pcall(function() row.can_buy = H.defence_purchases(c, me) end)
+      end
+      rows[#rows + 1] = row
+    end
+  end
+  if #rows > 0 then out.cities = rows end
+  return out
+end

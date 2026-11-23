@@ -16,6 +16,24 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The military situation is on every status of the seat's own turn (2026-11-23; runtime v346).** The user:
+  "giving the LLM the info it needs in real time". On `small-king-venice-a` Sonnet 5.5 held two Warriors and a
+  Scout beside the Zulus at turn 88, bought a Market with 380 gold on turn 82, and was told of an army only once
+  Shaka's units stood 4 plots from Venice and the war was on (the briefing's `threats` list units of a player at
+  war); the city fell on turn 95. A human had seen the Soldiers row of the Demographics screen and the Zulu army
+  on the map all along. `status.military` (new fragment `military.lua`) carries, with nothing estimated and
+  nothing a human does not see: `soldiers` (the Demographics screen's Soldiers row: mine, rank, the highest and
+  whose when met, the average), `combat_units`, `forces` (combat units of other players in sight within 5 plots of
+  my cities by owner: a civilization at peace from three units up with the diplomacy list's `approach_guess`, an
+  enemy, a city-state at war and the barbarians from the first) and `cities` (each city damaged or with a hostile
+  unit within 3 plots: hit points, strength, garrison, the hostile units that close, and what its purchase list
+  holds for the treasury now among combat units and Defense buildings). A run of quiet turns stops when an army at
+  peace appears near a city or grows by two, on every turn an enemy army is in sight there, when a city is first
+  listed or loses hit points, and when the seat's Soldiers figure becomes the lowest (`woke_because`
+  `foreign_forces_near`, `enemy_forces_near`, `city_threatened`, `city_damaged`, `soldiers_rank_lowest`); the
+  baseline is kept in the notebook's memo as the happiness one is. The briefing warns of the same
+  (`military_standing`, `foreign_forces_near`, `enemy_forces_near`, `city_threatened`). `harness/military.py` is
+  the Python half. 24 tests.
 - **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
   `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
   `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:
