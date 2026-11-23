@@ -72,6 +72,17 @@ class CommandTests(unittest.TestCase):
 
     def test_the_other_two_are_as_they_were_and_an_unknown_agent_is_refused(self):
         self.assertEqual(loop.build_cmd("codex", "m", "low", "P", Path("/s"), Path("/l"))[:2], ["codex", "exec"])
+
+    def test_codex_is_handed_the_servers_environment_as_overrides_before_the_prompt(self):
+        """Codex starts the seat's server with the environment its own config names, so a run on another model
+        read as the config's label in the ledger and the last turn never reached the server (2026-11-23)."""
+        cmd = loop.build_cmd("codex", "m", "high", "PROMPT", Path("/s"), Path("/l"))
+        out = loop.with_server_env(cmd, {"CIV5_CLIENT": "codex/m", "CIV5_UNTIL_TURN": "250"})
+        self.assertEqual(out[-1], "PROMPT")
+        self.assertEqual(out[:len(cmd) - 1], cmd[:-1])
+        self.assertEqual(out[len(cmd) - 1:-1], ["-c", 'mcp_servers.civ5.env.CIV5_CLIENT="codex/m"',
+                                                "-c", 'mcp_servers.civ5.env.CIV5_UNTIL_TURN="250"'])
+        self.assertEqual(loop.with_server_env(cmd, {}), cmd)
         self.assertEqual(loop.build_cmd("grok", "m", "low", "P", Path("/s"), Path("/l"))[:3], ["grok", "-p", "P"])
         with self.assertRaises(SystemExit):
             loop.build_cmd("other", "m", "low", "P", Path("/s"), Path("/l"))

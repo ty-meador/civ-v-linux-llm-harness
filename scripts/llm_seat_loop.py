@@ -167,6 +167,16 @@ def build_cmd(agent: str, model: str, effort: str, prompt: str, seat_dir: Path, 
     raise SystemExit(f"unknown agent {agent!r}")
 
 
+SERVER_ENV = ("CIV5_CLIENT", "CIV5_CALL_LOG", "CIV5_UNTIL_TURN")
+
+
+def with_server_env(cmd: list[str], env: dict[str, str], server: str = "civ5") -> list[str]:
+    """A codex command with `env` set in the MCP server's own environment table (`-c mcp_servers.<server>.env.K="V"`,
+    the value a TOML string), put before the prompt, which stays the last argument."""
+    flags = [a for k, v in env.items() for a in ("-c", f"mcp_servers.{server}.env.{k}={json.dumps(str(v))}")]
+    return [*cmd[:-1], *flags, cmd[-1]]
+
+
 def stamp(line: bytes, t: float) -> bytes:
     """A stream line with its arrival time as the first key, `t`. Only a line that is one JSON object gets
     one; a banner, a torn line or an object that already has a `t` passes as it came. The rest of the line
@@ -354,6 +364,11 @@ def main() -> int:
             # the seat's server closes the seat on that turn (harness/mcp_server.py until_turn): the seat's
             # server refuses orders there and no finish ends it. Reaches the server as the ledger's variables do.
             env["CIV5_UNTIL_TURN"] = str(args.until_turn)
+        if args.agent == "codex":
+            # codex starts the seat's server with the environment its own config names for it and none of this
+            # one, so the three are handed over as overrides of that table (the config's other entries stay): a
+            # run on another model read as the config's label in the ledger, and the last turn never arrived
+            cmd = with_server_env(cmd, {k: env[k] for k in SERVER_ENV if k in env})
         if args.agent == "claude":
             # a loop started from inside a Claude Code session must not hand that session's identity down, and
             # the seat's memory is the notebook: no second one under the operator's home
