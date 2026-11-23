@@ -132,6 +132,10 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(g[1].x == 30 and g[1].y == 30 and g[1].hp == 150 and g[1].max_hp == 200 and g[1].strength == 15, H.json(g))
         assert(g[1].my_units_close.units == 2 and g[1].my_units_close.types.ARCHER == 1, H.json(g))
         assert(g[1].enemy_units_close.units == 1 and g[1].enemy_units_close.types.IMPI == 1, H.json(g))
+        assert(g[1].strike_range == 2 and g[1].my_units_in_strike_range.units == 2, 'the Warrior and the Archer two plots off: ' .. H.json(g))
+        GameDefines.CITY_ATTACK_RANGE = 1
+        assert(watch().sieges[1].strike_range == 1 and watch().sieges[1].my_units_in_strike_range.units == 0, H.json(watch().sieges))
+        GameDefines.CITY_ATTACK_RANGE = nil
         HIDDEN['30,30'] = true
         assert(watch().sieges == nil, 'a city I do not see now: ' .. H.json(watch()))
         """)
@@ -566,6 +570,9 @@ class BriefingWarningTests(unittest.TestCase):
         (w,) = self.rows(mil(sieges=[siege]), "enemy_city_in_reach")
         self.assertIn("Attila's Court of The Huns (its capital) at (30,12): 150 of 200 hit points, strength 18", w["note"])
         self.assertIn("you have 3 combat unit(s) (2 LEGION, 1 BALLISTA) and 0 of its owner's are in sight", w["note"])
+        siege.update(strike_range=2, my_units_in_strike_range={"units": 1, "types": {"BALLISTA": 1}})
+        (w,) = self.rows(mil(sieges=[siege]), "enemy_city_in_reach")
+        self.assertIn("strength 18, it strikes 2 plots and 1 of your units stand inside that (1 BALLISTA); within 3 plots", w["note"])
 
     def test_a_status_without_the_block_warns_of_nothing(self):
         self.assertEqual(briefing_warnings({"turn": 80}), [])

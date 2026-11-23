@@ -89,6 +89,16 @@ def _types(row: dict) -> str:
     return ", ".join(f"{n} {t}" for t, n in sorted(types.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
+def _strikes(siege: dict) -> str:
+    """ ", it strikes N plots and K of your units stand inside that (types)" for a siege row that carries the range."""
+    rng = siege.get("strike_range")
+    inside = siege.get("my_units_in_strike_range") if isinstance(siege.get("my_units_in_strike_range"), dict) else None
+    if not isinstance(rng, int) or inside is None:
+        return ""
+    held = f" ({_types(inside)})" if inside.get("units") else ""
+    return f", it strikes {rng} plots and {inside.get('units', 0)} of your units stand inside that{held}"
+
+
 def warnings(ts: dict) -> list[dict]:
     """The briefing's rows from `status.military`: `military_standing` when my Soldiers figure is the lowest with the
     highest half again mine (the margin a quiet run wakes on) or the highest is FAR_BEHIND times mine, `foreign_forces_near` / `enemy_forces_near` for each army of another
@@ -168,7 +178,7 @@ def warnings(ts: dict) -> list[dict]:
         out.append({"kind": "enemy_city_in_reach", **g,
                     "note": (f"{g.get('city')} of {g.get('civ')}{' (its capital)' if g.get('capital') else ''} at "
                              f"({g.get('x')},{g.get('y')}): {g.get('hp')} of {g.get('max_hp')} hit points, strength "
-                             f"{g.get('strength')}; within 3 plots of it you have {mine.get('units', 0)} combat unit(s)"
+                             f"{g.get('strength')}{_strikes(g)}; within 3 plots of it you have {mine.get('units', 0)} combat unit(s)"
                              f"{' (' + _types(mine) + ')' if mine.get('units') else ''} and {theirs.get('units', 0)} of "
                              f"its owner's are in sight{' (' + _types(theirs) + ')' if theirs.get('units') else ''}")})
     return out

@@ -202,7 +202,8 @@ gold covers a unit and none is for sale because a combat unit stands on the city
 there and a tile holds one). `approach` is the word the diplomacy list shows for each met AI leader you are not at
 war with (FRIENDLY, NEUTRAL, GUARDED, HOSTILE, AFRAID). `sieges` lists each city of a player you are at war with
 that you see now and have a combat unit within 5 plots of: `x`, `y`, `hp` of `max_hp`, `strength`, `capital`,
-your units within 3 plots (`my_units_close`) and its owner's in sight there (`enemy_units_close`). `upgrades`
+your units within 3 plots (`my_units_close`), its owner's in sight there (`enemy_units_close`), how far the city
+strikes (`strike_range`) and your units standing inside that (`my_units_in_strike_range`). `upgrades`
 lists your combat units whose Upgrade button the unit panel shows: `ready` the ones it would upgrade this moment
 with the price (`order(to="unit", action="upgrade", id)`), `waiting` the ones it greys with the panel's reasons
 (`gold`, `territory`, `resources:<NAME>`, `stacking`, `moved`). `advisor` is what the game's own Military

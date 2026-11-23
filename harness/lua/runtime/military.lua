@@ -22,7 +22,8 @@ local info_type, plain_text, short = H._ns.info_type, H._ns.plain_text, H._ns.sh
 --           never the AI's hidden approach), by civilization.
 --   sieges: each city of a player I am at war with that I see now and have a combat unit within MILITARY_NEAR
 --           plots of: where it is, its hit points and strength as its banner shows them, whether it is that
---           player's capital, my combat units within MILITARY_CLOSE plots of it and the enemy's units in sight there.
+--           player's capital, my combat units within MILITARY_CLOSE plots of it and the enemy's units in sight there,
+--           and how far the city strikes with my units standing inside that.
 --   upgrades: my combat units whose Upgrade button the unit panel shows (the target can be trained): `ready` the
 --           ones it would upgrade this moment, with the price; `waiting` the ones it greys, with the panel's
 --           reasons (gold, territory, resources and which, stacking, moved).
@@ -229,9 +230,18 @@ function H.military_watch(pid)
           local q = c:Plot()
           if q and q:IsVisible(teamId, false) then
             local mine_close, mine_near = { units = 0, types = {} }, false
+            -- The plots a city strikes (GameDefines.CITY_ATTACK_RANGE, 2 in the stock rules) and my units standing
+            -- on them: live 2026-11-23, Opus's siege of Attila's Court lost five Artillery that stopped inside it.
+            local strike_range = (GameDefines and GameDefines.CITY_ATTACK_RANGE) or 2
+            local in_range = { units = 0, types = {} }
             for u in me:Units() do
               if u:IsCombatUnit() and not u:IsDelayedDeath() then
                 local d = Map.PlotDistance(c:GetX(), c:GetY(), u:GetX(), u:GetY())
+                if d <= strike_range then
+                  local kind = short(info_type(GameInfo.Units, u:GetUnitType()))
+                  in_range.units = in_range.units + 1
+                  in_range.types[kind] = (in_range.types[kind] or 0) + 1
+                end
                 if d <= H.MILITARY_NEAR then mine_near = true end
                 if d <= H.MILITARY_CLOSE then
                   local kind = short(info_type(GameInfo.Units, u:GetUnitType()))
@@ -244,7 +254,8 @@ function H.military_watch(pid)
               local row = { city = c:GetName(), id = c:GetID(), civ = H.owner_label(other, pid), player_id = other,
                             x = c:GetX(), y = c:GetY(), capital = c:IsCapital() or false,
                             hp = c:GetMaxHitPoints() - c:GetDamage(), max_hp = c:GetMaxHitPoints(),
-                            strength = math.floor(c:GetStrengthValue() / 100 + 0.5), my_units_close = mine_close }
+                            strength = math.floor(c:GetStrengthValue() / 100 + 0.5), my_units_close = mine_close,
+                            strike_range = strike_range, my_units_in_strike_range = in_range }
               local defenders = { units = 0, types = {} }
               for u in o:Units() do
                 local uq = u:GetPlot()

@@ -23,7 +23,8 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   the same turn), and nothing listed a Cannon that had enemies in range and had not set up. The refusal names
   `MISSION_SET_UP_FOR_RANGED_ATTACK` and its cost, and `todo.unit_attacks` lists such a unit with `needs_set_up`
   and `in_range` (the enemy units and cities in sight within its range); the briefing's `unit_attack` row carries
-  the set-up order. Two tests.
+  the set-up order. A `sieges` row says how far the city strikes and which of the seat's units stand inside that
+  (`strike_range`, `my_units_in_strike_range`): that siege lost five Artillery that had stopped inside it. Two tests.
 - **An attack the game's Military Advisor asks about no longer stops the game (2026-11-23; runtime v346).** The
   game raises a confirmation screen before a melee attack at bad odds and before a first attack on a city
   (`advisormodal.lua`, `BUTTONPOPUP_ADVISOR_MODAL`: "We may want to reconsider this attack; you will do marginal
