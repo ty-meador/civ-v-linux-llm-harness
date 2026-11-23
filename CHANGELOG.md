@@ -85,7 +85,11 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   the one its preview gives the most damage on; the briefing lists each as a `unit_attack` decision. In the
   instance that first saw the advisor's line and the upgrade offers (turn 130) Sonnet upgraded its three Warriors
   and its Archer and bought Walls; Shaka declared war on turn 138, and Venice, destroyed on turn 95 in the game
-  before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196) and was alive when Korea won the game by Science on turn 322. In a game hosted with Domination alone the briefing
+  before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196) and was alive when Korea won the game by Science on turn 322. A second game on the same save with every piece
+  present from turn 0 went less well: Shaka declared war on turn 75, Venice held for 25 turns behind Walls and
+  got peace on turn 100, kept three or four units and 1,300 gold to turn 152, bought a Castle on 154, the turn
+  Shaka declared war again with 14 units, and fell on turn 159. One game of two alive at the end; before, 95
+  turns. In a game hosted with Domination alone the briefing
   says so (`only_victory`: the Victory Progress screen's capitals with their plots when revealed, and that the game
   goes to the last player holding their own original capital), and so does every status of the seat's own turn
   (`status.only_victory`: the capitals not in the seat's hands); the briefing lists each one whose plot is known
