@@ -32,8 +32,17 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   listed or loses hit points, and when the seat's Soldiers figure becomes the lowest (`woke_because`
   `foreign_forces_near`, `enemy_forces_near`, `city_threatened`, `city_damaged`, `soldiers_rank_lowest`); the
   baseline is kept in the notebook's memo as the happiness one is. The briefing warns of the same
-  (`military_standing`, `foreign_forces_near`, `enemy_forces_near`, `city_threatened`). `harness/military.py` is
-  the Python half. 24 tests.
+  (`military_standing`, `foreign_forces_near`, `enemy_forces_near`, `city_threatened`). The block also carries
+  `approach` (the diplomacy list's word for each met AI leader at peace; a run stops when one turns GUARDED,
+  HOSTILE or WAR, and the briefing lists those as `wary_leaders`) and `sieges` (each enemy city in sight with a
+  unit of mine within 5 plots: hit points, strength, capital or not, my units and its owner's within 3; the
+  briefing's `enemy_city_in_reach`). A city's `can_buy` says `blocked` when the gold covers a unit and the engine
+  sells none because a combat unit stands on the city's tile. The briefing that carries the civilization's rules
+  names the victories the game can be won by (`victories_allowed`), and warns of a rival's Culture victory only
+  in a game that has one (`H.victory_allowed`; a duel with only Domination on had warned of the Huns' for sixty
+  turns). `harness/military.py` is the Python half. Seen live on turn 120 of Sonnet's game on
+  `duel-king-rome-huns-a` before the change: Soldiers 25,377 against the Huns' 73,946, five Hun units within 5
+  plots of Ravenna, both threatened cities listed with their garrison. 40 tests.
 - **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
   `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
   `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:
