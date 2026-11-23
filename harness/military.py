@@ -93,7 +93,7 @@ def warnings(ts: dict) -> list[dict]:
     """The briefing's rows from `status.military`: `military_standing` when my Soldiers figure is the lowest or the
     highest is FAR_BEHIND times mine, `foreign_forces_near` / `enemy_forces_near` for each army of another
     civilization in sight near my cities (the barbarians are the briefing's `threats`), `city_threatened` for each
-    city damaged or with hostile units close, `wary_leaders` when the diplomacy list shows a leader as one of WARY,
+    city damaged or with hostile units close, `upgrades_ready` when the unit panel offers an upgrade now, `wary_leaders` when the diplomacy list shows a leader as one of WARY,
     `enemy_city_in_reach` for each enemy city in sight near my units. Each row carries the status row and a
     sentence with the figures."""
     m = ts.get("military") if isinstance(ts, dict) else None
@@ -110,6 +110,14 @@ def warnings(ts: dict) -> list[dict]:
                              f"highest is {whose} {s['best']}{times}; the average is {s['average']}. You have "
                              f"{m.get('combat_units')} combat unit(s). status.military carries the row on every turn; "
                              "state(what='empire', view='demographics') is the screen")})
+    up = m.get("upgrades") if isinstance(m.get("upgrades"), dict) else {}
+    ready = [u for u in up.get("ready") or [] if isinstance(u, dict)]
+    if ready:
+        out.append({"kind": "upgrades_ready", "gold": up.get("gold"), "units": ready, "total": up.get("ready_total", len(ready)),
+                    "note": (f"the unit panel offers an upgrade now for {up.get('ready_total', len(ready))} combat unit(s), "
+                             f"treasury {up.get('gold')} gold: "
+                             + ", ".join(f"{u.get('unit')} {u.get('id')} to {u.get('to')} for {u.get('gold')}" for u in ready)
+                             + ". order(to='unit', action='upgrade', id=<unit>) presses it")})
     for r in m.get("forces") or []:
         if not isinstance(r, dict) or r.get("player_id") is None:
             continue

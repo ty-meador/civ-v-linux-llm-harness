@@ -247,6 +247,29 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(watch().cities[1].hp == 190 and watch().cities[1].hostile_close == nil, H.json(watch()))
         """)
 
+    def test_the_upgrades_the_unit_panel_offers_and_the_ones_it_greys(self):
+        self.run_lua("""
+        local function upgradable(id, kind, to, price, can, x, y)
+          local u = unit(kind, x, y)
+          u.GetID = function() return id end; u.GetOwner = function() return 0 end
+          u.GetUpgradeUnitType = function() return to end
+          u.UpgradePrice = function() return price end
+          u.CanUpgradeRightNow = function() return can end
+          return u
+        end
+        TRAINABLE = { [3] = true }
+        Players[0].CanTrain = function(_, ut) return TRAINABLE[ut] or false end
+        OWNER['10,10'] = 0; OWNER['11,10'] = 0
+        Players[0].units = { upgradable(7, 1, 3, 120, true, 10, 10), upgradable(8, 1, 3, 400, false, 11, 10),
+                             upgradable(9, 2, 5, 90, true, 12, 10), unit(4, 10, 11) }
+        local up = watch().upgrades
+        assert(up.gold == 300 and #up.ready == 1 and up.ready_total == 1, H.json(up))
+        assert(up.ready[1].id == 7 and up.ready[1].unit == 'WARRIOR' and up.ready[1].to == 'SWORDSMAN' and up.ready[1].gold == 120, H.json(up))
+        assert(#up.waiting == 1 and up.waiting[1].id == 8 and up.waiting[1].why[1] == 'gold', H.json(up))
+        TRAINABLE = {}
+        assert(watch().upgrades == nil, 'no button while the target cannot be trained: ' .. H.json(watch()))
+        """)
+
     def test_a_seat_with_no_city_has_its_soldiers_row_and_nothing_else(self):
         self.run_lua("""
         Players[0].cities = {}
@@ -413,6 +436,15 @@ class BriefingWarningTests(unittest.TestCase):
         (w,) = self.rows(mil(cities=[city(140, garrison="WARRIOR", can_buy=short)]), "city_threatened")
         self.assertIn("garrison WARRIOR", w["note"])
         self.assertIn("buys no combat unit here: the cheapest is UNIT_WARRIOR at 110", w["note"])
+
+    def test_an_upgrade_the_panel_offers_now_is_a_row(self):
+        m = mil(rank=3, mine=20000)
+        m["upgrades"] = {"gold": 300, "ready": [{"id": 7, "unit": "WARRIOR", "to": "SWORDSMAN", "gold": 120}], "ready_total": 1,
+                         "waiting": [{"id": 8, "unit": "WARRIOR", "to": "SWORDSMAN", "gold": 400, "why": ["gold"]}]}
+        (w,) = self.rows(m, "upgrades_ready")
+        self.assertIn("offers an upgrade now for 1 combat unit(s), treasury 300 gold: WARRIOR 7 to SWORDSMAN for 120", w["note"])
+        del m["upgrades"]["ready"]
+        self.assertEqual(self.rows(m, "upgrades_ready"), [])
 
     def test_wary_leaders_are_one_row_and_friendly_ones_none(self):
         (w,) = self.rows(mil(rank=3, mine=20000, approach={"The Zulus": "HOSTILE", "Germany": "FRIENDLY", "Korea": "GUARDED"}),

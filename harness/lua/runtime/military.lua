@@ -23,7 +23,55 @@ local info_type, short = H._ns.info_type, H._ns.short
 --   sieges: each city of a player I am at war with that I see now and have a combat unit within MILITARY_NEAR
 --           plots of: where it is, its hit points and strength as its banner shows them, whether it is that
 --           player's capital, my combat units within MILITARY_CLOSE plots of it and the enemy's units in sight there.
-H.MILITARY_NEAR, H.MILITARY_CLOSE, H.MILITARY_PEACE_MIN = 5, 3, 3
+--   upgrades: my combat units whose Upgrade button the unit panel shows (the target can be trained): `ready` the
+--           ones it would upgrade this moment, with the price; `waiting` the ones it greys, with the panel's
+--           reasons (gold, territory, resources and which, stacking, moved).
+H.MILITARY_NEAR, H.MILITARY_CLOSE, H.MILITARY_PEACE_MIN, H.MILITARY_UPGRADES_SHOWN = 5, 3, 3, 8
+
+function H.upgrades_waiting(pid)
+  local p = Players[pid]
+  local ready, waiting = {}, {}
+  for u in p:Units() do
+    if u:IsCombatUnit() and not u:IsDelayedDeath() and u.GetUpgradeUnitType then
+      local ok, ut = pcall(function() return u:GetUpgradeUnitType() end)
+      if ok and ut and ut >= 0 and GameInfo.Units[ut] then
+        local okv, shown = pcall(function() return p:CanTrain(ut, false, true, true, true) end)
+        if okv and shown then
+          local row = { id = u:GetID(), unit = short(info_type(GameInfo.Units, u:GetUnitType())),
+                        to = short(GameInfo.Units[ut].Type) }
+          pcall(function() row.gold = u:UpgradePrice(ut) end)
+          local okc, can = pcall(function() return u:CanUpgradeRightNow() end)
+          if okc and can then
+            ready[#ready + 1] = row
+          else
+            local why = {}
+            local okb, blocked = pcall(H.upgrade_blocked, u, pid, row.gold, ut)
+            for _, b in ipairs(okb and blocked or {}) do
+              if b.reason == "resources" and type(b.resources) == "table" then
+                for _, r in ipairs(b.resources) do why[#why + 1] = "resources:" .. tostring(r.resource) end
+              else
+                why[#why + 1] = b.reason
+              end
+            end
+            if #why == 0 then why[1] = "moved" end   -- the engine's gate the panel never spells out (units.lua)
+            row.why = why
+            waiting[#waiting + 1] = row
+          end
+        end
+      end
+    end
+  end
+  if #ready == 0 and #waiting == 0 then return nil end
+  local out = { gold = p:GetGold() }
+  local function capped(rows)
+    local total = #rows
+    while #rows > H.MILITARY_UPGRADES_SHOWN do table.remove(rows) end
+    return rows, total
+  end
+  if #ready > 0 then out.ready, out.ready_total = capped(ready) end
+  if #waiting > 0 then out.waiting, out.waiting_total = capped(waiting) end
+  return out
+end
 
 function H.soldiers_standing(pid)
   local me = Players[pid]
@@ -121,6 +169,7 @@ function H.military_watch(pid)
     if u:IsCombatUnit() and not u:IsDelayedDeath() then own = own + 1 end
   end
   out.combat_units = own
+  pcall(function() out.upgrades = H.upgrades_waiting(pid) end)
   if #cities == 0 then return out end
   local function nearest_city(x, y)
     local best, bd
