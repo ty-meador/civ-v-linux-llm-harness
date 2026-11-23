@@ -230,7 +230,8 @@ hit points (`city_damaged:<name>:<was>-><now>`), when your Soldiers figure becom
 half again yours (`soldiers_rank_lowest`), and when a leader's word turns GUARDED, HOSTILE or WAR
 (`approach_changed:<civ>:<was>-><now>`). The briefing carries the same as `warnings`: `military_standing` (your
 Soldiers figure is the lowest with the highest half again yours, or the highest is twice yours), `foreign_forces_near`, `enemy_forces_near`,
-`city_threatened`, `wary_leaders`, `enemy_city_in_reach`. The briefing that carries `civ_rules` also names the
+`city_threatened`, `wary_leaders`, `enemy_city_in_reach`; and its `changes.soldiers` says how the Soldiers figures
+(`mine`, `highest`, `lowest`) moved since the briefing before. The briefing that carries `civ_rules` also names the
 victories this game can be won by, `victories_allowed`. In a game hosted with Domination alone it adds
 `only_victory`: the Victory Progress screen's capitals (each met civilization's original capital, who holds it,
 its plot when revealed and the distance from your own capital) and the sentence that the game goes to the last

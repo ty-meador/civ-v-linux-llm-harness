@@ -72,7 +72,9 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   goes to the last player holding their own original capital), and so does every status of the seat's own turn
   (`status.only_victory`: the capitals not in the seat's hands); the briefing lists each one whose plot is known
   among its `opportunities` (`capital_to_take`: where it stands, at war with its holder or not, both Soldiers
-  figures in a game of two; the Soldiers row carries the screen's `lowest` for that). 50 tests.
+  figures in a game of two; the Soldiers row carries the screen's `lowest` for that). The briefing's `changes`
+  say how the Soldiers figures moved since the briefing before (`changes.soldiers`: mine, highest, lowest). 52
+  tests.
 - **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
   `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
   `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:

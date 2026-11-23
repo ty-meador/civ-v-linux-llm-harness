@@ -729,9 +729,20 @@ def build(ts: dict, summary: dict, cities: list, units: list, board: dict, basel
         out["opportunities"] = opp
     if tools:
         out["tools"] = tools
+    # v346: the Soldiers row of the Demographics screen rides in the snapshot, so the next briefing says how the
+    # figures moved since this one (mine, the highest, the lowest): an army growing next door is a change.
+    sol = (ts.get("military") or {}).get("soldiers") if isinstance(ts.get("military"), dict) else None
+    if isinstance(sol, dict):
+        snap["soldiers"] = {k: sol[k] for k in ("mine", "best", "lowest") if _num(sol.get(k)) is not None}
     changes: dict = {}
     if baseline.get("comparable") and isinstance(prev, dict):
         changes.update(compare(prev, snap))
+        was, now = prev.get("soldiers"), snap.get("soldiers")
+        if isinstance(was, dict) and isinstance(now, dict):
+            moved = {name: {"was": was[k], "now": now[k]} for k, name in (("mine", "mine"), ("best", "highest"), ("lowest", "lowest"))
+                     if _num(was.get(k)) is not None and _num(now.get(k)) is not None and was[k] != now[k]}
+            if moved:
+                changes["soldiers"] = moved
         t = changes.get("territory")
         if isinstance(t, dict) and len(t.get("gained") or []) > limit:
             # Every lost plot is listed (a loss is rare and each row matters); border growth is capped.

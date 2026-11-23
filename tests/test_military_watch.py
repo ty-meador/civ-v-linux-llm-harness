@@ -580,6 +580,31 @@ class VictoriesAllowedTests(unittest.TestCase):
         self.assertNotIn("victories_allowed", self.briefing({}))
 
 
+class SoldiersChangeTests(unittest.TestCase):
+    TS = {"turn": 240, "todo": {"units": [], "cities": []}, "blocking_name": "NO_ENDTURN_BLOCKING_TYPE", "pending_popups": []}
+
+    def briefing(self, soldiers, prev=None):
+        ts = {**self.TS, "military": {"soldiers": soldiers}}
+        return build(ts, {}, [], [], {"event_seq": 1, "threats": [], "camps": []},
+                     {"comparable": prev is not None}, prev, [], limit=8, include_rules=False)
+
+    def test_the_next_briefing_says_how_the_soldiers_figures_moved(self):
+        _out, snap = self.briefing({"mine": 163377, "rank": 1, "of": 2, "best": 163377, "average": 157000, "lowest": 151486})
+        self.assertEqual(snap["soldiers"], {"mine": 163377, "best": 163377, "lowest": 151486})
+        out, _snap = self.briefing({"mine": 182746, "rank": 2, "of": 2, "best": 243253, "average": 213000, "lowest": 182746}, prev=snap)
+        self.assertEqual(out["changes"]["soldiers"], {"mine": {"was": 163377, "now": 182746},
+                                                      "highest": {"was": 163377, "now": 243253},
+                                                      "lowest": {"was": 151486, "now": 182746}})
+
+    def test_figures_that_did_not_move_and_a_baseline_without_them_say_nothing(self):
+        row = {"mine": 4000, "rank": 6, "of": 6, "best": 24000, "average": 15000, "lowest": 4000}
+        _out, snap = self.briefing(row)
+        out, _snap = self.briefing(row, prev=snap)
+        self.assertNotIn("soldiers", out.get("changes", {}))
+        out, _snap = self.briefing(row, prev={"turn": 230, "empire": {}, "cities": {}, "units": {}})
+        self.assertNotIn("soldiers", out.get("changes", {}))
+
+
 class CapitalToTakeTests(unittest.TestCase):
     ONLY = {"victory": "DOMINATION", "wins": "the last player holding their own original capital",
             "capitals": [{"city": "Attila's Court", "civ": "The Huns", "held_by": "The Huns", "player_id": 1, "x": 13, "y": 11,
