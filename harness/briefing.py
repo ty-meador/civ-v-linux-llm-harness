@@ -722,6 +722,13 @@ def build(ts: dict, summary: dict, cities: list, units: list, board: dict, basel
             out.setdefault("warnings", []).append({
                 "kind": "victory_threat", **w,
                 "note": f"{w.get('note') or w.get('civ')}: close to a {str(w['victory']).capitalize()} victory"})
+    counsel = board.get("counsel") if isinstance(board, dict) and isinstance(board.get("counsel"), dict) else None
+    if counsel:
+        # v346: the game's own advisors, as the Advisor Counsel screen has them this turn. The harness adds nothing.
+        out["advisors"] = {**{k: v for k, v in counsel.items() if isinstance(v, list) and v},
+                           "note": "the game's own Military and Foreign advisors on the Advisor Counsel screen this turn, "
+                                   "each in the game's order; status.military.advisor is the Military Advisor's first "
+                                   "line on every turn"}
     if include_rules and board.get("traits"):
         out["civ_rules"] = board["traits"]
     if include_rules and isinstance(board.get("victories"), list):

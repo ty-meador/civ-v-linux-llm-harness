@@ -212,6 +212,13 @@ function H.briefing_board(pid, since_seq)
     end
     out.victories = v
   end)
+  -- v346: what the game's own advisors say this turn (the Advisor Counsel screen), military and foreign.
+  pcall(function()
+    local counsel = H.advisor_counsel(pid)
+    if counsel and (counsel.military or counsel.foreign) then
+      out.counsel = { military = counsel.military, foreign = counsel.foreign }
+    end
+  end)
   return out
 end
 

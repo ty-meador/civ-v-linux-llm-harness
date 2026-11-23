@@ -1,5 +1,5 @@
 -- Shared by earlier fragments (load order: harness/runtime_source.py MANIFEST).
-local info_type, short = H._ns.info_type, H._ns.short
+local info_type, plain_text, short = H._ns.info_type, H._ns.plain_text, H._ns.short
 
 -- What a player watching the screen knows of the military situation without asking, on every status of the
 -- seat's own turn (v346; the user, 2026-11-23: "giving the LLM the info it needs in real time"). Live,
@@ -26,7 +26,32 @@ local info_type, short = H._ns.info_type, H._ns.short
 --   upgrades: my combat units whose Upgrade button the unit panel shows (the target can be trained): `ready` the
 --           ones it would upgrade this moment, with the price; `waiting` the ones it greys, with the panel's
 --           reasons (gold, territory, resources and which, stacking, moved).
+--   advisor: the first line the game's own Military Advisor gives on the Advisor Counsel screen this turn (the
+--           game orders its counsel by weight). Live 2026-11-23, Venice t108, five units and the lowest Soldiers
+--           figure for sixty turns: "The Zulu Kingdom wields an army that could wipe us off the planet. Do
+--           everything we can to remain at peace with them and build military as fast as possible to make our
+--           situation less perilous." The game says this to a human; the seat had never been shown it.
 H.MILITARY_NEAR, H.MILITARY_CLOSE, H.MILITARY_PEACE_MIN, H.MILITARY_UPGRADES_SHOWN = 5, 3, 3, 8
+
+-- The Advisor Counsel screen (advisorcounselpopup.lua: Game.GetAdvisorCounsel(), a list of sentences an advisor,
+-- in the game's own order): {military, economic, foreign, science}, icons as words. The game keeps one counsel,
+-- the active player's, so another seat's read gets nothing.
+function H.advisor_counsel(pid)
+  if not (Game.GetAdvisorCounsel and AdvisorTypes) or Game.GetActivePlayer() ~= pid then return nil end
+  local ok, all = pcall(Game.GetAdvisorCounsel)
+  if not ok or type(all) ~= "table" then return nil end
+  local out, any = {}, false
+  for name, key in pairs({ military = "ADVISOR_MILITARY", economic = "ADVISOR_ECONOMIC", foreign = "ADVISOR_FOREIGN",
+                           science = "ADVISOR_SCIENCE" }) do
+    local rows, lines = all[AdvisorTypes[key]], {}
+    for _, v in ipairs(type(rows) == "table" and rows or {}) do
+      local text = plain_text(tostring(v))
+      if text and text ~= "" then lines[#lines + 1] = text end
+    end
+    if #lines > 0 then out[name] = lines; any = true end
+  end
+  return any and out or nil
+end
 
 function H.upgrades_waiting(pid)
   local p = Players[pid]
@@ -170,6 +195,10 @@ function H.military_watch(pid)
   end
   out.combat_units = own
   pcall(function() out.upgrades = H.upgrades_waiting(pid) end)
+  pcall(function()
+    local counsel = H.advisor_counsel(pid)
+    if counsel and counsel.military then out.advisor = counsel.military[1] end
+  end)
   if #cities == 0 then return out end
   local function nearest_city(x, y)
     local best, bd

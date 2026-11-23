@@ -270,6 +270,22 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(watch().upgrades == nil, 'no button while the target cannot be trained: ' .. H.json(watch()))
         """)
 
+    def test_the_military_advisors_first_line_and_the_whole_counsel(self):
+        self.run_lua("""
+        AdvisorTypes = { ADVISOR_MILITARY = 0, ADVISOR_ECONOMIC = 1, ADVISOR_FOREIGN = 2, ADVISOR_SCIENCE = 3 }
+        Game.GetAdvisorCounsel = function()
+          return { [0] = { 'The Zulu Kingdom wields an army that could wipe us off the planet.', 'We are nearly defenseless!' },
+                   [1] = { 'Unit maintenance costs us 9 [ICON_GOLD] a turn.' }, [2] = {}, [3] = {} }
+        end
+        assert(watch().advisor == 'The Zulu Kingdom wields an army that could wipe us off the planet.', H.json(watch()))
+        local c = H.advisor_counsel(0)
+        assert(#c.military == 2 and c.foreign == nil and c.science == nil, H.json(c))
+        assert(c.economic[1] == 'Unit maintenance costs us 9 Gold a turn.' or c.economic[1]:find('9', 1, true), H.json(c))
+        assert(H.advisor_counsel(1) == nil, 'the game keeps the counsel of the player on screen only')
+        Game.GetAdvisorCounsel = nil
+        assert(watch().advisor == nil and H.advisor_counsel(0) == nil)
+        """)
+
     def test_a_seat_with_no_city_has_its_soldiers_row_and_nothing_else(self):
         self.run_lua("""
         Players[0].cities = {}
@@ -475,6 +491,14 @@ class VictoriesAllowedTests(unittest.TestCase):
 
     def test_the_briefing_that_carries_the_rules_names_the_victories_the_game_allows(self):
         self.assertEqual(self.briefing({"victories": ["DOMINATION"]})["victories_allowed"], ["DOMINATION"])
+
+    def test_the_briefing_carries_what_the_games_advisors_say(self):
+        out = self.briefing({"counsel": {"military": ["We are nearly defenseless! We need to train more units!"], "foreign": []}},
+                            include_rules=False)
+        self.assertEqual(out["advisors"]["military"], ["We are nearly defenseless! We need to train more units!"])
+        self.assertNotIn("foreign", out["advisors"])
+        self.assertIn("the game's own", out["advisors"]["note"])
+        self.assertNotIn("advisors", self.briefing({}))
 
     def test_a_later_briefing_and_an_older_runtime_carry_none(self):
         self.assertNotIn("victories_allowed", self.briefing({"victories": ["DOMINATION"]}, include_rules=False))
