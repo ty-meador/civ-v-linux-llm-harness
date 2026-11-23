@@ -25,6 +25,15 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   and `in_range` (the enemy units and cities in sight within its range); the briefing's `unit_attack` row carries
   the set-up order. A `sieges` row says how far the city strikes and which of the seat's units stand inside that
   (`strike_range`, `my_units_in_strike_range`): that siege lost five Artillery that had stopped inside it. Two tests.
+  What the games on `duel-king-rome-huns-a` showed (Rome against the Huns, Duel Pangaea, King, only Domination;
+  the pieces above went live in them as they were written). Sonnet 5.5 at medium effort before any of it: five
+  Warriors when Attila declared war on turn 119, three of five cities lost by turn 129. With it: war on turn 85,
+  the siege of Antium beaten off, peace on 112 with four cities, the larger Soldiers figure from turn 137, 35
+  combat units by turn 223, and no war of its own in 250 turns; a fresh notebook from that game's turn-180 save
+  wrote "Domination needs capturing Attila's Court; gather artillery after Dynamite first" and was still at peace
+  on turn 230, behind on Soldiers again. Opus 5.5 at medium effort from the same turn-180 save, with the same
+  replies: declared war on turn 185, refused three peace offers because the capital is the only victory, wrote
+  an order of attack into its notes and took Attila's Court on turn 219, a Domination victory.
 - **An attack the game's Military Advisor asks about no longer stops the game (2026-11-23; runtime v346).** The
   game raises a confirmation screen before a melee attack at bad odds and before a first attack on a city
   (`advisormodal.lua`, `BUTTONPOPUP_ADVISOR_MODAL`: "We may want to reconsider this attack; you will do marginal
