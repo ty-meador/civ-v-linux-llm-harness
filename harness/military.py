@@ -19,7 +19,8 @@ FAR_BEHIND = 2
 
 def record(ts: dict) -> dict | None:
     """What one status says, kept to compare the next turn's against: {turn, forces {civ: [units, at_war]},
-    cities {id: [name, hp]}, last (my Soldiers figure is the lowest), approach {civ: word}}. None for a status without the block (an older
+    cities {id: [name, hp]}, last (my Soldiers figure is the lowest and the highest is half again mine), approach
+    {civ: word}}. None for a status without the block (an older
     runtime, another player's turn, the main menu)."""
     m = ts.get("military") if isinstance(ts, dict) else None
     if not isinstance(m, dict) or not isinstance(ts.get("turn"), int):
@@ -33,7 +34,9 @@ def record(ts: dict) -> dict | None:
         if isinstance(c, dict) and c.get("id") is not None and isinstance(c.get("hp"), int):
             cities[str(c["id"])] = [str(c.get("name")), c["hp"]]
     s = m.get("soldiers") if isinstance(m.get("soldiers"), dict) else {}
-    last = isinstance(s.get("of"), int) and s["of"] >= 2 and s.get("rank") == s["of"]
+    # The lowest by a margin (the highest half again mine): two armies of the same size swap ranks turn by turn.
+    last = isinstance(s.get("of"), int) and s["of"] >= 2 and s.get("rank") == s["of"] \
+        and isinstance(s.get("mine"), int) and isinstance(s.get("best"), int) and 2 * s["best"] >= 3 * s["mine"]
     approach = {str(k): str(v) for k, v in (m.get("approach") or {}).items()} if isinstance(m.get("approach"), dict) else {}
     return {"turn": ts["turn"], "forces": forces, "cities": cities, "last": bool(last), "approach": approach}
 

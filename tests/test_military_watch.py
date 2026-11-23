@@ -302,6 +302,12 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(military.wake_reasons(rec(41, 6), rec(40, 5)), ["soldiers_rank_lowest"])
         self.assertEqual(military.wake_reasons(rec(42, 6), rec(41, 6)), [])
 
+    def test_the_lowest_of_two_armies_of_a_size_does_not_wake(self):
+        def rec(turn, rank, mine):
+            return military.record({"turn": turn, "military": mil(rank=rank, of=2, mine=mine, best=5000)})
+        self.assertEqual(military.wake_reasons(rec(11, 2, 4000), rec(10, 1, 5000)), [], "5000 is not half again 4000")
+        self.assertEqual(military.wake_reasons(rec(12, 2, 3000), rec(11, 2, 4000)), ["soldiers_rank_lowest"])
+
 
     def test_a_leader_turning_wary_wakes_and_one_turning_friendly_does_not(self):
         def rec(turn, **approach):
