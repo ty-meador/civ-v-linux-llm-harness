@@ -88,9 +88,13 @@ function H.victory_watch(pid)
   local myTeamId = me:GetTeam()
   local myTeam = Teams[myTeamId]
   local function allowed(vtype)
+    -- v345: the game's own word first (Game.IsVictoryValid), which also holds a victory switched off after the
+    -- game was hosted, as the benchmark's terms do with Time; the setup screen's (PreGame.IsVictory) without it.
     local ok, on = pcall(function()
       local v = GameInfo.Victories[vtype]
-      return v and PreGame.IsVictory(v.ID)
+      if not v then return nil end
+      if Game.IsVictoryValid then return Game.IsVictoryValid(v.ID) end
+      return PreGame.IsVictory(v.ID)
     end)
     return not (ok and on == false)   -- a read that fails leaves the victory counted as allowed
   end

@@ -166,6 +166,17 @@ class VictoryWatchLuaTests(unittest.TestCase):
         assert(#rows == 1 and rows[1].victory == 'science', H.json(rows))
         """)
 
+    def test_a_victory_switched_off_after_the_game_was_hosted_is_not_listed(self):
+        # v345: the benchmark switches a victory off inside a hosted game (Game.SetVictoryValid), which the setup
+        # screen's own list does not follow; the game's word is asked first.
+        self.run_lua("""
+        CIVS[2].projects = { [10] = 1, [11] = 3 }
+        assert(#watch() == 1 and watch()[1].victory == 'science', H.json(watch()))
+        VALID = { [2] = false }
+        Game.IsVictoryValid = function(id) return VALID[id] ~= false end
+        assert(#watch() == 0, 'the setup screen still lists Science: ' .. H.json(watch()))
+        """)
+
 
 WATCH = [{"victory": "culture", "player": 1, "civ": "America", "influential_on": 4, "needed": 5,
           "note": "America is influential on 4 of the 5 civilizations a Culture victory needs"}]

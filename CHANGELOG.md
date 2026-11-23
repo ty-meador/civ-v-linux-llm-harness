@@ -32,7 +32,9 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   game's own autosave of that game at turn 320, loaded as a scratch game: the status of turn 321 listed America
   for Culture (influential on 2 of 3) and for Science (3 of the 6 parts in its ship) and the Celts for the
   World Leader vote (30 of 33 delegates), and the turn's `woke_because` named all three. A run of quiet turns
-  stopping on it is in the tests, not seen live. Fourteen tests.
+  stopping on it is in the tests, not seen live. Whether a victory is allowed is the game's own word
+  (`Game.IsVictoryValid`), so one switched off after the game was hosted is not listed either (v345).
+  Fifteen tests.
 - **A player's run keeps saves on the way too (2026-11-23).** `benchmark_run.py --checkpoint N` now goes with a
   player's command as well as with the built-in AI's own run: while the command plays, a copy of the seat's own
   quick save (the seat's server writes it before it ends each turn) is kept for every game turn that is a multiple
