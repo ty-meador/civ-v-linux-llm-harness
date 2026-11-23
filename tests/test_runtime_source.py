@@ -154,7 +154,7 @@ LUAC = shutil.which("luac5.4") or shutil.which("luac")
 # What the runtime may read as a global besides its own H: the game's API in the InGame state and Lua's builtins.
 # A new engine table is added here on purpose; a fragment's local that another fragment forgot to import is not.
 GAME_API = {
-    "ActivityTypes", "ButtonPopupTypes", "CityAIFocusTypes", "CommandTypes", "ContextPtr", "DiploUIStateTypes",
+    "AdvisorTypes", "ActivityTypes", "ButtonPopupTypes", "CityAIFocusTypes", "CommandTypes", "ContextPtr", "DiploUIStateTypes",
     "DirectionTypes", "DomainTypes", "EndTurnBlockingTypes", "Events", "FaithPurchaseTypes", "FromUIDiploEventTypes",
     "Game", "GameDefines", "GameInfo", "GameInfoActions", "GameInfoTypes", "GameMessageTypes", "GameOptionTypes",
     "GameplayGameStateTypes", "InfluenceLevelTrend", "InfluenceLevelTypes", "Locale", "MajorCivApproachTypes", "Map",
