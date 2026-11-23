@@ -42,7 +42,22 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   in a game that has one (`H.victory_allowed`; a duel with only Domination on had warned of the Huns' for sixty
   turns). `harness/military.py` is the Python half. Seen live on turn 120 of Sonnet's game on
   `duel-king-rome-huns-a` before the change: Soldiers 25,377 against the Huns' 73,946, five Hun units within 5
-  plots of Ravenna, both threatened cities listed with their garrison. 40 tests.
+  plots of Ravenna, both threatened cities listed with their garrison.
+  The Soldiers row alone changed little: on `small-king-venice-a` Sonnet built two more Warriors and an Archer by
+  turn 40 and then held five units to turn 128 while the highest figure tripled. Three more pieces went in while
+  that game played (a changed runtime is installed at the next call): `military.advisor`, the first line of the
+  game's own Military Advisor on the Advisor Counsel screen (`Game.GetAdvisorCounsel`; read on turn 108 of that
+  game: "The Zulu Kingdom wields an army that could wipe us off the planet. Do everything we can to remain at
+  peace with them and build military as fast as possible", "We are nearly defenseless! We need to train more
+  units!"), with the Military and Foreign advisors' whole counsel in the briefing as `advisors`;
+  `military.upgrades`, the upgrades the unit panel offers now and the ones it greys with the panel's reasons
+  (briefing row `upgrades_ready`); and `todo.unit_attacks`, the seat's units with something to attack this
+  moment, fortified and sleeping ones included (the city had fired on every turn of a siege, being in
+  `todo.city_strikes`, while the Crossbowman garrisoned in it never did), each with the number of targets and
+  the one its preview gives the most damage on; the briefing lists each as a `unit_attack` decision. In the
+  instance that first saw the advisor's line and the upgrade offers (turn 130) Sonnet upgraded its three Warriors
+  and its Archer and bought Walls; Shaka declared war on turn 138, and Venice, destroyed on turn 95 in the game
+  before the change, came through that siege and two more (wars declared on turns 138, 159 and 185, peace on 144, 171 and 196). 48 tests.
 - **A starting save can name its rivals and its victories (2026-11-23).** `benchmark_save.py --host` takes
   `--opponent CIVILIZATION_X` (repeat for the next slot) and `--victories VICTORY_A,VICTORY_B` (only these on), and
   `start_single_player` takes `opponents` and `victories` for the same. Made for a starting save the user asked for:

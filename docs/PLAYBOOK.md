@@ -202,8 +202,21 @@ gold covers a unit and none is for sale because a combat unit stands on the city
 there and a tile holds one). `approach` is the word the diplomacy list shows for each met AI leader you are not at
 war with (FRIENDLY, NEUTRAL, GUARDED, HOSTILE, AFRAID). `sieges` lists each city of a player you are at war with
 that you see now and have a combat unit within 5 plots of: `x`, `y`, `hp` of `max_hp`, `strength`, `capital`,
-your units within 3 plots (`my_units_close`) and its owner's in sight there (`enemy_units_close`). Only units you
-can see are counted and nothing is estimated. A run of quiet turns stops when an army at peace comes into sight near a
+your units within 3 plots (`my_units_close`) and its owner's in sight there (`enemy_units_close`). `upgrades`
+lists your combat units whose Upgrade button the unit panel shows: `ready` the ones it would upgrade this moment
+with the price (`order(to="unit", action="upgrade", id)`), `waiting` the ones it greys with the panel's reasons
+(`gold`, `territory`, `resources:<NAME>`, `stacking`, `moved`). `advisor` is the first line the game's own
+Military Advisor gives on the Advisor Counsel screen this turn; the game orders its counsel by weight, and the
+words are the game's, not the harness's. The briefing carries the Military and Foreign advisors' whole counsel as
+`advisors`. Only units you can see are counted and nothing is estimated.
+
+`status.todo.unit_attacks` lists your units that have something to attack this moment, whatever they are doing:
+a unit that sleeps or stands fortified, a garrison too, is in no other list. One row a unit: `ranged`, `targets`
+(how many), and `most_damage_on`, the target its preview gives the most damage on (`deals`, `takes`, the
+target's `hp`). `state(what="unit", id, view="tactical")` lists every target with the odds; a ranged unit fires
+with `order(to="unit", action="mission", id, args={mission: "MISSION_RANGE_ATTACK", x, y})`, a melee unit attacks
+by moving onto the target's plot. A turn with such a row is not a quiet one (`woke_because` `todo.unit_attacks`),
+and the briefing lists each as a `unit_attack` decision with the call. A run of quiet turns stops when an army at peace comes into sight near a
 city or grows by two (`woke_because` `foreign_forces_near:<civ>:<was>-><now>`), on every turn an enemy army is in
 sight there (`enemy_forces_near:<civ>:<units>`), when a city is first listed (`city_threatened:<name>`) or loses
 hit points (`city_damaged:<name>:<was>-><now>`), when your Soldiers figure becomes the lowest with the highest
