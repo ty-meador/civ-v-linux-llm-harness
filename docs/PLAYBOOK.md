@@ -216,7 +216,14 @@ a unit that sleeps or stands fortified, a garrison too, is in no other list. One
 target's `hp`). `state(what="unit", id, view="tactical")` lists every target with the odds; a ranged unit fires
 with `order(to="unit", action="mission", id, args={mission: "MISSION_RANGE_ATTACK", x, y})`, a melee unit attacks
 by moving onto the target's plot. A turn with such a row is not a quiet one (`woke_because` `todo.unit_attacks`),
-and the briefing lists each as a `unit_attack` decision with the call. A run of quiet turns stops when an army at peace comes into sight near a
+and the briefing lists each as a `unit_attack` decision with the call.
+
+The game asks before an attack it thinks badly of: a melee attack at bad odds, and a first attack on a city. A
+human gets a screen from the Military Advisor ("We may want to reconsider this attack; you will do marginal
+damage to your opponent and they will do considerable damage to you") with Attack and Cancel. Here the move
+order comes back refused with that sentence in `advisor`: the attack was not made and the unit keeps its moves.
+The same order with `confirm: true` in its args attacks anyway, as the screen's Attack button does:
+`order(to="unit", action="move", id, args={x, y, confirm: true})`. A run of quiet turns stops when an army at peace comes into sight near a
 city or grows by two (`woke_because` `foreign_forces_near:<civ>:<was>-><now>`), on every turn an enemy army is in
 sight there (`enemy_forces_near:<civ>:<units>`), when a city is first listed (`city_threatened:<name>`) or loses
 hit points (`city_damaged:<name>:<was>-><now>`), when your Soldiers figure becomes the lowest with the highest

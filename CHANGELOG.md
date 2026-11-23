@@ -16,6 +16,16 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **An attack the game's Military Advisor asks about no longer stops the game (2026-11-23; runtime v346).** The
+  game raises a confirmation screen before a melee attack at bad odds and before a first attack on a city
+  (`advisormodal.lua`, `BUTTONPOPUP_ADVISOR_MODAL`: "We may want to reconsider this attack; you will do marginal
+  damage to your opponent and they will do considerable damage to you", Attack / Cancel). Nothing answered it:
+  on turns 106 and 107 of Sonnet's duel against the Huns a Warrior ordered onto a Pikeman left the screen up,
+  `question()` said nothing was asked, every later order and the end of the turn were refused, and four instances
+  gave the turn up until the screen was closed by hand. The move's reply now reads the screen, cancels it as its
+  Cancel button does, and comes back refused with the advisor's sentence (`advisor`); the same order with
+  `confirm: true` attacks anyway as the screen's Attack button does (`Game.SetCombatWarned`, for that one order).
+  `H.advisor_modal`, `H.combat_warned`. Eleven tests.
 - **The military situation is on every status of the seat's own turn (2026-11-23; runtime v346).** The user:
   "giving the LLM the info it needs in real time". On `small-king-venice-a` Sonnet 5.5 held two Warriors and a
   Scout beside the Zulus at turn 88, bought a Market with 380 gold on turn 82, and was told of an army only once
