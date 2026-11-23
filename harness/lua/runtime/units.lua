@@ -306,6 +306,11 @@ function H.units(pid)
         end
       end
     end
+    -- v347: a siege unit says whether it is set up (the unit flag's tent); nothing did, and a set-up asked of a
+    -- unit that had it was a refusal (live 2026-11-23, the duel). Absent for a unit that needs none.
+    pcall(function()
+      if u:IsMustSetUpToRangedAttack() then e.set_up = u:IsSetUpForRangedAttack() and true or false end
+    end)
     out[#out + 1] = e
   end
   return out
@@ -391,8 +396,27 @@ function H.upgrade_blocked(u, pid, price, ut)
       row("stacking", "TXT_KEY_UPGRADE_HELP_DISABLED_STACKING", { units_on_plot = n })
     end
   end
-  if #out == 0 and u.HasMoved and u:HasMoved() then
-    row("moved", nil, { text = "the unit has already moved this turn: an upgrade needs its full moves" })
+  if #out == 0 then
+    -- The gates the panel never spells out, the first that holds: a unit that fired has not "moved" and was told
+    -- nothing (live 2026-11-23, the duel t193: a Cannon that had shot was refused with the whole list).
+    local function yes(name)
+      local f = u[name]
+      if not f then return false end
+      local okf, v = pcall(f, u)
+      return (okf and v) and true or false
+    end
+    local moves = nil
+    pcall(function() moves = u:MovesLeft() end)
+    if yes("IsOutOfAttacks") then
+      row("attacked", nil, { text = "the unit has attacked this turn: an upgrade needs a unit that has not acted; "
+                                    .. "upgrade it next turn before it moves or fires" })
+    elseif yes("HasMoved") then
+      row("moved", nil, { text = "the unit has already moved this turn: an upgrade needs its full moves" })
+    elseif type(moves) == "number" and moves <= 0 then
+      row("no_moves", nil, { text = "the unit has no moves left this turn: upgrade it next turn before it acts" })
+    elseif yes("IsEmbarked") then
+      row("embarked", nil, { text = "the unit is embarked: it upgrades on land, in my own territory" })
+    end
   end
   return out
 end

@@ -16,6 +16,42 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A move that would embark a land unit is said before it is made, and four refusals say what is in the way
+  (2026-11-23; runtime v347).** All from Opus 5.5's reports of the duel against the Huns (turns 188 to 218,
+  `duel-king-rome-huns-a`), each seen again live on that game's save of turn 210.
+  - *The move.* The engine's pathfinder took Cannons and Artillery across a lake and along the coast beside
+    Galleasses on moves of two and three plots to land, and the reply said nothing ("would have saved about 3
+    artillery"; an embarked land unit cannot attack or fire). The engine's path is closed to Lua, so
+    `H.move_route` (tactical.lua) walks `step_cost.lua`'s rule a turn at a time over the known map, by land alone
+    and with the water, a turn ending only on a plot the unit may stand on; `H.embark_plan` (movement.lua) decides
+    before anything is sent. The land route no slower (or within a turn): the unit walks it, a leg a turn (`route`
+    in the reply; the standing record keeps the destination and `route: "land"`). The water faster, or no land
+    route open: refused with `embarks_at`, `turns_by_water`, `turns_by_land`, and `land_only: true` walks while
+    `confirm: true` sends it as the engine routes it. A standing move that would have to embark is held
+    (`would_embark`). On the turn-210 save: 1,243 plans (every land unit to every land plot within four), none
+    failed, 6 ms each and 14 ms at most; the plots named were (16,8) and (18,15), where that game's Artillery had
+    been put. A plan that cannot be read leaves the move as it was.
+  - *Where a move ends.* The read after a move carries `in_range_of`: the enemy cities in sight whose strike
+    reaches the plot and the enemy ranged units in sight whose range covers it (`H.strike_threats`; a unit's range
+    is that of its kind), with `in_range_note` in the reply.
+  - *`state(what='unit', view='targets')` for a unit that shoots.* It read "mission is not offered for this unit"
+    for a Cannon, and "needs mission" without one. `MISSION_RANGE_ATTACK` (the default when no mission is named and
+    the unit has no other target list) lists the visible enemies within range with the preview, `fires_now` /
+    `why_not_now`, `set_up`, and the targets hidden from the line of fire apart. A siege unit's row in the unit
+    list carries `set_up`.
+  - *A set-up asked of a unit that is set up* read "action is not currently legal": it answers `already: true`
+    and sends nothing; one asked with no moves left says the set-up costs a move.
+  - *An upgrade's refusal* listed everything an upgrade needs: it names what is in the way of this unit
+    (`blocked`, from `H.upgrade_blocked`, which now knows a unit that attacked, has no moves or is embarked).
+  - *`MISSION_SKIP` and `COMMAND_CANCEL` both refused* for a Cannon on a standing move that had stopped short with
+    a move left, while the finish named it as what blocked the turn (three finishes lost). A unit the engine calls
+    ready (`IsReadyToMove`) is skipped for the turn and keeps its standing move (`standing_move_kept`); a cancel
+    the engine has nothing to cancel for drops the harness's own record (`standing_move_dropped`).
+  Thirty-two tests (`tests/test_embark_route.py`, `tests/test_range_attack_targets.py`, and in
+  `tests/test_standing_move_hold.py`, `tests/test_upgrade_blocked_and_gift_transit.py`); 2576 tests. The victories
+  a game can be won by were already in every instance's first briefing (`victories_allowed`, v346): read back
+  from the logs of both King boards, nothing changed.
+
 - **A siege unit that has not set up is said so, and the refusal no longer says the set-up takes a turn
   (2026-11-23; runtime v346).** From Opus 5.5's report of its siege of Attila's Court (turn 188 of the duel): the
   refused shot read "a siege unit must set up before it fires (MISSION_SETUP_FOR_RANGED_ATTACK), which takes a

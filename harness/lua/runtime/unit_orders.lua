@@ -48,7 +48,20 @@ function H.upgrade_unit(unit_id, pid)
   local price = u:UpgradePrice(ut)
   local gold = p:GetGold()
   if u.CanUpgradeRightNow and not u:CanUpgradeRightNow() then
-    return { ok = false, err = "cannot upgrade right now (needs own/allied territory, full moves, gold " .. tostring(price) .. " of " .. tostring(gold) .. ", and the strategic resource)", target = target, price = price, gold = gold }
+    -- The refusal listed everything an upgrade needs (live 2026-11-23, Opus, the duel t193: a Cannon in its own
+    -- land with the gold was refused with "needs own/allied territory, full moves, gold ..., and the strategic
+    -- resource"; it had fired that turn). It now says what is in the way of this unit: the unit panel's own red
+    -- lines, or the gate the panel never spells out (H.upgrade_blocked, as the unit rows carry it).
+    local okb, blocked = pcall(H.upgrade_blocked, u, pid, price, ut)
+    local why = {}
+    for _, b in ipairs((okb and type(blocked) == "table") and blocked or {}) do
+      why[#why + 1] = b.text or tostring(b.reason)
+    end
+    if #why == 0 then
+      return { ok = false, err = "cannot upgrade right now (needs own/allied territory, full moves, gold " .. tostring(price) .. " of " .. tostring(gold) .. ", and the strategic resource)", target = target, price = price, gold = gold }
+    end
+    return { ok = false, err = "cannot upgrade right now: " .. table.concat(why, "; "), blocked = blocked,
+             target = target, price = price, gold = gold }
   end
   local cmd = CommandTypes.COMMAND_UPGRADE
   if not u:CanDoCommand(cmd, -1, -1) then

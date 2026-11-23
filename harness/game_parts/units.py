@@ -97,19 +97,22 @@ class UnitsMixin:
     HOLDS = ("fortify", "sleep", "alert", "hold")
 
     def move_unit(self, unit_id: int, x: int, y: int, pid: int | None = None, settle_timeout: float = 1.0,
-                  then: str | None = None, confirm: bool = False) -> dict:
+                  then: str | None = None, confirm: bool = False, land_only: bool = False) -> dict:
         """move-to; when a visible enemy stands on the destination the move is a melee attack, and the
         result carries `attack`: both sides' hp before/after and who died (the unit's x/y do not change
         on an attack unless it kills and advances, so a bare move result read like nothing happened --
         live 2026-09-18). `then` (GitLab #105): fortify / sleep / alert / hold once there -- this turn when the
         unit arrives with moves left, else the turn it arrives (or the next turn start when it arrived with none):
         one order for "go there and hold", and the unit does not block the finish on arrival. `confirm`: the
-        attack the game's Military Advisor asked about is made anyway (see _with_attack_result)."""
+        attack the game's Military Advisor asked about is made anyway (see _with_attack_result), and a move whose
+        fastest route embarks the unit is sent as it is; `land_only`: that move walks the land route instead, a
+        leg a turn (runtime v347, H.embark_plan: without either word such a move is refused with both routes)."""
         if then is not None and then not in self.HOLDS:
             return {"ok": False, "err": f"then must be one of {list(self.HOLDS)}, not {then!r}"}
+        mode = "land" if land_only else "confirm" if confirm else ""
         r = self._with_attack_result(
-            unit_id, x, y, lambda: self._move_unit(unit_id, x, y, pid, settle_timeout), pid,
-            **({"confirm": True} if confirm else {}))
+            unit_id, x, y, lambda: self._move_unit(unit_id, x, y, pid, settle_timeout, **({"mode": mode} if mode else {})),
+            pid, **({"confirm": True} if confirm else {}))
         r = self._refusal_names_successor(r, unit_id, pid)   # #169: a retry to an id the ruins replaced
         if then is None or not isinstance(r, dict) or not r.get("ok") or r.get("attack"):
             return r
@@ -438,7 +441,8 @@ class UnitsMixin:
             a["note"] = ("intercepted on the way in and still struck; my_hp includes the interception damage, "
                          "which the preview's expected_damage_taken excluded")
 
-    def _move_unit(self, unit_id: int, x: int, y: int, pid: int | None = None, settle_timeout: float = 1.0) -> dict:
+    def _move_unit(self, unit_id: int, x: int, y: int, pid: int | None = None, settle_timeout: float = 1.0,
+                   mode: str = "") -> dict:
         """Issue a move-to for a unit through the game's network path (selection list +
         GAMEMESSAGE_PUSH_MISSION, see harness/lua/runtime/helpers.lua net_unit_message).
 
@@ -446,9 +450,11 @@ class UnitsMixin:
         call is still the pre-move plot -- so poll briefly for GetX/GetY or MovesLeft to change
         before returning. If the engine has not advanced within the timeout, report the pre-move
         reading honestly."""
-        r = self._order(self.h('move_unit', unit_id, x, y, pid=pid))
+        # mode (v347): "confirm" or "land", what the order said of a route that embarks the unit (H.embark_plan)
+        r = self._order(self.h('move_unit', unit_id, x, y, *([mode] if mode else []), pid=pid))
         if not r.get("ok"):
             return r
+        route = r.get("route") if isinstance(r.get("route"), dict) else None
         deadline = time.monotonic() + settle_timeout
         cur = r
         while time.monotonic() < deadline:
@@ -466,8 +472,19 @@ class UnitsMixin:
                 # Say whether it got there: activity MISSION alone left "moved (24,23)->(24,29), asked for
                 # (25,30)" to be worked out by the caller (live t325).
                 cur["arrived"] = (cur["x"], cur["y"]) == (x, y)
+                threats = cur.get("in_range_of")
+                if isinstance(threats, list) and threats:
+                    # v347: the plot the move ended on can be struck (H.strike_threats); said with the move, while
+                    # a move left can still take the unit out of it
+                    names = ", ".join(f"{t.get('city') or t.get('unit')} at ({t.get('x')},{t.get('y')})"
+                                      for t in threats[:3] if isinstance(t, dict))
+                    cur["in_range_note"] = (f"this plot is within the strike range of {names}"
+                                            + (f" and {len(threats) - 3} more" if len(threats) > 3 else "")
+                                            + ("; the unit has moves left" if (cur.get("moves") or 0) > 0 else ""))
                 if not cur["arrived"]:
                     cur["destination"] = {"x": x, "y": y}
+                    if route:
+                        cur["route"] = route
                     if cur.get("activity") == 6:
                         cur["note"] = "still on its way: the order carries on next turn (order(to='unit', action='move') again to change it)"
                 elif r.get("swap_candidates"):
@@ -493,6 +510,9 @@ class UnitsMixin:
         # way) -- and reporting ok:true here sent callers on with a unit that never moved (live t252).
         if cur.get("ok") and (cur.get("activity") == 6 or (r.get("moves") or 0) <= 0):
             cur.pop("revealed", None)   # it has not moved yet: nothing was shown
+            cur.pop("in_range_of", None)
+            if route:
+                cur["route"] = route
             cur["queued"] = True
             # #37: say where it is going; the next turn_status repeats it under todo.ongoing.
             cur["going_to"] = {"x": int(x), "y": int(y)}
@@ -1279,7 +1299,7 @@ class UnitsMixin:
         r["effects"] = {"before": before, "after": after}
         return r
 
-    def unit_mission_targets(self, unit_id: int, mission: str, offset: int = 0, limit: int = 100,
+    def unit_mission_targets(self, unit_id: int, mission: str = "", offset: int = 0, limit: int = 100,
                              pid: int | None = None) -> dict:
         return A.mission_target_rows(self.q(self.h('unit_mission_targets', int(unit_id), mission, int(offset), int(limit), pid=pid)))
 

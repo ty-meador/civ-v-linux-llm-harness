@@ -108,6 +108,40 @@ rows = H.upgrade_blocked(make_unit({ moved = true, needs = { [1] = 1 } }), 0, 55
 assert(#rows == 1 and rows[1].reason == "resources", H.json(rows))
 """)
 
+    def test_a_unit_that_fired_or_has_no_moves_is_told_that_and_the_order_says_it(self):
+        """Live 2026-11-23 (Opus 5.5, the duel t193): a Cannon in its own land with the gold was refused with "needs
+        own/allied territory, full moves, gold ..., and the strategic resource"; it had fired that turn."""
+        self.run_lua(UPGRADE_WORLD)
+        self.run_lua(r"""
+local function with(o, extra)
+  local u = make_unit(o)
+  for k, v in pairs(extra) do u[k] = v end
+  return u
+end
+local rows = H.upgrade_blocked(with({ in_city = true }, { IsOutOfAttacks = function() return true end }), 0, 55)
+assert(#rows == 1 and rows[1].reason == "attacked" and rows[1].text:find("has attacked this turn"), H.json(rows))
+rows = H.upgrade_blocked(with({ in_city = true }, { MovesLeft = function() return 0 end }), 0, 55)
+assert(#rows == 1 and rows[1].reason == "no_moves", H.json(rows))
+rows = H.upgrade_blocked(with({ in_city = true }, { MovesLeft = function() return 120 end, IsEmbarked = function() return true end }), 0, 55)
+assert(#rows == 1 and rows[1].reason == "embarked", H.json(rows))
+-- the panel's own red line still comes first and alone
+rows = H.upgrade_blocked(with({ plot_owner = 3 }, { IsOutOfAttacks = function() return true end }), 0, 55)
+assert(#rows == 1 and rows[1].reason == "territory", H.json(rows))
+
+-- the order's refusal is those lines, not the list of everything an upgrade needs
+GameInfo.Units = { [9] = { Type = "UNIT_ARTILLERY" } }
+local cannon = with({ in_city = true }, {
+  IsOutOfAttacks = function() return true end, GetUpgradeUnitType = function() return 9 end,
+  UpgradePrice = function() return 95 end, CanUpgradeRightNow = function() return false end })
+Players[0].GetUnitByID = function() return cannon end
+local r = H.upgrade_unit(7, 0)
+assert(r.ok == false and r.err:find("cannot upgrade right now: the unit has attacked this turn", 1, true), H.json(r))
+assert(not r.err:find("territory", 1, true) and r.blocked[1].reason == "attacked" and r.price == 95, H.json(r))
+World.gold = 10
+r = H.upgrade_unit(7, 0)
+assert(r.blocked[1].reason == "gold" and #r.blocked == 1, "the gold is what is in the way now: " .. H.json(r))
+""")
+
 
 GIFT_WORLD = r"""
 GameInfo = GameInfo or {}

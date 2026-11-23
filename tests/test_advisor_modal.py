@@ -42,7 +42,7 @@ class FakeGame(Game):
             return None
         return {"ok": True}
 
-    def _move_unit(self, unit_id, x, y, pid=None, settle_timeout=1.0):
+    def _move_unit(self, unit_id, x, y, pid=None, settle_timeout=1.0, mode=""):
         self.calls.append(f"move {unit_id} {x} {y} warned={self.warned}")
         if self.modal and not self.warned:
             return {"ok": False, "err": "unit did not move", "x": 5, "y": 11, "moves": 2}
@@ -84,7 +84,7 @@ class AdvisorStoppedTests(unittest.TestCase):
 
     def test_a_refusal_with_no_screen_up_stays_the_refusal_it_was(self):
         class Dropped(FakeGame):
-            def _move_unit(self, unit_id, x, y, pid=None, settle_timeout=1.0):
+            def _move_unit(self, unit_id, x, y, pid=None, settle_timeout=1.0, mode=""):
                 return {"ok": False, "err": "unit did not move", "x": 5, "y": 11, "moves": 2}
         g = Dropped(modal=False)
         r = g.move_unit(17, 6, 11)

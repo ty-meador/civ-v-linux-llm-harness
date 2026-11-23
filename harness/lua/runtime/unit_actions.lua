@@ -138,6 +138,18 @@ end
 function H.unit_mission_targets(unit_id, mission, pid, offset, limit)
   local u = Players[pid]:GetUnitByID(unit_id)
   if not u then return { ok = false, err = "no such unit" } end
+  if mission == nil or mission == "" then
+    -- No mission named (v347; live 2026-11-23, the duel: `view='targets'` asked of a Cavalry and of a Cannon read
+    -- "needs mission" with a list that held no attack): the one mission the unit has a target list for. An air unit
+    -- or a paratrooper has several and is asked which.
+    local offered = H.targeted_missions(u)
+    if #offered == 1 then mission = offered[1].mission
+    elseif #offered == 0 then mission = "MISSION_RANGE_ATTACK"
+    else
+      return { ok = false, missions = offered,
+               err = "this unit has several target lists: name one with mission (see `missions`)" }
+    end
+  end
   local supported, mode = false, nil
   for _, row in ipairs(H.targeted_missions(u)) do
     if row.mission == mission then supported, mode = true, row.type end
@@ -145,6 +157,7 @@ function H.unit_mission_targets(unit_id, mission, pid, offset, limit)
   if not supported then
     if mission == "MISSION_TRADE" then return H.trade_mission_targets(unit_id, pid) end
     if mission == "MISSION_FOUND" then return H.settle_sites(unit_id, pid) end
+    if mission == "MISSION_RANGE_ATTACK" then return H.range_attack_targets(u, pid) end
     if mission == "MISSION_MOVE_TO" or mission == "MISSION_ROUTE_TO" then
       -- GitLab #135: a move has no target list; the destination is any revealed plot.
       return { ok = false, missions = H.targeted_missions(u),

@@ -216,7 +216,12 @@ a unit that sleeps or stands fortified, a garrison too, is in no other list. One
 (how many), and `most_damage_on`, the target its preview gives the most damage on (`deals`, `takes`, the
 target's `hp`). A siege unit that has not set up strikes nothing yet: its row has `needs_set_up` and `in_range`,
 the enemy units and cities in your sight within its range; `MISSION_SET_UP_FOR_RANGED_ATTACK` costs one move, and
-with a move left the unit fires in the same turn. `state(what="unit", id, view="tactical")` lists every target with the odds; a ranged unit fires
+with a move left the unit fires in the same turn. A siege unit's row in `state(what="units")` says `set_up`
+(true or false); a set-up asked of a unit that is set up answers `already: true` and sends nothing.
+`state(what="unit", id, view="targets")` is what a unit that shoots can hit from the plot it stands on: each
+visible enemy unit and city within its range with the combat preview, `fires_now` and `why_not_now` (no moves,
+attacked already, not set up), and under `out_of_line_of_fire` the ones in range that hills or forest hide, so a
+set-up is not spent on a shot that is blocked. `state(what="unit", id, view="tactical")` lists every target with the odds; a ranged unit fires
 with `order(to="unit", action="mission", id, args={mission: "MISSION_RANGE_ATTACK", x, y})`, a melee unit attacks
 by moving onto the target's plot. A turn with such a row is not a quiet one (`woke_because` `todo.unit_attacks`),
 and the briefing lists each as a `unit_attack` decision with the call.
@@ -226,7 +231,25 @@ human gets a screen from the Military Advisor ("We may want to reconsider this a
 damage to your opponent and they will do considerable damage to you") with Attack and Cancel. Here the move
 order comes back refused with that sentence in `advisor`: the attack was not made and the unit keeps its moves.
 The same order with `confirm: true` in its args attacks anyway, as the screen's Attack button does:
-`order(to="unit", action="move", id, args={x, y, confirm: true})`. A run of quiet turns stops when an army at peace comes into sight near a
+`order(to="unit", action="move", id, args={x, y, confirm: true})`.
+
+A move to a land plot can take a land unit across water: the game routes by the fewest turns, and a unit on the
+water is embarked (it cannot attack or fire and defends weakly). The move order looks first. When the land route
+takes no longer, the unit walks it, a leg a turn, and the reply's `route` says so (`leg`, `arrives`); the standing
+move takes the next leg at each turn start. When the water is faster, or no land route is open (a turn cannot end
+on a plot another of your units holds), the order is refused before anything moves, with `embarks_at`,
+`turns_by_water` and `turns_by_land`: `args={x, y, land_only: true}` walks the land route, and
+`args={x, y, confirm: true}` takes the water. A move to a water plot is your own choice and is never asked about.
+A standing move that would have to embark at a later turn is held (`would_embark`) and the unit keeps its moves. A move that ends
+where an enemy city or a ranged enemy unit in sight can strike says so in the reply: `in_range_of` (each with its
+`range` and `distance`) and `in_range_note`.
+
+A unit on a standing move that stopped short with moves left is on the end-turn list: `MISSION_SKIP` passes it
+for the turn and keeps the standing move (`standing_move_kept`), `COMMAND_CANCEL` drops the standing move
+(`standing_move_dropped`). An upgrade that is refused names what is in the way of this unit (`blocked`: the
+unit panel's red line, or that the unit has moved or attacked this turn).
+
+A run of quiet turns stops when an army at peace comes into sight near a
 city or grows by two (`woke_because` `foreign_forces_near:<civ>:<was>-><now>`), on every turn an enemy army is in
 sight there (`enemy_forces_near:<civ>:<units>`), when a city is first listed (`city_threatened:<name>`) or loses
 hit points (`city_damaged:<name>:<was>-><now>`), when your Soldiers figure becomes the lowest with the highest

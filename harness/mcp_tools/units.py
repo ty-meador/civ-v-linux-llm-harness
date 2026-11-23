@@ -69,10 +69,14 @@ def choose_archaeology(choice: int, x: int, y: int) -> str:
 
 @retired
 @guarded
-def unit_mission_targets(unit_id: int, mission: str, offset: int = 0, limit: int = 100) -> str:
+def unit_mission_targets(unit_id: int, mission: str = "", offset: int = 0, limit: int = 100) -> str:
     """Legal visible targets for an air strike/sweep, nuke, paradrop, rebase or airlift mission
     listed in available_unit_actions. Paginated: `offset` / `limit` (at most 100 per page; `total` says how
     many exist); use unit_mission to issue the order.
+    MISSION_RANGE_ATTACK (the default for a unit that shoots, when no mission is named): every visible enemy unit
+    and city within the unit's range from the plot it stands on, each with the combat preview; `fires_now` and
+    `why_not_now` (no moves, attacked already, a siege unit not set up -- `set_up` says which); targets in range
+    that hills or forest hide are apart under `out_of_line_of_fire`.
     Air strikes include target details and a combat preview with retaliation, strength and visible
     interceptors. Expected damage taken excludes interception; unseen interceptors may still exist.
     Fogged destinations are excluded because legality could expose hidden occupants. Each target carries `call`, its unit_mission row (#47)."""
@@ -266,7 +270,8 @@ def disband_unit(unit_id: int) -> str:
 
 @retired
 @guarded
-def move_unit(unit_id: int, x: int, y: int, then: str | None = None, confirm: bool = False) -> str:
+def move_unit(unit_id: int, x: int, y: int, then: str | None = None, confirm: bool = False,
+              land_only: bool = False) -> str:
     """Order one of my units to move to plot (x, y) (multi-turn paths allowed, like a right-click).
     Selects the unit like the unit panel does (orders go through the game's network path).
     A unit on a conditional order (give_order) is taken back: the order pauses (`order_paused`).
@@ -274,10 +279,16 @@ def move_unit(unit_id: int, x: int, y: int, then: str | None = None, confirm: bo
     else the turn it arrives (#105: "go there and hold" is one order, and the unit does not block the finish).
     confirm=true: make an attack the game's Military Advisor asked about (a melee attack at bad odds, a first
     attack on a city: the order is refused with the advisor's sentence, and this repeats it as the screen's own
-    Attack button does)."""
+    Attack button does).
+    A land unit sent to a land plot by a route that would embark it: when the land route takes no longer, the
+    unit walks it, a leg a turn (`route` in the reply); when the water is faster or the only way, the order is
+    refused with both (`embarks_at`, `turns_by_water`, `turns_by_land`), and land_only=true walks the land route
+    while confirm=true takes the water. A move that ends where an enemy city or ranged unit in sight can strike
+    says so (`in_range_of`)."""
     g = core.game()
     # fakes keep the three-argument shape
-    more = {**({"then": then} if then else {}), **({"confirm": True} if confirm else {})}
+    more = {**({"then": then} if then else {}), **({"confirm": True} if confirm else {}),
+            **({"land_only": True} if land_only else {})}
     return J(_took_back(g, unit_id, "move_unit", lambda: g.move_unit(unit_id, x, y, **more)))
 
 

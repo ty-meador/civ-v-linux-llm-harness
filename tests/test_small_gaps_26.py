@@ -19,9 +19,11 @@ class DispatchTests(unittest.TestCase):
         self.assertIsInstance(D.resolve("state", {"what": "civ"}, {"id": 2}), D.Call)
 
     def test_a_missing_mission_or_kind_lists_the_legal_values(self):
+        # v347: `targets` without a mission is the runtime's to answer (the one target list the unit has; a unit
+        # that shoots gets MISSION_RANGE_ATTACK), so the dispatch lets it through
         r = D.resolve("state", {"what": "unit", "view": "targets"}, {"id": 5})
-        self.assertIsInstance(r, D.Refusal)
-        self.assertIn("MISSION_FOUND", r.choices)
+        self.assertIsInstance(r, D.Call)
+        self.assertEqual((r.tool, r.args), ("unit_mission_targets", {"unit_id": 5}))
         r = D.resolve("state", {"what": "options", "view": "beliefs"}, {})
         self.assertIsInstance(r, D.Refusal)
         self.assertEqual(r.choices[0], "pantheon")

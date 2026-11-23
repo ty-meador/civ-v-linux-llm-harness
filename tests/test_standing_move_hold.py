@@ -195,6 +195,78 @@ class HeldStandingMoveLuaTests(unittest.TestCase):
         end
         """)
 
+    def test_a_unit_the_engine_calls_ready_is_skipped_for_the_turn_and_keeps_its_standing_move(self):
+        """Live 2026-11-23 (Opus 5.5, the duel t188): a Cannon on a standing move walked one plot and stopped with a
+        move left. The engine held nothing for it and raised ENDTURN_BLOCKING_UNITS; the finish offered this skip,
+        the skip was refused as "does not block end_turn", COMMAND_CANCEL as "not currently legal", and three
+        finishes went by. The engine's own word (IsReadyToMove) lets the skip through; the standing move stays."""
+        self.run_lua(self.ORDERS + """
+        UNITS[3].moves = 60
+        UNITS[3].IsReadyToMove = function() return true end
+        H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3 }
+        local r = H.unit_mission(3, 'MISSION_SKIP', nil, nil, nil, 0)
+        assert(r.ok == true and r.standing_move_dropped == nil, H.json(r))
+        local k = r.standing_move_kept
+        assert(k and k.x == 9 and k.y == 9 and k.note:find('taken up again at the next turn start', 1, true), H.json(r))
+        assert(#SENT == 1 and SENT[1][1] == 9 and SENT[1][2] == 4, 'the skip was sent: ' .. H.json(SENT))
+        local pm = H.pending_moves[H.pm_key(3, 0)]
+        assert(pm and pm.x == 9 and pm.y == 9, 'the record stays')
+        -- not ready (the engine holds it some other way): refused as before
+        SENT = {}
+        UNITS[3].IsReadyToMove = function() return false end
+        r = H.unit_mission(3, 'MISSION_SKIP', nil, nil, nil, 0)
+        assert(r.ok == false and r.err:find('does not block end_turn', 1, true) and #SENT == 0, H.json(r))
+        """)
+
+    def test_a_cancel_drops_a_standing_move_the_engine_has_no_queue_for(self):
+        self.run_lua(self.ORDERS + """
+        CommandTypes = { COMMAND_CANCEL = 3 }
+        local asked = 0
+        UNITS[3].CanDoCommand = function() asked = asked + 1; return false end
+        H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3 }
+        local r = H.unit_mission(3, 'COMMAND_CANCEL', nil, nil, nil, 0)
+        assert(r.ok == true and r.standing_move_dropped.x == 9 and r.standing_move_dropped.y == 9, H.json(r))
+        assert(r.standing_move_dropped.note:find('give it one (a move, or a hold) before the finish', 1, true), H.json(r))
+        assert(asked == 1 and #SENT == 0, 'the engine was asked first and had nothing to cancel; nothing sent')
+        assert(H.pending_moves[H.pm_key(3, 0)] == nil, 'the record is gone')
+        -- no standing move and nothing queued: the engine's own answer, as before
+        r = H.unit_mission(3, 'COMMAND_CANCEL', nil, nil, nil, 0)
+        assert(r.ok == false and r.err == 'action is not currently legal' and asked == 2, H.json(r))
+        -- a path the engine holds is the engine's to cancel: its command goes out
+        GameMessageTypes.GAMEMESSAGE_DO_COMMAND = 11
+        UNITS[3].CanDoCommand = function() return true end
+        H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3 }
+        r = H.unit_mission(3, 'COMMAND_CANCEL', nil, nil, nil, 0)
+        assert(r.ok == true and r.command_pending == 'COMMAND_CANCEL' and #SENT == 1 and SENT[1][1] == 11, H.json(r))
+        assert(H.pending_moves[H.pm_key(3, 0)] == nil, 'and the record goes with it')
+        """)
+
+    def test_a_set_up_asked_of_a_unit_that_is_set_up_is_done_and_one_without_moves_says_why(self):
+        """Live 2026-11-23 (the duel t188 to t211, five units): MISSION_SET_UP_FOR_RANGED_ATTACK came back "action is
+        not currently legal" for a unit that was set up, and for one whose move had spent every move."""
+        self.run_lua(self.ORDERS + """
+        MissionTypes.MISSION_SET_UP_FOR_RANGED_ATTACK = 12
+        local u = UNITS[3]
+        u.CanStartMission = function() return false end
+        u.IsMustSetUpToRangedAttack = function() return true end
+        u.IsSetUpForRangedAttack = function() return true end
+        H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3 }
+        local r = H.unit_mission(3, 'MISSION_SET_UP_FOR_RANGED_ATTACK', nil, nil, nil, 0)
+        assert(r.ok == true and r.set_up == true and r.already == true, H.json(r))
+        assert(r.note:find('already set up', 1, true) and r.note:find('MISSION_RANGE_ATTACK', 1, true), r.note)
+        assert(#SENT == 0 and H.pending_moves[H.pm_key(3, 0)] ~= nil, 'nothing sent, the standing move untouched')
+        H.pending_moves = {}
+        u.IsSetUpForRangedAttack = function() return false end
+        u.moves = 0
+        r = H.unit_mission(3, 'MISSION_SET_UP_FOR_RANGED_ATTACK', nil, nil, nil, 0)
+        assert(r.ok == false and r.err == 'action is not currently legal', H.json(r))
+        assert(r.reason:find('no moves left this turn', 1, true) and r.reason:find('costs one move', 1, true), r.reason)
+        u.moves = 120
+        u.IsMustSetUpToRangedAttack = function() return false end
+        r = H.unit_mission(3, 'MISSION_SET_UP_FOR_RANGED_ATTACK', nil, nil, nil, 0)
+        assert(r.ok == false and r.reason:find('needs no set-up', 1, true), H.json(r))
+        """)
+
     def test_a_hold_of_an_earlier_turn_does_not_let_a_skip_through(self):
         self.run_lua(self.ORDERS + """
         H.pending_moves[H.pm_key(3, 0)] = { x = 9, y = 9, pid = 0, unit_id = 3, held_turn = 0, held_reason = 'hostile' }

@@ -145,7 +145,68 @@ function H.reveal_diff(unit_id, pid)
   return out
 end
 
-function H.move_unit(unit_id, x, y, pid)
+-- When a move to land would put a land unit in the water (v347; H.move_route, tactical.lua). The engine takes the
+-- route of the fewest turns and says nothing of where it leads, so the order decides before anything is sent:
+--   no water on any way, or the land route arrives this turn, or it is two turns or more ahead of the water:
+--     nil, the move goes out as it always did;
+--   by land in the same turns, or within a turn of the water: the unit walks the land route, a leg a turn (the
+--     engine may take either at a tie, and this count of turns is the harness's, not the engine's);
+--   by water in fewer turns, or by water alone: refused with both, unless the order said which: `mode` "land"
+--     walks, "confirm" lets the engine route it. A standing move taken up at the turn start (`resumed`) walks the
+--     land route when there is one and is refused when there is none (H.resume_moves then holds it).
+-- A leg is this turn's last plot of the land route: within one turn's move the engine cannot go by water, since
+-- embarking spends every move. Returns nil, { refuse = <the reply> } or { mode = "land", stop = <plot>, ... }.
+local function arrives(turns)
+  if turns <= 0 then return "this turn" end
+  if turns == 1 then return "next turn" end
+  return "in " .. turns .. " turns"
+end
+
+function H.embark_plan(u, dest, pid, mode, resumed)
+  if mode == "confirm" or not dest or not DomainTypes then return nil end
+  if u:GetDomainType() ~= DomainTypes.DOMAIN_LAND or (u.IsEmbarked and u:IsEmbarked()) then return nil end
+  if dest:IsWater() and not dest:IsCity() then return nil end
+  if H.melee_defender(u, dest, pid) or H.enemy_city_at(dest, pid) then return nil end
+  local can = false
+  pcall(function() can = u:IsHasPromotion(GameInfoTypes.PROMOTION_EMBARKATION) end)
+  if not can then pcall(function() can = Teams[u:GetTeam()]:CanEmbark() end) end
+  if not can then return nil end
+  if Map.PlotDistance(u:GetX(), u:GetY(), dest:GetX(), dest:GetY()) <= 1 then return nil end
+  local r = H.move_route and H.move_route(u, dest, pid) or nil
+  if not (r and r.water) then return nil end
+  local land, water = r.land, r.water
+  if land and (land.turns <= 0 or not land.stop) then return nil end
+  local walks = mode == "land" or resumed
+  if land and not walks and land.turns + 1 < water.turns then return nil end
+  local at = water.embark_at and { x = water.embark_at:GetX(), y = water.embark_at:GetY() } or nil
+  if land and (land.turns <= water.turns or walks) then
+    return { mode = "land", stop = land.stop, turns = land.turns, water_turns = water.turns, embark_at = at }
+  end
+  local to = "(" .. dest:GetX() .. "," .. dest:GetY() .. ")"
+  local where = at and (" at (" .. at.x .. "," .. at.y .. ")") or ""
+  local out = { ok = false, embarks = true, embarks_at = at, turns_by_water = water.turns,
+                turns_by_land = land and land.turns or nil, x = u:GetX(), y = u:GetY() }
+  local afloat = "an embarked land unit cannot attack or fire and defends weakly"
+  if land then
+    out.err = "this move would embark the unit: the fastest way to " .. to .. " enters the water" .. where
+              .. " and arrives " .. arrives(water.turns) .. ", by land it arrives " .. arrives(land.turns) .. " (" .. afloat
+              .. "). order(to='unit', action='move', id, args={x, y, land_only: true}) walks the land route; "
+              .. "args={x, y, confirm: true} takes the water"
+  else
+    out.err = "this move would embark the unit: no way by land to " .. to .. " is open now (on the map I have seen near "
+              .. "the direct line, with my other units where they stand: a turn cannot end on a plot one of them "
+              .. "holds); the way there enters the water" .. where .. " and arrives " .. arrives(water.turns)
+              .. " (" .. afloat .. "). order(to='unit', action='move', id, args={x, y, confirm: true}) sends it"
+  end
+  return { refuse = out }
+end
+
+-- `mode` (v347): "confirm" or "land" from the order (see H.embark_plan), or the standing record itself when
+-- H.resume_moves takes the move up again.
+function H.move_unit(unit_id, x, y, pid, mode)
+  local resumed = type(mode) == "table"
+  if resumed then mode = mode.route end
+  if mode ~= "confirm" and mode ~= "land" then mode = nil end
   local u, err = own_active_unit(unit_id, pid)
   if not u then return err end
   local blocked = require_revealed_plot(x, y, pid, u)
@@ -171,6 +232,13 @@ function H.move_unit(unit_id, x, y, pid)
   end
   local refused = H.move_refusal(u, dest, pid, false)
   if refused then return refused end
+  -- v347: where the engine's route would embark the unit, the order says so first or walks by land (H.embark_plan).
+  -- A plan that cannot be read changes nothing: the move goes out as it always did.
+  local okp, plan = pcall(H.embark_plan, u, dest, pid, mode, resumed)
+  if not okp then plan = nil end
+  if plan and plan.refuse then return plan.refuse end
+  local gx, gy = x, y
+  if plan and plan.stop then gx, gy = plan.stop:GetX(), plan.stop:GetY() end
   local x0, y0, m0 = u:GetX(), u:GetY(), u:MovesLeft()
   pcall(H.reveal_mark, u, pid)
   -- A move onto one of our own units of the same class is a swap: the engine walks the other unit
@@ -191,7 +259,7 @@ function H.move_unit(unit_id, x, y, pid)
       end
     end
   end)
-  local pushed = push_mission(u, m, x, y)
+  local pushed = push_mission(u, m, gx, gy)
   if not pushed.ok then return pushed end
   -- Remember the destination: a MOVE_TO that needs more than this turn does NOT resume by itself at the
   -- next turn start (live, Caravel t256-264), so H.resume_moves re-pushes it until the unit arrives.
@@ -200,9 +268,20 @@ function H.move_unit(unit_id, x, y, pid)
   if H.melee_defender(u, Map.GetPlot(x, y), pid) or H.enemy_city_at(Map.GetPlot(x, y), pid) then
     H.pending_moves[H.pm_key(unit_id, pid)] = nil
   else
-    H.pending_moves[H.pm_key(unit_id, pid)] = { x = x, y = y, pid = pid, unit_id = unit_id }
+    H.pending_moves[H.pm_key(unit_id, pid)] = { x = x, y = y, pid = pid, unit_id = unit_id,
+                                                 route = (plan and plan.mode) or mode }
   end
   local out = { ok = true, x = x0, y = y0, moves = m0 / move_denom(), swap_candidates = swap_candidates }
+  if plan and plan.stop then
+    out.route = { by = "land", leg = { x = gx, y = gy }, arrives = arrives(plan.turns),
+                  note = "walking by land, a leg a turn: this turn to (" .. gx .. "," .. gy .. "), and the standing move "
+                         .. "takes the next leg at each turn start. The engine's own route "
+                         .. (plan.water_turns < plan.turns and ("is faster by water (it arrives " .. arrives(plan.water_turns)
+                                                                .. "; args.confirm=true takes it)")
+                             or plan.water_turns == plan.turns and "of the same length may go by water"
+                             or "may go by water")
+                         .. (plan.embark_at and (", entering it at (" .. plan.embark_at.x .. "," .. plan.embark_at.y .. ")") or "") }
+  end
   -- type and max_moves: what the read-back needs to find the unit's successor when the move replaced it (#169).
   -- The move is sent: nothing read after it may turn the answer into an error.
   pcall(function() out.type = short(info_type(GameInfo.Units, u:GetUnitType())) end)
@@ -573,10 +652,17 @@ function H.resume_moves(pid, skip)
                             err = why.err }
         else
           pm.last_x, pm.last_y = u:GetX(), u:GetY()
-          local r = H.move_unit(id, pm.x, pm.y, pid)
+          local r = H.move_unit(id, pm.x, pm.y, pid, pm)
           if r.ok then
             H.pending_moves[key] = pm  -- H.move_unit replaced the record; keep the progress marker
-            out[#out + 1] = { unit_id = id, x = pm.x, y = pm.y, resumed = true }
+            out[#out + 1] = { unit_id = id, x = pm.x, y = pm.y, resumed = true, route = r.route }
+          elseif r.embarks then
+            -- v347: the way on now goes by water and nobody said it may (H.embark_plan). The record is kept and the
+            -- unit keeps its moves: it stands in todo.units with the sentence, as a move held for a hostile does.
+            pm.held_turn, pm.held_reason = Game.GetGameTurn(), "would_embark"
+            H.pending_moves[key] = pm
+            out[#out + 1] = { unit_id = id, x = pm.x, y = pm.y, held = true, reason = "would_embark",
+                              embarks_at = r.embarks_at, err = "standing move held: " .. tostring(r.err) }
           elseif r.blocking_unit then
             -- GitLab #86 (Assyria t253): an automated Worker walked into the capital the night before the Booster's
             -- standing move landed, and the move was dropped for good. One of my own civilians on the destination
@@ -680,6 +766,8 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
   local u, err = own_active_unit(unit_id, pid)
   if not u then return err end
   local dropped = nil   -- the held standing move a skip dropped (#211), said in the reply
+  local kept = nil      -- the standing move a skip leaves in place (v347), said in the reply
+  local standing = H.pending_moves[H.pm_key(unit_id, pid)]
   if mission == "MISSION_SKIP" then
     -- A skip on a unit that is mid-way through a multi-turn move cancels the engine's path (live t306:
     -- the Caravel's standing order to (54,29) died to a reflex MISSION_SKIP and it sat at (54,13) with
@@ -712,7 +800,18 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
                   note = "the standing move to (" .. pm.x .. "," .. pm.y .. ") was held this turn and is dropped; "
                          .. "order(to='unit', action='move') there again takes it up" }
     end
-    if (busy or pm) and not H.is_stalled_mission(u) and not dropped then
+    -- The fourth shape (live 2026-11-23, Opus, the duel t188): a Cannon on a standing move walked one plot and
+    -- stopped with a move left. The engine held nothing for it (no mission queued, COMMAND_CANCEL not legal) and
+    -- raised ENDTURN_BLOCKING_UNITS on it; the finish offered this very skip, the skip was refused as "does not
+    -- block end_turn", the cancel as "not currently legal", and three finishes went by. The engine's own word
+    -- decides (Unit:IsReadyToMove, the test its end-turn blocker and todo.units make): a unit it calls ready is
+    -- waiting for an order whatever the record says, so the skip goes through for this turn and the standing
+    -- move stays, to be taken up at the next turn start.
+    if pm and not busy and not dropped and u:MovesLeft() > 0 then
+      local okr, ready = pcall(function() return u:IsReadyToMove() end)
+      if okr and ready then kept = pm end
+    end
+    if (busy or pm) and not H.is_stalled_mission(u) and not dropped and not kept then
       return { ok = false, err = "unit is already on a multi-turn move and does not block end_turn; "
                                  .. "MISSION_SKIP would cancel that path: give it a new order(to='unit', action='move') instead, "
                                  .. "or order(to='unit', action='mission', args={mission='COMMAND_CANCEL'}) to drop the path on purpose",
@@ -745,6 +844,16 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
       return { ok = false, err = "use order(to='unit', action='promote') / order(to='unit', action='upgrade') for this command" }
     end
     local ok, can = pcall(function() return u:CanDoCommand(c, -1, -1) end)
+    if not (ok and can) and mission == "COMMAND_CANCEL" and standing then
+      -- The path to drop is the harness's own record: the engine has nothing queued, so its Cancel button is not
+      -- there and the command read "not currently legal" for the one thing the refusals had named it for (live
+      -- 2026-11-23, the duel t188). The record is dropped (the line above did it) and nothing is sent.
+      local still = u:MovesLeft() > 0
+      return { ok = true, standing_move_dropped = {
+        x = standing.x, y = standing.y,
+        note = "the standing move to (" .. standing.x .. "," .. standing.y .. ") is dropped"
+               .. (still and "; the unit has moves and no order: give it one (a move, or a hold) before the finish" or "") } }
+    end
     if not (ok and can) then return { ok = false, err = "action is not currently legal" } end
     local sent = do_command(u, c, -1, -1)
     if not sent.ok then return sent end
@@ -811,6 +920,30 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
     local ok, v = pcall(function() return u:CanStartMission(m, d1, d2, false) end)
     legal = ok and v
   end
+  if not legal and mission == "MISSION_SET_UP_FOR_RANGED_ATTACK" then
+    -- Live 2026-11-23 (Opus, the duel t188 to t211, five units): a set-up asked of a unit that was set up came back
+    -- "action is not currently legal", and so did one asked after a move that had spent every move; nothing said
+    -- which. A unit that is set up has what the order asks for: the reply says so and nothing is sent.
+    local must, is_set = false, false
+    pcall(function() must = u:IsMustSetUpToRangedAttack() and true or false end)
+    pcall(function() is_set = u:IsSetUpForRangedAttack() and true or false end)
+    if must and is_set then
+      if standing then H.pending_moves[H.pm_key(unit_id, pid)] = standing end   -- nothing was ordered
+      return { ok = true, set_up = true, already = true,
+               note = "the unit is already set up: it fires with MISSION_RANGE_ATTACK (x, y) while it has a move "
+                      .. "left and has not attacked this turn; a move takes the set-up down" }
+    end
+    if must and u:MovesLeft() <= 0 then
+      return { ok = false, err = "action is not currently legal",
+               reason = "the unit has no moves left this turn (a river crossing or rough ground spent them): "
+                        .. "setting up costs one move, so it sets up and fires next turn",
+               x = u:GetX(), y = u:GetY(), moves = 0 }
+    end
+    if not must then
+      return { ok = false, err = "action is not currently legal",
+               reason = "this unit needs no set-up: it fires with MISSION_RANGE_ATTACK as it stands" }
+    end
+  end
   if not legal then return { ok = false, err = "action is not currently legal" } end
   if H.NEEDS_MOVES[mission] and u:MovesLeft() <= 0 then
     -- GitLab #83 (live Assyria t254): MISSION_SPACESHIP at 0 moves answered ok, the engine queued it on HOLD and
@@ -827,6 +960,13 @@ function H.unit_mission_order(unit_id, mission, x, y, build, pid)
     -- the Prophet is spent and the belief choice is open from now until it is made (#109)
     H.religion_pending = H.religion_pending or {}
     H.religion_pending[pid] = mission == "MISSION_ENHANCE_RELIGION" and "enhance" or "found"
+  end
+  if kept then
+    H.pending_moves[H.pm_key(unit_id, pid)] = kept
+    return { ok = true, standing_move_kept = {
+      x = kept.x, y = kept.y,
+      note = "skipped for this turn; the standing move to (" .. kept.x .. "," .. kept.y .. ") is taken up again at the "
+             .. "next turn start (order(to='unit', action='mission', args={mission: 'COMMAND_CANCEL'}) drops it)" } }
   end
   return { ok = true, standing_move_dropped = dropped }
 end

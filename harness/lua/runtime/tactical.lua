@@ -24,6 +24,9 @@ function H.unit_pos(unit_id, pid, reveal)
   if reveal then
     local okr, diff = pcall(H.reveal_diff, unit_id, pid)
     if okr then out.revealed = diff end
+    -- v347: who can strike the plot the move ended on (H.strike_threats); absent when nobody can
+    local okt, threats = pcall(H.strike_threats, u, pid)
+    if okt and threats then out.in_range_of = threats end
   end
   return out
 end
@@ -326,6 +329,178 @@ local function unit_reach(u, pid, team, stepper)
   if #fogged > 0 then out.fogged = fogged end
   if capped then out.capped = true end
   return out, left_at
+end
+
+-- The way a land unit ashore would go to a land plot: by land alone, and with the water (v347). Live 2026-11-23
+-- (Opus, the duel t188 to t212): the pathfinder put Cannons and Artillery in a lake and on the coast beside
+-- Galleasses on moves of two and three plots to land, and the reply said nothing before or after ("would have
+-- saved about 3 artillery"). The engine's own path is closed to Lua (Unit:GeneratePath is NYI, see `reach`), so
+-- this walks step_cost.lua's rule over the map the seat knows, a turn at a time: one turn's move from the unit,
+-- then one from every plot that move could have ended on, and so on. A plot a move ends on is one the unit may
+-- stand on (the full H.move_refusal: a plot that holds another of my units is passed through, never stopped on;
+-- a walk that ignored this called a way through my own Artillery two turns and the engine went another way,
+-- live on the t210 save); embarking, a river and zone of control spend every move as on a neighbour. Each plot is
+-- kept twice, dry and by a way that touched water, so the answer is both routes: `land` and `water`, each with
+-- its `turns` (0: it arrives in this turn's move) and the plot this turn's move ends on (`stop`), `water` with
+-- the plot it enters the water at. Only plots within ROUTE_SLACK of the direct line are walked; nil when nothing
+-- can be said (an air unit, or more states than ROUTE_STATES).
+local ROUTE_SLACK, ROUTE_STATES, ROUTE_LAND_BEHIND = 6, 4000, 6
+local city_in_sight = known_city   -- under another name: tests/test_puppet_guards.py reads "own_city(" as a city write
+
+function H.move_route(u, dest, pid)
+  local team = Players[pid]:GetTeam()
+  local okc, _, stepper = pcall(step_costs, u, pid)
+  if not (okc and stepper) then return nil end
+  local sx, sy, tx, ty = u:GetX(), u:GetY(), dest:GetX(), dest:GetY()
+  local span = Map.PlotDistance(sx, sy, tx, ty)
+  local full = u:MaxMoves()
+  local no_ocean = ocean_barred(u, team)
+  local function key(q) return q:GetX() .. "," .. q:GetY() end
+  local dk = key(dest)
+  local transit, standable = { [dk] = true }, {}
+  local function passable(q)
+    local k = key(q)
+    local v = transit[k]
+    if v == nil then
+      v = false
+      if q:IsRevealed(team, false)
+         and Map.PlotDistance(sx, sy, q:GetX(), q:GetY()) + Map.PlotDistance(q:GetX(), q:GetY(), tx, ty) <= span + ROUTE_SLACK
+         and not (enemy_held(q, pid, team) or no_ocean(q) or H.move_refusal(u, q, pid, true, true)) then
+        v = true
+      end
+      transit[k] = v
+    end
+    return v
+  end
+  local function may_stand(q)
+    local k = key(q)
+    local v = standable[k]
+    if v == nil then
+      v = not H.move_refusal(u, q, pid, true)
+      standable[k] = v
+    end
+    return v
+  end
+  local start = u:GetPlot()
+  local origin = { q = start, w = 0, turn = -1 }
+  local stops = { [key(start) .. "|0"] = origin }   -- every plot|wet a turn's move can end on, with the turn
+  local frontier = { origin }
+  local found, states, turn = {}, 1, 0
+  while #frontier > 0 do
+    -- one turn's move from every plot the turn before could end on, most moves left first
+    local have0 = (turn == 0) and stepper.have or full
+    local left_at, open, reached = {}, {}, {}
+    for _, s in ipairs(frontier) do
+      local id = key(s.q) .. "|" .. s.w
+      left_at[id] = have0
+      open[#open + 1] = { q = s.q, w = s.w, left = have0, src = s, id = id, wet = s.wet }
+    end
+    while #open > 0 do
+      local bi = 1
+      for i = 2, #open do if open[i].left > open[bi].left then bi = i end end
+      local e = table.remove(open, bi)
+      if e.left > 0 and left_at[e.id] == e.left then
+        for d = 0, 5 do
+          local q = Map.PlotDirection(e.q:GetX(), e.q:GetY(), d)
+          if q and passable(q) then
+            local city = city_in_sight(q, team)
+            local ok, _, raw = pcall(stepper.step, e.q, q, city, river_crossing(e.q, q, d), e.left)
+            if ok and raw then
+              local w, wet = e.w, e.wet
+              if q:IsWater() and not city then
+                w = 1
+                wet = wet or q
+              end
+              local qk = key(q)
+              local id = qk .. "|" .. w
+              if raw > (left_at[id] or -1) then
+                left_at[id] = raw
+                states = states + 1
+                if qk == dk then
+                  found[w] = found[w] or { turn = turn, src = e.src, wet = wet }
+                else
+                  if not stops[id] and may_stand(q) then
+                    local st = { q = q, w = w, turn = turn, prev = e.src, wet = wet }
+                    stops[id] = st
+                    reached[#reached + 1] = st
+                  end
+                  if raw > 0 then open[#open + 1] = { q = q, w = w, left = raw, src = e.src, id = id, wet = wet } end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    -- fewest turns first: the turn the dry way arrives in is played out, so a wet way of the same turns is in;
+    -- a dry way this far behind the wet one is not looked for further
+    if found[0] then break end
+    if found[1] and turn >= found[1].turn + ROUTE_LAND_BEHIND then break end
+    if states > ROUTE_STATES then return nil end
+    frontier, turn = reached, turn + 1
+  end
+  -- the plot this turn's move ends on, on the way that was found
+  local function first_stop(f)
+    local s = f.src
+    if s.turn == -1 then return dest end
+    while s.prev and s.prev.turn ~= -1 do s = s.prev end
+    return s.q
+  end
+  local out = { states = states }
+  if found[0] then out.land = { turns = found[0].turn, stop = first_stop(found[0]) } end
+  if found[1] then out.water = { turns = found[1].turn, embark_at = found[1].wet, stop = first_stop(found[1]) } end
+  return out
+end
+
+-- Who can strike the plot a unit stands on (v347): the enemy cities in sight whose strike reaches it (a city
+-- fires over hills and forest) and the enemy units in sight with a ranged attack whose range covers it, by the
+-- range of their kind (Units.Range, the pedia's figure: a promotion the banner does not show is not read). Units
+-- at war with me and barbarians; an embarked land unit does not fire. nil when nothing does. A move's reply
+-- carries it as `in_range_of` (H.unit_pos): Artillery that ended a move inside a city's two plots was lost to it
+-- with nothing said (live 2026-11-23, the duel t201).
+local THREAT_LOOK = 4
+
+function H.strike_threats(u, pid)
+  local team = Players[pid]:GetTeam()
+  local ux, uy = u:GetX(), u:GetY()
+  local city_range = (GameDefines and GameDefines.CITY_ATTACK_RANGE) or 2
+  local air = DomainTypes and DomainTypes.DOMAIN_AIR
+  local out = {}
+  for dx = -THREAT_LOOK, THREAT_LOOK do for dy = -THREAT_LOOK, THREAT_LOOK do
+    local q = Map.PlotXYWithRangeCheck(ux, uy, dx, dy, THREAT_LOOK)
+    if q and q:IsVisible(team, false) and not (q:GetX() == ux and q:GetY() == uy) then
+      local d = math.floor(Map.PlotDistance(ux, uy, q:GetX(), q:GetY()))
+      local c = H.enemy_city_at(q, pid)
+      if c then
+        if d <= city_range then
+          out[#out + 1] = { city = c:GetName(), owner = H.owner_label(c:GetOwner(), pid), x = q:GetX(), y = q:GetY(),
+                            distance = d, range = city_range }
+        end
+      else
+        for i = 0, q:GetNumUnits() - 1 do
+          local o = q:GetUnit(i)
+          if o and o:GetOwner() ~= pid and not o:IsInvisible(team, false) and not o:IsDelayedDeath() then
+            local op = Players[o:GetOwner()]
+            local row = GameInfo.Units[o:GetUnitType()]
+            local range, ranged = row and row.Range or 0, row and row.RangedCombat or 0
+            if op and row and range > 0 and ranged > 0 and d <= range and o:GetDomainType() ~= air
+               and not (o.IsEmbarked and o:IsEmbarked())
+               and (op:IsBarbarian() or Teams[team]:IsAtWar(op:GetTeam())) then
+              out[#out + 1] = { unit = short(row.Type), owner = H.owner_label(o:GetOwner(), pid), x = q:GetX(),
+                                y = q:GetY(), distance = d, range = range, hp = o:GetCurrHitPoints() }
+            end
+          end
+        end
+      end
+    end
+  end end
+  if #out == 0 then return nil end
+  table.sort(out, function(a, b)
+    if a.distance ~= b.distance then return a.distance < b.distance end
+    if a.y ~= b.y then return a.y > b.y end
+    return a.x < b.x
+  end)
+  return out
 end
 
 -- A plot's grid cell: ground letter then occupant letter (the legend is the reply reference, docs/TOOL_REPLIES.md state(what="unit", view="tactical"); GitLab #152).

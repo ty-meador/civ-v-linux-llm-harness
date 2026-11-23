@@ -205,6 +205,81 @@ function H.ranged_targets(u, pid)
   return out
 end
 
+-- state(what='unit', view='targets') for a unit that shoots (v347). The view listed the interface-mode missions
+-- only (air strike, paradrop, rebase...), so MISSION_RANGE_ATTACK read "mission is not offered for this unit" for
+-- a Cannon before its set-up and after it (live 2026-11-23, Opus, the duel t188), and a set-up was spent on a
+-- shot the hills blocked (t211). This is the Ranged Attack cursor's highlight from the plot the unit stands on:
+-- every visible enemy unit and city within its range with the combat panel's preview, the ones the line of fire
+-- does not reach apart (CvPlot::canSeePlot with the range, the engine's own test and the tactical view's
+-- fire_los), and whether the unit fires now -- a siege unit that is not set up is shown what it would have.
+function H.range_attack_targets(u, pid)
+  local range = 0
+  pcall(function() range = u:Range() or 0 end)
+  if range <= 0 or H.ranged_strength(u) <= 0 then
+    return { ok = false, err = "this unit has no ranged attack: a melee attack is order(to='unit', action='move', "
+                               .. "args={x, y}) onto the enemy's plot, and state(what='unit', id, view='tactical') "
+                               .. "lists what it can attack with the combat previews" }
+  end
+  local team = Players[pid]:GetTeam()
+  local here = u:GetPlot()
+  local function flag(name)
+    local f = u[name]
+    if not f then return false end
+    local ok, v = pcall(f, u)
+    return (ok and v) and true or false
+  end
+  local must, is_set = flag("IsMustSetUpToRangedAttack"), flag("IsSetUpForRangedAttack")
+  local ignores = flag("IsRangeAttackIgnoreLOS")
+  local denom = (GameDefines and GameDefines.MOVE_DENOMINATOR) or 60
+  local moves = u:MovesLeft()
+  local out, hidden = {}, {}
+  for dx = -range, range do for dy = -range, range do
+    local q = Map.PlotXYWithRangeCheck(u:GetX(), u:GetY(), dx, dy, range)
+    if q and q:IsVisible(team, false) and (q:GetX() ~= u:GetX() or q:GetY() ~= u:GetY()) then
+      local info = H.ranged_target_info(u, q, pid)
+      if next(info) ~= nil then
+        local e = {}
+        for k, v in pairs(info) do e[k] = v end
+        e.x, e.y = q:GetX(), q:GetY()
+        e.distance = math.floor(Map.PlotDistance(u:GetX(), u:GetY(), q:GetX(), q:GetY()))
+        local los = true
+        if not ignores and here and here.CanSeePlot then
+          local ok, v = pcall(function() return here:CanSeePlot(q, team, range, -1) end)
+          if ok then los = v and true or false end
+        end
+        if los then out[#out + 1] = e
+        else e.preview = nil; e.line_of_fire = false; hidden[#hidden + 1] = e end
+      end
+    end
+  end end
+  local function nearest(a, b)
+    if a.distance ~= b.distance then return a.distance < b.distance end
+    if a.y ~= b.y then return a.y > b.y end
+    return a.x < b.x
+  end
+  table.sort(out, nearest); table.sort(hidden, nearest)
+  local r = { ok = true, unit_id = u:GetID(), mission = "MISSION_RANGE_ATTACK", range = range,
+              x = u:GetX(), y = u:GetY(), targets = out, total = #out,
+              scope = "visible enemy units and cities within the unit's range, from the plot it stands on" }
+  if #hidden > 0 then
+    r.out_of_line_of_fire = hidden
+    r.line_of_fire_note = "within range, and hills, forest or a mountain in between block the shot from this plot"
+  end
+  if must then r.set_up = is_set end
+  local why = nil
+  if flag("IsEmbarked") then why = "the unit is embarked: it fires from land"
+  elseif flag("IsOutOfAttacks") then why = "the unit has already attacked this turn"
+  elseif moves <= 0 then why = "the unit has no moves left this turn: it fires next turn"
+  elseif must and not is_set then
+    why = "the unit is not set up: MISSION_SET_UP_FOR_RANGED_ATTACK costs one move, and it has "
+          .. tostring(moves / denom) .. (moves > denom and ", so it sets up and fires this turn"
+                                                        or ", so it sets up now and fires next turn")
+  end
+  r.fires_now = why == nil
+  r.why_not_now = why
+  return r
+end
+
 -- move_unit bookkeeping for a melee attack: who stands on the destination before the order, and what
 -- became of both sides after it (the Python wrapper calls attack_before, the order, then attack_after).
 -- An air unit does not walk: a strike is legal this instant or not at all, and the engine answers an
