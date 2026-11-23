@@ -585,6 +585,31 @@ class VictoriesAllowedLuaTests(unittest.TestCase):
     def setUp(self):
         support.LuaRuntimeTests.setUp(self)
 
+    def test_the_status_names_the_capitals_not_in_my_hands_when_only_domination_wins(self):
+        self.run_lua("""
+        local rows = { { ID = 0, Type = 'VICTORY_TIME' }, { ID = 1, Type = 'VICTORY_DOMINATION' }, { ID = 2, Type = 'VICTORY_CULTURAL' } }
+        GameInfo = { Victories = function() local i = 0; return function() i = i + 1; return rows[i] end end }
+        VALID = { [1] = true }
+        Game.IsVictoryValid = function(id) return VALID[id] or false end
+        Map = { PlotDistance = function(x1, y1, x2, y2) return math.max(math.abs(x1 - x2), math.abs(y1 - y2)) end }
+        Players = { [0] = { GetCapitalCity = function() return { GetX = function() return 26 end, GetY = function() return 7 end } end,
+                            IsHasLostCapital = function() return false end } }
+        H.domination_progress = function()
+          return { capitals = { { original_player = 0, civ = 'Rome', city = 'Rome', owner_civ = 'Rome', controlled_by_us = true, x = 26, y = 7 },
+                                { original_player = 1, civ = 'The Huns', city = "Attila's Court", owner_civ = 'The Huns',
+                                  controlled_by_us = false, x = 13, y = 11 } } }
+        end
+        local o = H.only_victory(0)
+        assert(o.victory == 'DOMINATION' and #o.capitals == 1 and o.wins:find('original capital', 1, true), H.json(o))
+        local c = o.capitals[1]
+        assert(c.city == "Attila's Court" and c.civ == 'The Huns' and c.held_by == 'The Huns' and c.x == 13 and c.y == 11
+               and c.distance_from_my_capital == 13, H.json(o))
+        VALID[2] = true
+        assert(H.only_victory(0) == nil, 'two victories: nothing is the only one')
+        VALID = { [2] = true }
+        assert(H.only_victory(0) == nil, 'only Culture: no capitals to list')
+        """)
+
     def test_the_board_lists_the_victories_the_game_says_are_valid(self):
         self.run_lua("""
         local rows = { { ID = 0, Type = 'VICTORY_TIME' }, { ID = 1, Type = 'VICTORY_DOMINATION' }, { ID = 2, Type = 'VICTORY_CULTURAL' } }

@@ -685,6 +685,9 @@ function H.turn_state(pid)
     -- Demographics screen, armies of other players in sight near my cities, at peace too, and each city under threat.
     local okm, mil = pcall(H.military_watch, pid)
     if okm and type(mil) == "table" then t.military = mil end
+    -- v346: what wins a game that only Domination wins, and the capitals not in my hands (victory.lua)
+    local oko, only = pcall(H.only_victory, pid)
+    if oko and type(only) == "table" then t.only_victory = only end
   end
   if t.game_over then
     -- GitLab #92 (live Assyria t273, after the Science Victory): the status kept ENDTURN_BLOCKING_LEAGUE_CALL_FOR_
@@ -692,7 +695,7 @@ function H.turn_state(pid)
     -- finished game; the engine's stale blocker is not a chore.
     t.blocking, t.blocking_name, t.blocking_hint, t.blocking_stale = -1, "NO_ENDTURN_BLOCKING_TYPE", nil, nil
     t.todo = { units = {}, promotions = {}, cities = {}, research_unset = false }
-    t.expiring_deals, t.expiring_friendships, t.wars, t.alerts, t.military = nil, nil, nil, nil, nil
+    t.expiring_deals, t.expiring_friendships, t.wars, t.alerts, t.military, t.only_victory = nil, nil, nil, nil, nil, nil
     t.num_units_needing_moves = 0
   end
   return t

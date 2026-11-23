@@ -234,7 +234,9 @@ Soldiers figure is the lowest with the highest half again yours, or the highest 
 victories this game can be won by, `victories_allowed`. In a game hosted with Domination alone it adds
 `only_victory`: the Victory Progress screen's capitals (each met civilization's original capital, who holds it,
 its plot when revealed and the distance from your own capital) and the sentence that the game goes to the last
-player holding their own original capital.
+player holding their own original capital. In such a game every status of your own turn carries `only_victory` too:
+`wins` (the last player holding their own original capital) and `capitals`, the original capitals that are not
+in your hands (`city`, `civ`, `held_by`, `x` and `y` when you know the plot, `distance_from_my_capital`).
 
 `status.alerts` is the exception to "quiet means todo is empty": it lists low happiness (2 or below, or an
 unhappy tier) and every revealed strategic resource in deficit, on every status, without blocking anything.

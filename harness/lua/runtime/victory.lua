@@ -245,3 +245,44 @@ function H.spaceship_status(pid)
   out.note = "finished part units must be moved into the capital and added to the ship (the unit's action there)"
   return out
 end
+
+-- The Victory Progress screen's capitals (H.domination_progress: met players, a plot only when revealed) with the
+-- distance from my own capital to each one I know the plot of.
+function H.domination_capitals(pid)
+  local dp = H.domination_progress(pid)
+  local mine = Players[pid]:GetCapitalCity()
+  for _, row in ipairs(dp.capitals or {}) do
+    if mine and row.x and row.original_player ~= pid then
+      row.distance_from_my_capital = Map.PlotDistance(mine:GetX(), mine:GetY(), row.x, row.y)
+    end
+  end
+  return dp.capitals or {}
+end
+
+-- status.only_victory (v346): in a game that Domination alone wins, on every status of the seat's own turn, the
+-- original capitals that are not in my hands: whose, who holds it, where when I know the plot. Live 2026-11-23, the
+-- duel: the briefing had named the one victory and the Huns' capital for forty turns, at the end of a long reply,
+-- and Rome, with the larger army from turn 137, wrote of no plan for it.
+function H.only_victory(pid)
+  local only
+  for row in GameInfo.Victories() do
+    local on
+    if Game.IsVictoryValid then on = Game.IsVictoryValid(row.ID) else on = PreGame.IsVictory(row.ID) end
+    if on then
+      if only then return nil end
+      only = row.Type
+    end
+  end
+  if only ~= "VICTORY_DOMINATION" then return nil end
+  local out = { victory = "DOMINATION", wins = "the last player holding their own original capital", capitals = {} }
+  for _, row in ipairs(H.domination_capitals(pid)) do
+    if not row.controlled_by_us then
+      out.capitals[#out.capitals + 1] = { city = row.city, civ = row.civ, held_by = row.owner_civ, x = row.x, y = row.y,
+                                          distance_from_my_capital = row.distance_from_my_capital }
+    elseif row.original_player ~= pid then
+      out.capitals[#out.capitals + 1] = { city = row.city, civ = row.civ, held_by = "you" }
+    end
+  end
+  pcall(function() if Players[pid]:IsHasLostCapital() then out.my_capital_lost = true end end)
+  return out
+end
