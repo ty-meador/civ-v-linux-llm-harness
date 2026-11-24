@@ -542,7 +542,7 @@ class TacticalViewQueryTests(unittest.TestCase):
         self.assertIn("never reported safe", first["legend"])
         self.assertNotIn("key", first)
         self.assertFalse(first["legend"].startswith("##"), "the heading is not part of the legend")
-        self.assertIn(legend.TOPIC, first["legend"], "the legend names its own section")
+        self.assertIn('reference(section="legend")', first["legend"], "the legend says how to read it again")
         second = g.tactical_view(12, radius=3)
         self.assertNotIn("legend", second)
         self.assertNotIn("key", second, "nothing of it rides on a later reply")
@@ -557,6 +557,25 @@ class TacticalViewQueryTests(unittest.TestCase):
         other.seat = 1
         other.q = g.q
         self.assertIn("legend", other.tactical_view(12), "another process starts over")
+        # 2026-11-23: with the key gone, a reader whose context was reset under a server that lives on gets the
+        # legend back on the read after its recovery briefing (Game.briefing calls legend.forget for since="turn")
+        self.assertNotIn("legend", g.tactical_view(12))
+        legend.forget(g._legends_said)
+        self.assertIn("legend", g.tactical_view(12), "said again after the reset read")
+        self.assertNotIn("legend", g.tactical_view(12), "and once only")
+        legend.forget(None)                                    # a game that never answered a tactical read
+
+    def test_the_legend_has_a_short_name_in_the_reference(self):
+        from harness import guide, legend
+        from harness.mcp_tools.reference import reference
+        body = guide.how_to_play("legend")
+        self.assertIn("odd rows sit half a cell to the right", body)
+        self.assertEqual(body, guide.how_to_play(legend.TOPIC))
+        self.assertEqual(guide.how_to_play("tactical"), body)
+        tool = reference.__wrapped__                          # the handler under the seat guard: no game is needed
+        self.assertEqual(tool(section="legend"), body, "the rules book answers it too: the short call works")
+        self.assertEqual(tool(section="legend", book="playbook"), body)
+        self.assertIn("(also `legend`: how to read its grid)", guide.index())
 
     def test_the_legend_is_the_reply_reference(self):
         from harness import guide, legend

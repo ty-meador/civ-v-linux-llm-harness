@@ -35,6 +35,8 @@ PLAYBOOK_TOPICS: dict[str, tuple[str, str]] = {
 TOPIC_ALIASES: dict[str, str] = {
     "city_state": "diplomacy", "city_states": "diplomacy", "deals": "diplomacy", "trade": "diplomacy",
     "league": "diplomacy", "loop": "turn_loop", "batch": "batches", "blocking": "blockers",
+    # the tactical view's legend under a word a reader can remember (2026-11-23: its only name was the heading)
+    "legend": 'state(what="unit", view="tactical")', "tactical": 'state(what="unit", view="tactical")',
 }
 #: Topics printed from the code rather than read from the playbook: the action table (GitLab #53).
 GENERATED_TOPICS: dict[str, str] = {
@@ -119,7 +121,9 @@ def index() -> str:
     replies = reply_topics()
     if replies:
         lines += ["", "Reply references (every key of the tool's answer, beyond what its description holds):"]
-        lines += [f"- `{reply_call(name)}`" for name in replies]
+        short = {heading: word for word, heading in TOPIC_ALIASES.items() if word == "legend"}
+        lines += [f"- `{reply_call(name)}`" + (f" (also `{short[name]}`: how to read its grid)" if name in short else "")
+                  for name in replies]
     return "\n".join(lines) + "\n"
 
 

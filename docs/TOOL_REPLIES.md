@@ -291,8 +291,9 @@ How to read the tactical view's `grid`, `move`, `vis`, `sight` and `fog`:
 - **fog**: fogged and unrevealed plots can hold units that are not shown: a plot is never reported safe.
 
 This text rides on a server session's first tactical reply as `legend` and on no reply after it (GitLab #152: a
-seat paid two thousand characters of legend on every move check); it is this section,
-`reference(book="playbook", section='state(what="unit", view="tactical")')`.
+seat paid two thousand characters of legend on every move check). To read it again: `reference(section="legend")`
+returns it at any time, and after `turn(action="briefing", since="turn")`, the read for a context that was reset,
+the next tactical reply carries it once more.
 
 ## state(what="compare")
 

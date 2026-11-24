@@ -474,6 +474,19 @@ class GameBriefingTests(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
+    def test_the_recovery_read_makes_the_tactical_legend_come_again(self):
+        """2026-11-23: the tactical view's one-line key was dropped, so the legend is said once a process; the read
+        a reader makes after a context reset clears that memory, and a plain briefing does not."""
+        from harness import legend
+        g = ScriptedBoardGame()
+        g._legends_said = {legend.TOPIC}
+        g.briefing()
+        self.assertEqual(g._legends_said, {legend.TOPIC}, "since='previous': the reader still has its context")
+        g.briefing(since="turn")
+        self.assertEqual(g._legends_said, set())
+        fresh = ScriptedBoardGame()
+        self.assertTrue(fresh.briefing(since="turn")["ok"], "a game that never answered a tactical read is fine")
+
     def test_fresh_session_then_changes_since_the_previous_briefing(self):
         g = ScriptedBoardGame()
         first = g.briefing()

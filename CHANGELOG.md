@@ -16,6 +16,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The tactical view's legend comes back after a context reset and has a short name (2026-11-23; no runtime
+  change).** With the one-line `key` gone from every reply (the entry below), a reader whose context was reset
+  under a server that lives on had the grid and nothing to read it by. `turn(action="briefing", since="turn")`,
+  the read the instructions name for that moment, clears the server's memory of having said the legend, so the
+  next tactical reply carries it once more (`legend.forget`; a briefing since the previous one does not).
+  `reference(section="legend")` returns it at any time, from either book (`tactical` too; the playbook's index
+  names it); its only name had been the heading, `state(what="unit", view="tactical")`. Two tests, 2579 tests.
+
 - **The tactical view says its move order once and its key not at all, and the server's instructions ask for the
   look before an attack, not before every move (2026-11-23; no runtime change).** From the first thirty turns of
   Codex `gpt-6-astra` at high effort on the duel (stopped by hand at turn 31, the subscription's limit met): 212

@@ -120,6 +120,12 @@ class NotebookMixin:
             return {"ok": False, "err": f"notes must be one of {['auto', *Notebook.HAND_OFF_MODES]}, not {notes!r}"}
         if notes == "auto":
             notes = "all" if since == "turn" else "new"
+        if since == "turn":
+            # The recovery read after a context reset: what the server said once, the reader may no longer have.
+            # The tactical view's legend rides on its next reply again (harness/legend.py; the server cannot see
+            # a client's context, and this is the call a reader makes when it has lost it).
+            from .. import legend
+            legend.forget(getattr(self, "_legends_said", None))
         limit = max(0, min(int(limit), 50))
         ts = ts if isinstance(ts, dict) else self.turn_state()
         nb = self.notebook()

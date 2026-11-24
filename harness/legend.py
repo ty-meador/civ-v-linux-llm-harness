@@ -7,7 +7,9 @@ server process attaches the whole text to its first tactical reply (`legend`) an
 2026-11-23 every later reply carried a one-line `key` (300 characters, with the section's name): a Codex seat read
 the view 73 times in thirty turns and each key was sent again with every later request of its instance. The legend
 names its own section, the playbook's index lists it, and a seat loop's instance has a server of its own, so its
-first read brings the legend.
+first read brings the legend. A reader whose context was reset under a server that lives on gets it back two ways:
+`turn(action="briefing", since="turn")`, the read the instructions name for that moment, makes the next tactical
+reply carry the legend again (`forget`), and `reference(section="legend")` returns it at any time (`NAMES`).
 """
 from __future__ import annotations
 
@@ -22,6 +24,10 @@ KEY = ("cell = ground+occupant: M mountain ~ water H hills F forest . open C cit
        "u yours o other ? fogged; move: attack / open (cost, left, zoc) / refused (why) / enemy; "
        "reach.plots: [x, y, left]; "
        f"the legend: reference(book='playbook', section='{TOPIC}')")
+
+
+#: The short words that name the legend's section in `reference` (either book): harness/guide.py TOPIC_ALIASES.
+NAMES = ("legend", "tactical")
 
 
 def text() -> str:
@@ -39,3 +45,9 @@ def attach(reply: dict, seen: set[str]) -> dict:
         seen.add(TOPIC)
         reply["legend"] = text()
     return reply
+
+
+def forget(seen: set[str] | None) -> None:
+    """The process's memory of having said the legend, cleared: its next tactical reply carries it again."""
+    if seen is not None:
+        seen.discard(TOPIC)

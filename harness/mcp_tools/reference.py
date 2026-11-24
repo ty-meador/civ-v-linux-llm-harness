@@ -11,6 +11,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from harness import guide
+from harness import legend
 
 from harness import mcp_server as core
 from harness.mcp_server import mcp, J, guarded, lua_allowed, retired
@@ -76,10 +77,10 @@ def reference(section: Annotated[str | None, Field(description="one section: a r
     thousands of tokens: read it once at the start of a game if you can hold it, else the section a choice needs).
     Playbook topics: start, turn_loop, quiet_turns, batches, verify, blockers, diplomacy, rules, first_turn, orders
     (the action table), all; left out, the index of topics with the start section; city_state(s), deals, trade and
-    league answer with diplomacy.
+    league answer with diplomacy. section="legend" (either book): how to read the tactical view's grid.
     Returns Markdown. An unknown rules section is refused as {ok: false, err, sections}; an unknown playbook topic
     answers with the topic list. Also served as the MCP resources civ5://reference and civ5://reference/{section}."""
-    if book == "playbook":
+    if book == "playbook" or (section or "").strip() in legend.NAMES:
         return how_to_play(section or "")
     if book != "rules":
         return J({"ok": False, "err": f"book is one of rules, playbook, not {book!r}"})
