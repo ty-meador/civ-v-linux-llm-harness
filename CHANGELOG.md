@@ -23,7 +23,7 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   each reply carried again by every later request of its instance (1.7 to 2.3 million input tokens for ten turns
   against 37 to 79 thousand tokens of replies). The server's instructions had said "Before moving or attacking:
   state(what="unit", id, view="tactical")" and the seat did so for every step of a Scout in open land: they now
-  say "Attacking, or moving beside an enemy: ... first". In the reply, the one-line `key` of every read after a
+  say "Attacking or moving beside an enemy: ... recommended". In the reply, the one-line `key` of every read after a
   process's first is gone (the legend still rides on the first, and names its section), and the six neighbour
   rows no longer each carry the whole move order: the reply has one `move_call` with x and y to fill in (any open
   neighbour or `reach` plot), and only an attack neighbour keeps a `call`. The 70 logged reads after an
