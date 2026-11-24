@@ -16,6 +16,13 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **Every run of a starting save starts on the same random numbers** (`scripts/benchmark_run.py`, decided
+  2026-11-24). `--skip none` is the default: each run of a save is given the same game, so what differs between
+  a model's runs comes of the model's own play. `--skip seed`, the default until now, still makes a player's nth
+  run a separate game. A run keeps its number in its files' names (`seed<n>`). Decided the same day and written
+  in `docs/BENCHMARK.md` ("How a player is scored", point 3): one run is a score and several runs of a model give
+  it an error; the built-in AI is the only reference and is played once on a starting save; the scripted loop is
+  no reference player any more. Not seen live. Two tests (2686).
 - **A benchmark run's recording is one file, with the game turn by turn in it, and a file can be checked
   anywhere** (GitLab #212). Every run writes a game file, `<out>-<player>-seed<n>-game.jsonl`: one JSON line for
   every turn with the whole world as the turn begins (every player's figures, techs and policies, every city and

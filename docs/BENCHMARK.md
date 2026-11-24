@@ -33,8 +33,16 @@ thought.
   score. That was the earlier design (the sections below) and it was dropped on 2026-11-22: a paid run of fifteen
   minutes was being decided by fifteen minutes of the engine's play after it.
 - **What is still said openly:** the starting saves, the seeds, the terms a save carries, what a player may see
-  and do, what a recording holds, and with every published score its standard error over seeds. Seeds are separate
-  games ("A skip has to be longer than a game"), and a player needs several.
+  and do, what a recording holds, and with every published score of more than one run its standard error over
+  the runs. Seeds are separate games ("A skip has to be longer than a game").
+- **One run is a score; several runs give it an error** (the user, 2026-11-24). A player is not required to play
+  a starting save more than once. A model will likely be run many times, and its error is taken over its own
+  runs. The built-in AI is played once on a starting save (point 3): no batch of its games is played again for
+  the sake of an error margin, as the sections below that count its seeds did.
+- **Every run of a starting save starts on the same random numbers** (the user, 2026-11-24), so that each
+  run is given the same game and what differs between a model's runs comes of the model's own play. `benchmark_run.py --skip
+  none` is the default since that day; `--skip seed`, which made a player's nth run a separate game, is how every
+  run before it was played. A run's number is still the `seed<n>` of its files' names.
 
 **Where it is going** (decided 2026-11-22, not built; the milestones on GitLab hold the steps):
 
@@ -519,11 +527,14 @@ run of turns. Then the game's own AI plays that seat and every other to the end 
 
 **3. Players.** A player is a client, a model, an effort setting, a harness version and a prompt file. It has the nine
 tools and one seat: no shell on the game's machine, no save file, no Lua. It starts with no notebook; what it writes
-during the run is its own. Two players are always on a starting save beside the models: the built-in AI playing the
-run (`built-in-ai`, the baseline) and a scripted loop that answers only what the game forces, from fixed lists
-(`scripts/play_loop.py`). The loop was meant as a lower reference point and is not one by construction: on the first
+during the run is its own. One player is always on a starting save beside the models: the built-in AI playing the
+run (`built-in-ai`, the baseline), once on each starting save. Nothing else is a reference, and the baseline is
+not played on several seeds for an error margin; a model may be (the user, 2026-11-24). Until that day a scripted loop that answers only what the game
+forces, from fixed lists (`scripts/play_loop.py`), was a second fixed player; the sections below that set it beside
+the baseline are kept as they were measured, and the script stays as a client that plays through the harness's own
+orders. The loop was meant as a lower reference point and was not one by construction: on the first
 duel its opening (Worker, Monument, Shrine, Granary, four Tradition policies, the Warrior at home) was worth as much
-as the built-in AI's. It is reported as a second fixed player, not as a lower bound. Where its lists run out it
+as the built-in AI's. Where its lists run out it
 takes what the game itself offers, so that a run from a middle game or a late game is played to its end: the first
 choice offered of a forced one (a free policy, a reformation belief), the soonest building of a city the list has
 nothing for (else Wealth or Research), no further unit in a city whose units no longer fit on the plots beside it,

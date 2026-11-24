@@ -929,6 +929,34 @@ class KeepEnd(unittest.TestCase):
         self.assertIsNone(self.asked()[0])
 
 
+class RunsOfOneSave(unittest.TestCase):
+    """Every run of a starting save starts on the save's own random numbers unless separate games are asked for."""
+
+    def skips(self, *more):
+        seen = []
+
+        def fake(_g, save, turns, **kw):
+            seen.append(kw.get("skip"))
+            return {"player": "built-in-ai", "save": save, "end_reason": "all_turns_played", "turns_played": turns,
+                    "seconds": 1.0}
+
+        game = mock.Mock()
+        game.has_state.return_value = False
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(benchmark_run, "run_once", fake), \
+                mock.patch.object(benchmark_run, "wait_main_menu"), mock.patch.object(benchmark_run, "summarise", return_value=[]), \
+                mock.patch("harness.game.Game", return_value=game), contextlib.redirect_stdout(io.StringIO()):
+            benchmark_run.main(["--save", "a", "--turns", "10", "--runs", "3", "--out", str(Path(d) / "rows.jsonl"), *more])
+            runs = [r.get("run") for r in benchmark_run.read_rows(Path(d) / "rows.jsonl")]
+        return seen, runs
+
+    def test_by_default_no_run_skips_a_random_number_and_each_keeps_its_own_number(self):
+        self.assertEqual(self.skips(), ([0, 0, 0], [0, 1, 2]))
+
+    def test_separate_games_are_still_there_to_ask_for(self):
+        seen, _ = self.skips("--skip", "seed")
+        self.assertEqual(seen, [n * benchmark_run.NUMBERS_A_SEED for n in range(3)])
+
+
 class Views(unittest.TestCase):
     def test_shares_are_of_the_living_and_the_place_is_by_score(self):
         r = read(players=[player(0, human=True, score=100, techs=30), player(1, score=300, techs=50),

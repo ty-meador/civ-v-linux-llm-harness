@@ -23,9 +23,11 @@ them in place of the engine. The command plays the seat (a seat loop, `scripts/p
 `{seed}`, `{turns}` and `{until}` in the command are the seed's number, the turns, and the game turn that is the
 seat's when its turns are over (the save's turn plus the turns asked): the player is told that turn.
 
-Seeds: a player's nth run on a starting save is seed n. Before anyone plays, 16,000,048 n random numbers are
-generated and thrown away (the skip), so seed n is the same game for every player and two seeds share no random
-numbers (a save replays the same game otherwise). The seat's notebook is the one given (`--notebook FILE`, or `none`
+Seeds: a player's nth run on a starting save is numbered n (the `seed<n>` of its files' names). Every run starts
+on the save's own random numbers (`--skip none`, the default since 2026-11-24): every run is given the same
+game, and what differs between a player's runs comes of the player's own play. With `--skip seed`, 16,000,048 n random numbers
+are generated and thrown away before anyone plays (the skip), so run n is the same game for every player and two
+runs share no random numbers. The seat's notebook is the one given (`--notebook FILE`, or `none`
 for a seat that takes the starting save over cold), the one the player leaves is kept beside the rows, and the one
 that was on disk before the run is put back after it.
 
@@ -1297,9 +1299,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--seat", type=int, default=None, help="default: the starting save's one human seat")
     ap.add_argument("--out", type=Path, help="JSON lines, one row a run, appended")
-    ap.add_argument("--skip", choices=("none", "seed"), default="seed",
-                    help="random numbers generated and thrown away before anyone plays: none, or 16,000,048 times the "
-                         "seed's number (default; a player's nth run is seed n), so that runs of one save are separate games")
+    ap.add_argument("--skip", choices=("none", "seed"), default="none",
+                    help="random numbers generated and thrown away before anyone plays: none (default: every run of a "
+                         "save starts on the save's own random numbers, so each is given the same game), or "
+                         "16,000,048 times the run's number, so that runs of one save are separate games")
     ap.add_argument("--stall", type=float, default=900.0, help="seconds without a new turn before a run is given up")
     ap.add_argument("--player", dest="label", help="the player's name in the row, needed with a command")
     ap.add_argument("--notebook", help="the notebook the player starts with: a file, or `none`; default the one on disk")
