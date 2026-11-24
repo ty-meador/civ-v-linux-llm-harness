@@ -678,3 +678,90 @@ class RecordingTests(unittest.TestCase):
             finally:
                 httpd.shutdown()
                 httpd.server_close()
+
+
+class GameFileTests(unittest.TestCase):
+    """A game file behind the page (harness/spectator/game_file.py; its own tests are tests/test_game_file.py): replayed
+    as the page's stream, written by a live spectator, and served line by line."""
+
+    MAP = {"ok": True, "w": 2, "h": 2, "key": "2x2:7", "layers": {"terrain": ["GC", "PO"]}, "legend": {}}
+
+    def a_file(self, d: str, turns: int = 3) -> str:
+        from harness.spectator import game_file
+        f = game_file.GameFile(os.path.join(d, "game-2x2-0123456789ab.jsonl"))
+        f.append("game", {"format": 1, "key": "2x2-0123456789ab", "map": self.MAP,
+                          "game": {"players": [{"id": 0, "name": "Augustus", "civ": "Rome", "color": [1, 2, 3]}]}}, t=100.0)
+        for n, turn in enumerate(range(turns + 1)):
+            world = {"active": 0, "cities": [], "units": [], "players": [{"id": 0, "alive": True, "human": True, "score": 10 * turn, "cities": 1}]}
+            f.append("turn" if turn else "start", {"turn": turn, "world": world}, t=101.0 + n)
+        return str(f.path)
+
+    def test_a_game_file_replays_as_the_map_and_a_snapshot_a_turn_under_the_streams_own_numbers(self):
+        with tempfile.TemporaryDirectory() as d:
+            rows, game = F.open_replay(self.a_file(d))
+            f = F.Feed(mode="replay", recording_rows=rows)
+            self.assertEqual((f.state()["recording"], f.has_recording, game.endswith(".jsonl")), (True, True, True))
+            self.assertEqual(F.replay(rows, f, speed=0), 5)
+            self.assertEqual([(e["seq"], e["type"]) for e in f.since(0)],
+                             [(1, "hello"), (2, "snapshot"), (3, "snapshot"), (4, "snapshot"), (5, "snapshot")])
+            st = f.state()
+            self.assertEqual((st["hello"], st["snapshot"]["turn"], st["snapshot"]["players"][0]["civ"]), ({"map": self.MAP}, 3, "Rome"))
+            self.assertEqual([r["seq"] for r in f.recording(3)], [4, 5])           # what /recording serves the scrubber
+
+    def test_a_live_spectator_told_a_folder_looks_for_new_turns_every_second_and_says_a_failure_once(self):
+        from harness.spectator import game_file
+
+        class Recorder:
+            def __init__(self):
+                self.looks, self.fail = 0, None
+
+            def step(self):
+                self.looks += 1
+                if self.fail:
+                    raise self.fail
+
+        with tempfile.TemporaryDirectory() as d:
+            ledger = os.path.join(d, "calls.jsonl")
+            open(ledger, "w").close()
+            feed, recorder = F.Feed(), Recorder()
+            live = F.Live(feed, FakeClient(), ledger, d, sleep=lambda s: None, recorder=recorder, turns_every=1.0)
+            for now in (1000.0, 1000.5, 1001.0, 1001.4, 1002.1):
+                live.tick(now)
+            self.assertEqual(recorder.looks, 3)
+            recorder.fail = game_file.NoGame("no game is loaded")          # the main menu: no news
+            live.tick(1004.0)
+            recorder.fail = ValueError("the file of another game")
+            live.tick(1006.0)
+            live.tick(1008.0)
+            said = [e["data"] for e in feed.since(0) if e["type"] == "status"]
+            self.assertEqual(said, [{"source": "game file", "err": "ValueError: the file of another game"}])
+            F.Live(feed, FakeClient(), ledger, d, sleep=lambda s: None).tick(1000.0)     # and none is no look at all
+
+    def test_the_server_lists_the_game_files_lines_and_hands_out_one_by_its_number(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = self.a_file(d)
+            where = {"path": None}
+            httpd = server.serve(F.Feed(), "127.0.0.1", 0, pathlib.Path(d), background=True, game=lambda: where["path"])
+            try:
+                def get(url):
+                    c = http.client.HTTPConnection("127.0.0.1", httpd.server_address[1], timeout=5)
+                    c.request("GET", url, headers={"Connection": "close"})
+                    r = c.getresponse()
+                    return r.status, r.read()
+                self.assertEqual(get("/game")[0], 404)                         # no game file in hand
+                where["path"] = path
+                status, body = get("/game")
+                listed = json.loads(body)
+                self.assertEqual((status, listed["file"]), (200, "game-2x2-0123456789ab.jsonl"))
+                self.assertEqual([(r["line"], r["kind"], r.get("turn")) for r in listed["lines"]],
+                                 [(1, "game", None), (2, "start", 0), (3, "turn", 1), (4, "turn", 2), (5, "turn", 3)])
+                self.assertEqual(listed["lines"][-1]["players"], {"0": {"score": 30, "cities": 1}})
+                status, body = get("/game/line?n=4")
+                self.assertEqual((status, json.loads(body)["turn"], body), (200, 2, pathlib.Path(path).read_bytes().splitlines()[3]))
+                self.assertEqual((get("/game/line?n=9")[0], get("/game/line?n=x")[0], get("/game/line")[0]), (404, 404, 404))
+                from harness.spectator import game_file
+                game_file.GameFile(path).append("turn", {"turn": 4, "world": {"players": []}}, t=200.0)
+                self.assertEqual(len(json.loads(get("/game")[1])["lines"]), 6)        # the file grew under the server
+            finally:
+                httpd.shutdown()
+                httpd.server_close()

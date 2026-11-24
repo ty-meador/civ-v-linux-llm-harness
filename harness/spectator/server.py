@@ -7,6 +7,10 @@ GET /state       -> feed.state(): mode, whether there is a recording, the map, t
                     tokens per seat (`usage`, null without --usage), recent calls and events
 GET /recording   -> the recording so far as JSON lines (one event per line, the stream's seq numbers);
                     `?since=N` from seq N on; 404 when the spectator has none (live without --record)
+GET /game        -> the game file in hand (game_file.py; live with --games, or a game file replayed): its name and
+                    one row a line -- the line's number, kind, time, turn and each major civilization's few
+                    figures -- for a chart over the game or a list of turns; 404 when there is none
+GET /game/line   -> `?n=N`: line N of that file as written, one seek; 404 when there is no such line
 GET /events      -> text/event-stream; `?since=N` or `Last-Event-ID: N` resumes; a comment line every KEEPALIVE
                     seconds keeps proxies and the browser happy
 """
@@ -19,13 +23,30 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from . import game_file
 from .feed import Feed
 
 KEEPALIVE = 15.0
 WEB_DIR = pathlib.Path(__file__).resolve().parents[2] / "web" / "viz"
 
 
-def make_handler(feed: Feed, web_dir: pathlib.Path):
+def make_handler(feed: Feed, web_dir: pathlib.Path, game=None):
+    """`game`: a call that says the path of the game file in hand, or None for none (it changes when another game
+    is loaded under a live spectator)."""
+    held: dict = {"path": None, "index": None}
+    lock = threading.Lock()
+
+    def index_of() -> game_file.Index | None:
+        path = game() if game else None
+        if not path:
+            return None
+        with lock:
+            if held["path"] != path:
+                held["path"], held["index"] = path, game_file.Index(path)
+            else:
+                held["index"].refresh()
+            return held["index"]
+
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
@@ -61,10 +82,30 @@ def make_handler(feed: Feed, web_dir: pathlib.Path):
                 return self._recording(url)
             if url.path == "/events":
                 return self._stream(url)
+            if url.path in ("/game", "/game/line"):
+                return self._game(url)
             return self._static(url.path)
 
+        def _game(self, url) -> None:
+            index = index_of()
+            if index is None:
+                self._json({"ok": False, "err": "no game file (start the spectator with --games, or --replay one)"}, 404)
+                return
+            if url.path == "/game":
+                self._json({"ok": True, "file": index.path.name, "lines": index.rows})
+                return
+            try:
+                n = int((parse_qs(url.query).get("n") or [""])[0])
+            except ValueError:
+                n = 0
+            line = index.line(n)
+            if line is None:
+                self._json({"ok": False, "err": f"no line {n}; the file has {len(index.rows)}"}, 404)
+                return
+            self._body(line, "application/json; charset=utf-8")
+
         def _recording(self, url) -> None:
-            if not feed.recording_path:
+            if not feed.has_recording:
                 self._json({"ok": False, "err": "no recording (start the spectator with --record or --replay)"}, 404)
                 return
             try:
@@ -129,8 +170,8 @@ def sse(ev: dict) -> bytes:
 
 
 def serve(feed: Feed, host: str = "127.0.0.1", port: int = 8765, web_dir: pathlib.Path | None = None,
-          background: bool = False) -> ThreadingHTTPServer:
-    httpd = ThreadingHTTPServer((host, port), make_handler(feed, web_dir or WEB_DIR))
+          background: bool = False, game=None) -> ThreadingHTTPServer:
+    httpd = ThreadingHTTPServer((host, port), make_handler(feed, web_dir or WEB_DIR, game))
     httpd.daemon_threads = True
     if background:
         threading.Thread(target=httpd.serve_forever, daemon=True).start()

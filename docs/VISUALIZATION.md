@@ -108,9 +108,12 @@ harness/spectator/
   ledger_tail.py              JSONL tailer (handles truncation)
   notebook_watch.py           notes / assignments / orders per seat from the notes dir
   usage_watch.py              tokens per seat from the clients' usage records, by the report's own steps (--usage)
-  feed.py                     merges the sources into one sequenced stream; records; replays
-  server.py                   SSE (/events), bootstrap (/state), the recording (/recording), static files (/)
-  __main__.py                 `python -m harness.spectator` (live, --record, --replay)
+  game_file.py                a game as one file, a JSON line a turn: the handler put into the game, the one
+                              writer, the readers (a line by its number, the page's stream out of a file)
+  feed.py                     merges the sources into one sequenced stream; records; replays (a stream, a game file)
+  server.py                   SSE (/events), bootstrap (/state), the recording (/recording), the game file
+                              (/game, /game/line), static files (/)
+  __main__.py                 `python -m harness.spectator` (live, --record, --games, --replay)
 web/viz/
   index.html
   css/viz.css
@@ -148,6 +151,28 @@ python -m harness.spectator --ledger logs/calls.jsonl --record logs/spectate.jso
 python -m harness.spectator --replay logs/spectate.jsonl                              # no game needed
 python -m harness.spectator --ledger logs/calls.jsonl --usage logs/night --record logs/spectate.jsonl   # with tokens per seat
 ```
+
+### A game as one file, turn by turn
+
+```
+python -m harness.spectator --ledger logs/calls.jsonl --games logs/games              # live, and each game into its own file
+python -m harness.spectator --replay logs/games/game-40x24-e81c31c9d160.jsonl         # a game file, no game needed
+python -m harness.spectator --replay logs/boards/<id>/recordings/<run>.recording.zip  # a benchmark run's packed recording
+```
+
+`--record` keeps what the page saw at the page's pace. `--games DIR` keeps the game itself: one JSON line for
+every turn with the whole world as the turn begins, taken inside the game by a handler so that a turn played
+between two polls is not passed over, in a file named by the game and gone on with when the game is loaded again
+(`harness/spectator/game_file.py`; what a line holds is in docs/BENCHMARK.md, "The game file"). It is the
+operator's file: fog ignored, no seat reads it, and writing it changes nothing in the game. A benchmark run writes
+the same file for itself and its packed recording carries it.
+
+`--replay` plays a game file, or a packed recording, as it plays a stream: the map from the file's first line,
+then a snapshot for every line, and a packed recording's calls between them at their own times. The page needs no
+code of its own for it and scrubs it turn by turn. `GET /game` lists the lines of the game file in hand (live
+with `--games`, or the file being replayed) with each line's number, kind, turn, time and every major
+civilization's few figures, enough for a chart over the game; `GET /game/line?n=N` is line N as written, found
+with one seek. Seen in Chrome 2026-11-23 on a packed run of the duel.
 
 A replay starts at the recording's first row and plays on the page's clock; `--speed N` additionally makes the
 server pace the stream it pushes (the page's player does not need it).

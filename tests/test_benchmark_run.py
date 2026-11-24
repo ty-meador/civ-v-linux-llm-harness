@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.util
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -233,6 +234,61 @@ class Runs(unittest.TestCase):
         self.assertEqual(g.left, 1)
 
 
+class TheRunsOwnMaking(unittest.TestCase):
+    """What a row says of how it was made, for its recording: read before the run, written into every row."""
+
+    def test_the_harness_the_runtime_and_the_starting_saves_hash(self):
+        from harness.game_parts.support import RUNTIME_VERSION
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"CIV5_SAVES_DIR": d}):
+            (Path(d) / "start.Civ5Save").write_bytes(b"the starting save")
+            made = benchmark_run.made_with("start")
+            self.assertEqual(benchmark_run.made_with("gone")["save_sha256"], None)
+        version = next(line for line in (ROOT / "pyproject.toml").read_text().splitlines() if line.startswith("version = "))
+        self.assertEqual(made, {"harness": version.split('"')[1], "runtime": RUNTIME_VERSION,
+                                "save_sha256": hashlib.sha256(b"the starting save").hexdigest()})
+
+    def test_the_engines_run_has_its_game_file_begun_before_the_seat_is_handed_over_and_ended_before_the_game_is_left(self):
+        """The handler that takes a world a turn has to be in the game before the engine plays the first one."""
+        g = FakeGame([{**read(), "build": "1.0.3.279(130961)"}, read(turn=252)], polls=[poll(252, 0)])
+        def record(seat):
+            g.sent.append(f"game file begins, seat {seat}")
+            def end():
+                g.sent.append(f"game file ends, left {g.left}")
+                return {"file": "g.jsonl", "lines": 13, "bytes": 20}
+            return end
+        row = run(g, record=record)
+        order = [s if s.startswith("game file") else "handed over" for s in g.sent if s.startswith("game file") or "SetAIAutoPlay" in s]
+        self.assertEqual(order, ["game file begins, seat 0", "handed over", "game file ends, left 0"])
+        self.assertEqual((row["game_file"]["lines"], row["game_build"], g.left), (13, "1.0.3.279(130961)", 1))
+
+    def test_the_runs_game_file_is_written_by_the_recorder_of_the_page_with_the_seat_and_the_run_said(self):
+        from harness.game_parts.support import RUNTIME_VERSION
+        from harness.spectator import game_file
+        made = {}
+
+        class Recorder:
+            def __init__(self, client, path, seats, run, made_with):
+                made.update(client=client, path=path, seats=seats, run=run, made_with=made_with, did=[])
+
+            def begin(self):
+                made["did"].append("begin")
+
+        def record(recorder):
+            made["did"].append("record")
+            return lambda: {"file": str(made["path"]), "lines": 3}
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(game_file, "Recorder", Recorder), \
+                mock.patch.object(game_file, "record", record):
+            path = Path(d) / "board" / "rows-x-seed0-game.jsonl"
+            path.parent.mkdir()
+            path.write_text("an earlier run's file under the same name\n")
+            end = benchmark_run.record_game(path, seat=0, about={"save": "start", "seed": 0}, client="the client")
+            self.assertFalse(path.exists())
+            self.assertEqual(end(), {"file": str(path), "lines": 3})
+        self.assertEqual((made["seats"], made["run"], made["did"]), ([0], {"save": "start", "seed": 0}, ["begin", "record"]))
+        self.assertEqual(made["made_with"], {"harness": benchmark_run.harness_version(), "runtime": RUNTIME_VERSION})
+
+
 class SavesWhileTheEnginePlays(unittest.TestCase):
     """`--checkpoint N`: the game saves itself (a handler, CHECKPOINT) and the runner copies each save out of the quick
     slot. Live 2026-11-22 on the Prince duel: saves at turns 5, 10 and 15 of 17 turns, the engine not interrupted."""
@@ -327,6 +383,48 @@ class APlayersRun(unittest.TestCase):
         self.assertEqual(order, ["read", "command", "read"])
         self.assertEqual(g.left, 1)
         json.dumps(row)
+
+    def test_the_row_keeps_the_runs_own_times_and_the_games_build_for_its_recording(self):
+        """The seat's ledger rows between `began` and `ended` are the run's calls (scripts/benchmark_recording.py):
+        the times are taken around the command, to the millisecond and outwards, and `cost` counts inside them."""
+        g = FakeGame([{**read(), "build": "1.0.3.279(130961)"},
+                      read(turn=252, players=[player(0, human=True, score=150, turn_active=True), player(1, score=310)])],
+                     polls=[poll(252, 0)])
+        times = iter([1000.0004, 1090.0001, 1090.5])
+        ledger = self.dir / "calls.jsonl"
+        ledger.write_text("".join(json.dumps({"t": t, "seat": 0, "tool": "state"}) + "\n" for t in (999.9, 1000.0, 1090.001, 1090.002)))
+        with mock.patch.dict(os.environ, {"CIV5_CALL_LOG": str(ledger)}):
+            row = self.go(g, now=lambda: next(times))
+        self.assertEqual((row["began"], row["ended"], row["cost"]["calls"]), (1000.0, 1090.001, 2))
+        self.assertEqual(row["game_build"], "1.0.3.279(130961)")
+
+    def test_the_game_file_is_begun_before_the_command_and_ended_before_the_game_is_left(self):
+        g = self.game()
+        def record(seat):
+            g.sent.append(f"game file begins, seat {seat}")
+            def end():
+                g.sent.append(f"game file ends, left {g.left}")
+                return {"file": "g.jsonl", "lines": 13, "bytes": 30}
+            return end
+        row = self.go(g, record=record)
+        order = [s for s in g.sent if s == "command" or s.startswith("game file")]
+        self.assertEqual(order, ["game file begins, seat 0", "command", "game file ends, left 0"])
+        self.assertEqual((row["game_file"], g.left), ({"file": "g.jsonl", "lines": 13, "bytes": 30}, 1))
+        self.assertNotIn("game_file_error", row)
+
+    def test_a_game_file_that_does_not_begin_or_end_costs_the_run_nothing(self):
+        def broken(_seat):
+            raise OSError("no tunerd")
+        row = self.go(self.game(), record=broken)
+        self.assertEqual((row["end_reason"], row["game_file_error"]), ("all_turns_played", "OSError: no tunerd"))
+        self.assertNotIn("game_file", row)
+        def ends_badly(_seat):
+            def end():
+                raise RuntimeError("gone")
+            return end
+        g = self.game()
+        row = self.go(g, record=ends_badly)
+        self.assertEqual((row["end_reason"], row["game_file_error"], g.left), ("all_turns_played", "RuntimeError: gone", 1))
 
     def test_the_notebook_given_is_the_one_played_with_and_the_standing_one_comes_back(self):
         g = self.game()

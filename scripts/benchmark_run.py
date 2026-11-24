@@ -67,10 +67,12 @@ name. A save keeps both, so every player's turns on that starting save and every
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -93,7 +95,7 @@ READ = """
 local out = {turn = Game.GetGameTurn(), state = Game.GetGameState(), winner = Game.GetWinner(), victory = "",
   auto = Game.GetAIAutoPlay(), active = Game.GetActivePlayer(), max_turns = Game.GetMaxTurns(),
   handicap = GameInfo.HandicapInfos[Game.GetHandicapType()].Type, speed = GameInfo.GameSpeeds[Game.GetGameSpeedType()].Type,
-  slots = {}, players = {}}
+  build = UI and UI.GetVersionInfo and UI.GetVersionInfo() or "", slots = {}, players = {}}
 local v = Game.GetVictory()
 if v ~= nil and v >= 0 and GameInfo.Victories[v] then out.victory = GameInfo.Victories[v].Type end
 local league = Game.GetNumActiveLeagues() > 0 and Game.GetActiveLeague() or nil
@@ -693,9 +695,87 @@ def value_of(row: dict, ai_finishes: list[dict]) -> float | None:
     return round(sum(1 for c in decided if c["won"]) / len(decided), 4) if decided else None
 
 
+def harness_version() -> str | None:
+    """The harness's version, as this checkout's pyproject.toml says it."""
+    try:
+        found = re.search(r'^version = "([^"]+)"', (Path(__file__).resolve().parent.parent / "pyproject.toml").read_text(), re.M)
+    except OSError:
+        return None
+    return found.group(1) if found else None
+
+
+def made_with(save: str) -> dict:
+    """What a row says of the run's own making, for its recording (scripts/benchmark_recording.py): the harness and
+    the Lua runtime the run is played on and the hash of the starting save's file as it is loaded. The game's build
+    comes from the run's first read (`game_build`)."""
+    from harness.game_parts.support import RUNTIME_VERSION
+    file = saves_dir() / f"{save}.Civ5Save"
+    return {"harness": harness_version(), "runtime": RUNTIME_VERSION,
+            "save_sha256": hashlib.sha256(file.read_bytes()).hexdigest() if file.is_file() else None}
+
+
+def record_game(path: Path, seat: int | None = None, about: dict | None = None, client=None):
+    """The run's game file, written to `path` while the run plays: one line for every turn, the whole world at the
+    moment the turn begins, taken inside the game by a handler so that no turn is passed over, with a line for where
+    the run started and one for where it ended (harness/spectator/game_file.py, which is the writer). It is begun
+    after the save is loaded and before anyone plays, and ended before the game is left. `seat`: the run's seat, whose
+    fog is kept also while the engine plays it. `about`: what the file's first line says of the run. One more reader
+    on tunerd beside the runner's own; every read is a query and nothing in the game is changed. Returns the call
+    that ends it and says what was written."""
+    from harness.game_parts.support import RUNTIME_VERSION
+    from harness.spectator import game_file
+    own = client is None
+    if own:
+        from harness.client import Civ5
+        client = Civ5()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.unlink(missing_ok=True)
+    recorder = game_file.Recorder(client, path=path, seats=[] if seat is None else [seat], run=about,
+                                  made_with={"harness": harness_version(), "runtime": RUNTIME_VERSION})
+    try:
+        recorder.begin()                # the handler is in the game before the first turn is played
+    except Exception:
+        if own:
+            client.close()
+        raise
+    end = game_file.record(recorder)
+
+    def finish() -> dict:
+        try:
+            return end()
+        finally:
+            if own:
+                try:
+                    client.close()
+                except Exception:
+                    pass
+    return finish
+
+
+def begin_game_file(record, seat: int):
+    """`record(seat)` begun, or nothing: the call that ends it, and what went wrong if it did not begin. A game
+    file that fails costs the run nothing."""
+    if not record:
+        return None, None
+    try:
+        return record(seat), None
+    except Exception as e:
+        return None, f"{type(e).__name__}: {e}"
+
+
+def end_game_file(row: dict, end, error: str | None) -> None:
+    if end:
+        try:
+            row["game_file"] = end()
+        except Exception as e:
+            error = f"{type(e).__name__}: {e}"
+    if error:
+        row["game_file_error"] = error
+
+
 def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, poll: float = 3.0, stall: float = 900.0,
              end_save: str | None = None, save_game=save_as, row: str = "own", time_victory: str = "on",
-             checkpoint: int = 0, checkpoint_name: str | None = None,
+             checkpoint: int = 0, checkpoint_name: str | None = None, record=None,
              sleep=time.sleep, clock=time.monotonic, say=lambda _line: None) -> dict:
     """One run of the starting save by the game's own AI. Loads `save` (the game must be at the main menu), hands the seat over, watches, reads,
     and leaves for the main menu whatever happened once the seat was handed over.
@@ -718,10 +798,17 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
     if checkpoint:
         g.q(CHECKPOINT % {"every": checkpoint, "seat": seat, "after": before["turn"]})
     quick_was, last_saved = quick_mtime(), -1
+    record_end, record_error = begin_game_file(record, seat)
     t0 = clock()
-    started = g.q(start_chunk(skip, turns, seat, row, time_victory))
+    try:
+        started = g.q(start_chunk(skip, turns, seat, row, time_victory))
+    except Exception:
+        end_game_file({}, record_end, None)
+        leave(g)
+        raise
     row: dict = {"player": BUILT_IN_AI, "save": save, "seat": seat, "turns_asked": turns, "skip": skip,
-                 "handicap": before["handicap"], "speed": before["speed"], "start": seat_view(before, seat),
+                 "handicap": before["handicap"], "speed": before["speed"], "game_build": before.get("build") or None,
+                 "start": seat_view(before, seat),
                  "seat_row": started.get("seat_row"), "time_victory": started.get("time_victory"),
                  "end_reason": None, "win_turn": None}
     try:
@@ -770,6 +857,7 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
         keep_end(g, row, end_save, save_game, sleep, clock)
         return row
     finally:
+        end_game_file(row, record_end, record_error)
         if checkpoint:
             try:
                 g.q(CHECKPOINT_OFF)
@@ -788,7 +876,7 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
                notebook: str | None = None, keep_notebook: Path | None = None, claim_wait: float = 0.0,
                timeout: float = 4 * 3600.0, settle: float = 120.0, poll: float = 3.0, run=subprocess.run,
                end_save: str | None = None, save_game=save_as, checkpoint: int = 0, checkpoint_name: str | None = None,
-               watch=watch_saves,
+               watch=watch_saves, record=None,
                path_of=notebook_path, sleep=time.sleep, clock=time.monotonic, now=time.time) -> dict:
     """One run of the starting save by a command that plays the seat and ends. Loads `save`, reads, puts the player's
     notebook in place, runs the command, reads, and leaves for the main menu with the notebook that was on disk
@@ -798,7 +886,11 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
 
     With `checkpoint` N a copy of the seat's own quick save is kept for every game turn that is a multiple of N while
     the command plays (`SavesOnTheWay`), as `checkpoint_name`-t<turn>; the row lists them as `checkpoints`. The
-    player is not interrupted and is told nothing of it."""
+    player is not interrupted and is told nothing of it.
+
+    `began` and `ended` in the row are the moments the command started and ended (seconds since 1970, to the
+    millisecond, outwards): the seat's rows of the call ledger between them are the run's calls, the ones `cost`
+    counts and a recording packs. `record`: see record_game()."""
     loaded = g.load_save(save)
     if not loaded.get("ok"):
         raise Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -816,7 +908,9 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
     command = [part.replace("{until}", str(before["turn"] + turns)) for part in command]
     row: dict = {"player": label, "command": command, "save": save, "seat": seat, "turns_asked": turns, "skip": skip,
                  "notebook": notebook or "standing", "handicap": before["handicap"], "speed": before["speed"],
+                 "game_build": before.get("build") or None,
                  "start": seat_view(before, seat), "end_reason": None, "rc": None}
+    record_end = record_error = None
     try:
         if notebook == "none":
             nb.unlink(missing_ok=True)
@@ -828,7 +922,8 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
         how = played(g, seat)
         sleep(claim_wait)
         quick_was = quick_mtime()
-        t0, began = clock(), now()
+        record_end, record_error = begin_game_file(record, seat)
+        t0, began = clock(), math.floor(now() * 1000) / 1000
         saves = SavesOnTheWay(checkpoint, checkpoint_name or save, before["turn"]) if checkpoint else None
         end_watch = watch(g, seat, saves, poll) if saves else None
         try:
@@ -841,7 +936,8 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
         if saves:
             row["checkpoints"] = saves.kept
         row["seconds"] = round(clock() - t0, 1)
-        row["cost"] = {**ledger_counts(ledger_path(), seat, began, now()), "tokens": tokens_of(command)}
+        row["began"], row["ended"] = began, math.ceil(now() * 1000) / 1000
+        row["cost"] = {**ledger_counts(ledger_path(), seat, began, row["ended"]), "tokens": tokens_of(command)}
         # The command may end while the other players still move: the read waits for the seat's turn.
         waited = 0.0
         while True:
@@ -871,6 +967,7 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
             row["notebook_after"] = str(keep_notebook)
         return row
     finally:
+        end_game_file(row, record_end, record_error)
         if standing is None:
             nb.unlink(missing_ok=True)
         else:
@@ -1194,6 +1291,12 @@ def main(argv: list[str] | None = None) -> int:
                          "would load: the position can be read again later, or finished later with --finish-only. A game "
                          "that ended inside the turns (a victory, or the seat destroyed) is saved where it ended, as "
                          "...-game-over: a lost game is a finished run and keeps its save")
+    ap.add_argument("--no-game-file", dest="game_file", action="store_false",
+                    help="do not write the run's game file. By default every run writes one, <out>-<player>-seed<n>-"
+                         "game.jsonl: a line for every turn with the whole world as the turn begins, taken inside the "
+                         "game, and a line for the run's start and its end (harness/spectator/game_file.py). A packed "
+                         "recording carries it and the page replays it (python -m harness.spectator --replay FILE). "
+                         "One more reader of the game while the run plays; nothing in the game is changed, no seat reads it")
     ap.add_argument("--checkpoint", type=int, default=0, metavar="N",
                     help="with the built-in AI on the seat: save the game while it plays, on every game turn that is a "
                          "multiple of N and once when the game is won or the seat is dead, as <save>--built-in-ai-seed<n>-t<turn> "
@@ -1267,6 +1370,11 @@ def main(argv: list[str] | None = None) -> int:
                   f"nothing more was done", file=sys.stderr)
             return 2
         end_save = f"{a.save}--{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-end" if a.ai_finishes or a.keep_end else None
+        making = made_with(a.save)
+        game_file = a.out.with_name(f"{a.out.stem}-{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-game.jsonl")
+        about = {"save": a.save, "player": name, "seed": n, "skip": skip, "turns_asked": a.turns, "save_sha256": making["save_sha256"]}
+        record = ((lambda seat, file=game_file, about=about: record_game(file, seat, about))
+                  if a.game_file and not a.finish_only else None)
         try:
             if a.finish_only:
                 row = {"player": name, "save": a.save, "seat": a.seat, "turns_asked": 0, "turns_played": 0, "skip": 0,
@@ -1277,11 +1385,11 @@ def main(argv: list[str] | None = None) -> int:
                 words = [part.replace("{seed}", str(n)).replace("{turns}", str(a.turns)) for part in command]
                 row = run_player(g, a.save, words, name, a.turns, seat=a.seat, skip=skip, notebook=a.notebook,
                                  keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save,
-                                 checkpoint=a.checkpoint, checkpoint_name=f"{a.save}--{plain}-seed{n}")
+                                 checkpoint=a.checkpoint, checkpoint_name=f"{a.save}--{plain}-seed{n}", record=record)
             else:
                 row = run_once(g, a.save, a.turns, seat=a.seat, skip=skip, stall=a.stall, end_save=end_save, say=say,
                                row=a.row or "own", time_victory=a.time or "on", checkpoint=a.checkpoint,
-                               checkpoint_name=f"{a.save}--{BUILT_IN_AI}-seed{n}")
+                               checkpoint_name=f"{a.save}--{BUILT_IN_AI}-seed{n}", record=record)
             if a.ai_finishes:
                 row["ai_finishes"] = []
                 partial = a.out.with_name(a.out.name + ".partial")
@@ -1299,7 +1407,7 @@ def main(argv: list[str] | None = None) -> int:
         except Refused as e:
             print(f"refused: {e}", file=sys.stderr)
             return 2
-        row.update(run=n, at=time.strftime("%Y-%m-%dT%H:%M:%S"))
+        row.update(run=n, at=time.strftime("%Y-%m-%dT%H:%M:%S"), **making)
         with a.out.open("a") as f:
             f.write(json.dumps(row) + "\n")
         a.out.with_name(a.out.name + ".partial").unlink(missing_ok=True)

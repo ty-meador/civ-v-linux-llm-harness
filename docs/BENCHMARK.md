@@ -38,14 +38,157 @@ thought.
 
 **Where it is going** (decided 2026-11-22, not built; the milestones on GitLab hold the steps):
 
-- A recording packed as one file that another machine can load and read with no network. The scoring is to run on
-  a machine with no network at all.
+- A recording packed as one file that another machine can load and read with no network: built 2026-11-23
+  ("A recording as one file" below). The scoring is to run on a machine with no network at all.
 - Two families of test: open-ended games, a player's turns on a starting save, and narrow tests with a stated
   goal ("Goal saves" below).
 - A web page where a benchmark is chosen and started: the harness starts the game if it is not running and plays
   the benchmark. How a visitor's own model is put on the seat is left for later.
 - Scores published on the benchmark's own site, once a week. Each registered user may send in one submission
   a week.
+
+### A recording as one file (2026-11-23)
+
+    scripts/benchmark_recording.py pack logs/boards/<id>/rows.jsonl              # every run of the rows file
+    scripts/benchmark_recording.py check logs/boards/<id>/recordings/*.zip      # the file itself: no game
+    scripts/benchmark_recording.py check FILE --load                             # and its saved game, in the game
+
+`pack` writes one zip a run, `<starting save>--<player>-seed<n>.recording.zip`:
+
+| file | what it is |
+|---|---|
+| `recording.json` | the player, the seed, the starting save's id and sha256, the harness, the Lua runtime and the game build the run was played on, how the calls were chosen, what the saved game is of, whether the game file is in, and the size and sha256 of every other file |
+| `row.json` | the run's row, whole |
+| `calls.jsonl` | the seat's rows of the call ledger between the command's start and its end, as written |
+| `game.Civ5Save` | the saved game: the end of the turns (`--keep-end`), or where the game ended inside them |
+| `game.jsonl` | the run's game file: the whole world at the start of every turn, one JSON line a turn (below) |
+| `on-the-way/t<turn>.Civ5Save` | the run's saves on the way, one for each the row lists (`--checkpoint N`) |
+
+The same run packs to the same bytes every time, so a file's own hash names it. A run that kept no saved game (it
+did not play its turns) has no recording and `pack` says so. The row is packed whole, the player's command line
+included: read it before a file goes to someone else. Nothing in a file says what of it is scored.
+
+A row keeps what a pack needs: `began` and `ended` (the command's start and end, so the run's calls are the
+seat's ledger rows between them, the same rows `cost` counts), `harness`, `runtime`, `game_build`,
+`save_sha256` (the starting save's file as it was loaded) and `game_file` (the game file's name and what was
+written to it). A row from 2.19.0 or earlier has none of these and packs too: its calls are the seat's last calls
+before the row was written, as many as the row counted, the starting save is hashed at packing, the versions are
+not named, there is no game file, and `recording.json` says each of these.
+
+`check` says line by line what holds, what differs and what it cannot say where it runs. With no game: every file
+is the size and hash `recording.json` names and no other file is in the zip, the row is the run the file says it
+is, the calls are the seat's, inside the run's times and as many as the row counted, the saved game begins as a
+save does, the starting save is the one kept under `saves/benchmark/` when one of that id is kept there, and the
+game file is whole, is of this run, has a line for every turn the run played, and says of the seat at the run's
+start and of every player at its end what the row says. **This part needs the one script and Python and nothing
+else**: no other file of the repository, no network. With `--load` (the game at the main menu, tunerd running)
+the saved game is copied where the game loads from, loaded, read with the runner's own read and set beside the
+row and beside the game file's last line: the game's build, the turn, the seat's ten indicators, every player's
+score, and every player's ten indicators as the game file ends. The game is left for the main menu and the copy
+removed. Exit status 0 when nothing differs, 1 when something does, 2 for a file it cannot read.
+
+### The game file: the world at the start of every turn (2026-11-23)
+
+A saved game holds the whole state of one moment and needs the game to be read. The row holds two reads, the
+start and the end. What was between them, turn by turn, was in neither. A run's game file is that: JSON lines,
+one line for every turn, written while the run plays. Anything that reads JSON reads it; the scorer needs no game
+for the turns between a run's two ends, and the spectator page plays it back.
+
+    line 1    "game"     what never changes: the game's terms and players, the static map, which run this is
+    then      "start"    the world where the run started, before anyone played
+              "turn"     the world as a game turn begins, one line a turn
+              "end"      the world where the run ended
+
+**How a turn gets into it.** A handler inside the game (on `GameEvents.PlayerDoTurn`) takes the whole world the
+moment a game turn's first player begins it, and keeps it in the game until it is fetched. The writer, the
+spectator page's backend (`harness/spectator/game_file.py`), puts the handler in before anyone plays, fetches what
+it took about once a second and appends a line a turn. So a turn the engine played in under a second, between two
+looks, is in the file like any other; a reader that only polled would have passed it over. The game holds the last
+24 worlds for a reader that is behind; a line whose predecessors fell out says how many (`missed`). The handler
+only reads. The moment is the one the game calls the turn's start for its first player, the seat on every
+starting save so far: with the engine on the seat, the line of turn 1 already counts the seat's income of that
+turn (gold 0 on the `start` line, 3 on the first `turn` line).
+
+**What a world line holds**, fog ignored (it is the operator's file; no seat reads it):
+
+| key | what it is |
+|---|---|
+| `players` | every player ever alive. A major civilization: `score`, `cities`, `population`, `land`, `military`, `science`, `happiness`, `gold`, `tourism`, `delegates`, `allies`; `techs` and `policies` by name, `branches_opened` / `branches_finished`, `era`, `researching`, `ideology`, `pantheon`, `religion`; `yields` (food, production, gold, science, culture, faith a turn) and `stored` (culture, faith, the golden age); `score_parts`; `wonders`, `national_wonders`, `great_works`, `theming`, `trade_routes`, `great_people`; `resources` (each strategic and luxury resource: total and unused); `met`, `at_war`, `friends`, `denounced`, `defensive_pacts`, `open_borders_to` (player ids); `units`, `military_units`. A city-state: `ally` and `influence` by major civilization. |
+| `cities` | every city: owner, plot, name, population, hit points, capital, puppet, occupied, resistance, razing, original owner, turn founded, strength, majority religion; for a major civilization's city also `yields`, `stored`, what it is `making`, its `buildings` by name, world and national wonders, great works |
+| `units` | every unit, the barbarians' included: owner, plot, type, hit points, domain, embarked, moves left (in sixtieths), fortified; for a major civilization's combat unit also level, experience and `promotions` by name |
+| `owners`, `features`, `improvements`, `routes`, `pillaged` | the plot layers that change, one character a plot with a legend, rows north to south as the static map of line 1 has them |
+| `fog` | each human seat's own fog (and the run's seat while the engine plays it): visible, seen before, never seen |
+| `religions`, `congress` | every religion founded with its founder and holy city; the World Congress's host and resolutions in force |
+| `events` | the game's own replay lines since the line before: a war declared, a peace, a city founded, a wonder |
+| `active`, `first`, `auto`, `winner`, `victory`, `over`, `year`, `took_ms` | whose turn it is, whose turn's start took the line, the engine's turns left on the seat, the game's end, and how long the capture took inside the game |
+
+What it does not hold: the deals in force and what was traded, each great work and where it hangs, the trade
+routes one by one, espionage, and the seat's notebook. The saved game has them.
+
+**A file that can be trusted to be whole.** Every line carries its number and `prev`, the sha256 of the line
+before it as written. A line changed, taken out or put in shows as a break at the line after it, with no other
+file needed. Keys are written in order with no spaces, so the same world is the same bytes on any machine.
+`recording.json` names the hash of the whole file as it does for every other.
+
+**A game loaded again goes back in turns, and the file is only appended to.** A game that died and was loaded
+from its last save leaves a second `start` line, of the turn it was loaded on, and the turns after it again. The
+game as it stands is read off by one rule: a `turn` line of turn T sets aside every earlier line of turn T or
+later; a `start` line of turn T sets aside every earlier line of a turn after T. `check` reads a recording that
+way, and so does `game_file.standing()`.
+
+**Why JSON lines and not a database** (decided 2026-11-23). A SQLite file was the first plan. Against it: the
+scorer opens files other people send, and opening someone's database runs their schema; a database file's bytes
+depend on the library that wrote it, so its hash names nothing; and two repositories would have to keep one table
+schema in step. A line a turn has none of the three, and nothing asked of the file today needs more than reading
+it front to back or one line by its place.
+
+Every run writes one unless told not to (`--no-game-file`), as `<out>-<player>-seed<n>-game.jsonl` beside the
+rows. A game file that cannot begin or end costs the run nothing: the row says what went wrong
+(`game_file_error`) and the recording packs without it.
+
+**Checked live, 2026-11-23**, on `duel-king-rome-huns-a`, the built-in AI's ten turns, seed 0:
+
+- **Every turn is there.** Thirteen lines: the game, the start (turn 0), turns 1 to 10, the end (turn 10). The
+  runner's own poll, every three seconds, saw turns 1, 5, 9 and 10 of that run; two of the turns were written
+  within the same second.
+- **The handler moves nothing.** The same seed played with the game file and without ended on the same figures,
+  every one the runner reads, and the same replay lines.
+- **It is cheap there.** A capture took 3 ms on those turns and 4 ms on a turn-140 save of the same map (73
+  units, 12 cities); a line is 9 to 11 KB early and 23 KB on turn 140; the first line, with the map, 7.5 KB. No
+  name of the game's API the capture asks for was missing. **Not measured: a larger map.** The duel is 40 by 24.
+- **The start and the end are the row's.** The seat's ten indicators on the `start` line and on the `end` line,
+  and every player's score on the `end` line, are what the runner read.
+- **Packed and checked.** 763 KB with the one save; packed twice, the same bytes; `check` and `check --load`
+  find nothing that differs, the loaded save reading as the game file ends for both players.
+- **On another machine.** The Steam Deck, Python 3.14, given the one script and the one file: `check` exits 0,
+  and `game.jsonl` reads there with `json` alone. (The first build of the check stopped there with
+  `FileNotFoundError`: it loaded the runner from beside itself.)
+- **On the page.** `python -m harness.spectator --replay <the packed file>` draws it in a browser: the map, the
+  cities and units turn by turn, the turns ticked on the scrubber, no error in the console.
+- **Not seen yet: a model's run with a game file**, and **a game loaded again inside a run** (the rule above is
+  held by tests, not by a game that died).
+
+**Earlier the same day**, with the first build of `check`, on four runs of the duel (780 KB with the one save,
+3.3 MB with Opus's three saves on the way, 20 MB with Sonnet's twenty-four; all four are packed again in the
+format above, the three models' runs without a game file, which they did not write):
+
+- Sonnet's 250 turns (1,116 calls), Codex's 10 turns (59 calls) and the built-in AI's 10 turns: the saved game
+  loads and reads as the row says, every figure.
+- Opus's game won on turn 219 (511 calls): everything equal but one figure, the seat's happiness, 23 in the row
+  and 9 in the loaded game. Attila's Court was taken in the turn the save was written; in the loaded game it is
+  occupied and in resistance, and the game works happiness out again on a load. So **a save of a game's end can
+  read a figure differently from the row**, with nobody's doing, and the check says which figure. It is left as a
+  difference (exit status 1), not passed over: what to make of it belongs to whoever reads the check.
+- With the network cut off (`unshare -rn`): the file check and the check in the game, both as above.
+
+### The spectator page's own recording is another thing
+
+The page (docs/VISUALIZATION.md) records what a watcher saw: `--record` writes its stream to a file, a snapshot
+whenever the world moved under its poll, the ledger's rows, the game's events, the notebook, for as long as the
+spectator ran and whatever games it saw. It is the page's history of an evening. It is not a run's record: with
+the engine on the seat it read the world every eight seconds while a turn took one, so ten turns left two or three
+snapshots. The first build of the recording carried that stream along (`--stream`, `stream.jsonl`); it is gone,
+and the game file is in its place. The page plays a game file, or a packed recording, by the same `--replay`.
 
 **What the sections below are now.** "The number, and what makes it honest" and the rules describe the earlier
 number, the share of AI finishes won. It is still what was measured of the built-in AI on the first starting save

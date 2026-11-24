@@ -14,6 +14,36 @@ Two counters, on purpose (GitLab #26):
 
 Dates are the day the change was committed; "live tNNN" is the game turn it was checked on.
 
+## Unreleased
+
+- **A benchmark run's recording is one file, with the game turn by turn in it, and a file can be checked
+  anywhere** (GitLab #212). Every run writes a game file, `<out>-<player>-seed<n>-game.jsonl`: one JSON line for
+  every turn with the whole world as the turn begins (every player's figures, techs and policies, every city and
+  unit, the plot layers that change, the game's own replay lines), a line for where the run started and one for
+  where it ended, each line numbered and naming the hash of the line before. A handler inside the game takes the
+  world at each turn's start and the spectator page's backend fetches and writes it
+  (`harness/spectator/game_file.py`), so a turn the engine played between two polls is there like any other;
+  `--no-game-file` switches it off. `scripts/benchmark_recording.py pack ROWS` writes one zip a run: the row, the
+  seat's calls from the ledger, the saved game, the game file, the saves kept on the way (`--checkpoint N`), and
+  a `recording.json` with the starting save's id and hash, the harness, runtime and game build of the run, and
+  every file's hash. The same run packs to the same bytes. `check FILE` needs the one script, no game and no
+  network: the files, the row, the calls, and the game file whole, of this run, with a line for every turn played
+  and the row's own figures at both ends. `check FILE --load` also loads the saved game and sets it beside the
+  row and beside the game file's last line. A row keeps the run's own times, versions and the starting save's
+  hash; an older row packs too and its file says what it could not name.
+- **The spectator page keeps and plays games turn by turn.** `python -m harness.spectator --games DIR` writes
+  the game being watched into its own file, a line a turn, gone on with when the game is loaded again;
+  `--replay` plays a game file or a packed recording (the map, a snapshot a turn, the seat's calls between);
+  `GET /game` lists a game file's lines with each one's few figures and `GET /game/line?n=N` hands out one line.
+  The first build of #212 carried the page's own stream in the recording (`--stream`, `stream.jsonl`); it read
+  the world every eight seconds while the engine played a turn a second, and it is gone.
+  Live 2026-11-23 on the duel: the built-in AI's ten turns are thirteen lines, every turn there while the
+  runner's poll saw four; the same seed with and without the game file ends on the same figures; a capture takes
+  3 ms; the packed file checks here, in the game, and on a second machine with the one script; the page draws it
+  in a browser. Earlier that day, three saved games read as their rows say and the save of a game won by taking
+  a city that turn reads one figure differently after a load (happiness 23 in the row, 9 in the game), which the
+  check says. Not seen: a model's run with a game file, a larger map's capture. Sixty-one tests (2659).
+
 ## 2.19.0 -- The military situation on every status, and the tools of a siege (2026-11-23)
 
 Runtime v348 (v343 in 2.18.0), 9 tools, 2598 tests. A seat is told of the military situation the way a player
