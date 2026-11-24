@@ -128,6 +128,7 @@ local function major(p, pid, row, league, majors)
   local team = Teams[row.team]
   row.gold = p:GetGold()
   row.cities, row.population, row.land = p:GetNumCities(), p:GetTotalPopulation(), p:GetNumPlots()
+  row.land_plots = try(p, "GetTotalLand")       -- the plots of `land` that are land: the game's own Total Land
   row.military, row.science, row.happiness = p:GetMilitaryMight(), p:GetScience(), p:GetExcessHappiness()
   row.units, row.military_units = p:GetNumUnits(), p:GetNumMilitaryUnits()
   row.tourism = try(p, "GetTourism")
@@ -147,6 +148,11 @@ local function major(p, pid, row, league, majors)
   row.religion = typed(GameInfo.Religions, try(p, "GetReligionCreatedByPlayer"), "RELIGION_")
   row.yields = { gold = try(p, "CalculateGoldRate"), science = row.science, culture = try(p, "GetTotalJONSCulturePerTurn"),
                  faith = try(p, "GetTotalFaithPerTurn"), food = 0, production = 0 }
+  -- the cities' yields added up, before what the empire pays and trades: what the game's own graphs draw
+  row.total_yields = { food = try(p, "CalculateTotalYield", YieldTypes.YIELD_FOOD),
+                       production = try(p, "CalculateTotalYield", YieldTypes.YIELD_PRODUCTION),
+                       gold = try(p, "CalculateTotalYield", YieldTypes.YIELD_GOLD),
+                       science = try(p, "CalculateTotalYield", YieldTypes.YIELD_SCIENCE) }
   row.stored = { culture = try(p, "GetJONSCulture"), faith = try(p, "GetFaith"),
                  golden_age_meter = try(p, "GetGoldenAgeProgressMeter"), golden_age_turns = try(p, "GetGoldenAgeTurns") }
   row.score_parts = { cities = try(p, "GetScoreFromCities"), population = try(p, "GetScoreFromPopulation"),
@@ -424,8 +430,9 @@ return {installed = true, id = R.id, seq = R.put("@KIND@", -1), error = R.error}
 
 # What never changes in a game: its terms and its players.
 GAME = r"""
-local out = { turn = Game.GetGameTurn(), players = {}, victories = {}, options = {} }
+local out = { turn = Game.GetGameTurn(), players = {}, victories = {}, options = {}, eras = {} }
 local function ask(f) local ok, v = pcall(f) if ok then return v end return nil end
+for row in GameInfo.Eras() do out.eras[#out.eras + 1] = row.Type end
 out.build = ask(function() return UI.GetVersionInfo() end)
 out.handicap = ask(function() return GameInfo.HandicapInfos[Game.GetHandicapType()].Type end)
 out.speed = ask(function() return GameInfo.GameSpeeds[Game.GetGameSpeedType()].Type end)
@@ -467,7 +474,7 @@ return out
 """
 
 # Keys of a world that are objects by their meaning: an empty Lua table comes over the wire as a list.
-OBJECTS = ("fog", "influence", "great_people", "legend", "yields", "stored", "score_parts")
+OBJECTS = ("fog", "influence", "great_people", "legend", "yields", "total_yields", "stored", "score_parts")
 HEADLINE = ("score", "cities", "population", "land", "military", "science", "gold", "happiness")
 
 
@@ -529,6 +536,7 @@ def game_facts(client: Any, timeout: float = 120) -> tuple[dict, dict]:
         raise NoGame("the game's terms or its map did not read")
     facts["players"] = list(facts.get("players") or [])
     facts["options"] = sorted(facts.get("options") or [])
+    facts["eras"] = list(facts.get("eras") or [])        # in the order of their ids: a world names a player's era
     facts["victories"] = dict(facts.get("victories") or {})
     return facts, m
 

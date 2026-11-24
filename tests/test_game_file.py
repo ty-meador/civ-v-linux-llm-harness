@@ -69,7 +69,7 @@ class FakeGame:
         if "MinorCivTraits" in code:
             self.asked.append("facts")
             return {"turn": self.turn, "handicap": "HANDICAP_KING", "speed": "GAMESPEED_QUICK", "start_turn": 0,
-                    "victories": {"VICTORY_DOMINATION": True}, "options": [],
+                    "victories": {"VICTORY_DOMINATION": True}, "options": [], "eras": ["ERA_ANCIENT", "ERA_CLASSICAL"],
                     "players": [{"id": 0, "team": 0, "name": "Augustus", "civ": "Rome", "leader": "LEADER_AUGUSTUS",
                                  "civilization": "CIVILIZATION_ROME", "color": [1, 2, 3], "color2": [4, 5, 6]},
                                 {"id": 22, "team": 22, "name": "Wellington", "civ": "City State", "minor": True},
@@ -292,6 +292,7 @@ class TheRecorder(WithAGame):
         self.assertEqual((head["line"], head["kind"], head["format"], head["key"], head["map"]), (1, "game", G.FORMAT, rec.key, MAP))
         self.assertEqual((head["written_by"], head["run"]), ({"recorder": G.RECORDER, "harness": "2.20.0"}, {"save": "start-a", "seed": 3}))
         self.assertEqual(head["game"]["players"][0]["name"], "Augustus")
+        self.assertEqual(head["game"]["eras"], ["ERA_ANCIENT", "ERA_CLASSICAL"])
         self.assertEqual((start["line"], start["kind"], start["turn"], start["t"] >= head["t"]), (2, "start", 0, True))
         self.assertEqual(start["world"]["fog"], {})
         for gone in ("kind", "turn", "at"):

@@ -719,7 +719,7 @@ def record_game(path: Path, seat: int | None = None, about: dict | None = None, 
     moment the turn begins, taken inside the game by a handler so that no turn is passed over, with a line for where
     the run started and one for where it ended (harness/spectator/game_file.py, which is the writer). It is begun
     after the save is loaded and before anyone plays, and ended before the game is left. `seat`: the run's seat, whose
-    fog is kept also while the engine plays it. `about`: what the file's first line says of the run. One more reader
+    fog is kept also while the engine plays it. `about`: what the file's first line says of the run, beside its seat. One more reader
     on tunerd beside the runner's own; every read is a query and nothing in the game is changed. Returns the call
     that ends it and says what was written."""
     from harness.game_parts.support import RUNTIME_VERSION
@@ -730,6 +730,8 @@ def record_game(path: Path, seat: int | None = None, about: dict | None = None, 
         client = Civ5()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.unlink(missing_ok=True)
+    if about is not None and seat is not None:
+        about = {**about, "seat": seat}
     recorder = game_file.Recorder(client, path=path, seats=[] if seat is None else [seat], run=about,
                                   made_with={"harness": harness_version(), "runtime": RUNTIME_VERSION})
     try:

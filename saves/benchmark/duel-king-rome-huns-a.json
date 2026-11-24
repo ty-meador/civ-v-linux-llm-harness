@@ -1,0 +1,43 @@
+{
+ "id": "duel-king-rome-huns-a",
+ "save": "duel-king-rome-huns-a.Civ5Save",
+ "sha256": "05e1608d4f6ffa8e0c7e71384da67918380687ebd562c2bd5e8bf2290cd1fd56",
+ "kind": "opening",
+ "turn": 0,
+ "seat": 0,
+ "civilization": "Rome",
+ "opponents": [
+  "The Huns"
+ ],
+ "turns": 100,
+ "seeds": 20,
+ "settings": {
+  "handicap": "HANDICAP_KING",
+  "speed": "GAMESPEED_QUICK",
+  "max_turns": 0,
+  "time_victory": false,
+  "map_script": "Assets\\Maps\\pangaea.lua",
+  "start_era": "ERA_ANCIENT",
+  "city_states": 4,
+  "world_size": "WORLDSIZE_DUEL",
+  "seat_row": "HANDICAP_AI_DEFAULT",
+  "victories": [
+   "VICTORY_DOMINATION"
+  ]
+ },
+ "origin": {
+  "how": "hosted",
+  "setup_screen": {
+   "civilization_id": "14",
+   "handicap": "HANDICAP_KING",
+   "map_script": "Assets\\Maps\\pangaea.lua",
+   "world_size": "WORLDSIZE_DUEL",
+   "game_speed": "GAMESPEED_QUICK",
+   "victories": "VICTORY_DOMINATION",
+   "city_states": "4"
+  },
+  "at": "2026-11-23"
+ },
+ "game_build": "1.0.3.279(130961)",
+ "baseline": null
+}

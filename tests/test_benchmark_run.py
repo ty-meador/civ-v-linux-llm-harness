@@ -285,7 +285,7 @@ class TheRunsOwnMaking(unittest.TestCase):
             end = benchmark_run.record_game(path, seat=0, about={"save": "start", "seed": 0}, client="the client")
             self.assertFalse(path.exists())
             self.assertEqual(end(), {"file": str(path), "lines": 3})
-        self.assertEqual((made["seats"], made["run"], made["did"]), ([0], {"save": "start", "seed": 0}, ["begin", "record"]))
+        self.assertEqual((made["seats"], made["run"], made["did"]), ([0], {"save": "start", "seed": 0, "seat": 0}, ["begin", "record"]))
         self.assertEqual(made["made_with"], {"harness": benchmark_run.harness_version(), "runtime": RUNTIME_VERSION})
 
 

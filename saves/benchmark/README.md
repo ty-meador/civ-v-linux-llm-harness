@@ -12,6 +12,8 @@ written by `scripts/benchmark_save.py`, which reads the save back from the game 
 | `board-duel-prince-e` | opening | 0 | Siam against the Shoshone, Duel, Pangaea | hosted 2026-11-22 by `--host` | not measured |
 | `small-king-venice-a` | opening | 0 | Venice against the Zulus, Russia, Germany, Korea and Morocco, Small, Continents, 12 city-states, King | hosted 2026-11-22 by `--host` | not measured |
 | `small-king-germany-a` | opening | 0 | Germany against America, the Huns, Mongolia, the Celts and the Zulus, Small, Continents, 12 city-states, King | hosted 2026-11-22 by hand, described by `--describe` | not measured |
+| `small-king-poland-a` | opening | 0 | Poland against America, the Huns, Mongolia, the Celts and the Zulus, Small, Pangaea, 12 city-states, King | hosted 2026-11-23 by `--host` | not measured |
+| `duel-king-rome-huns-a` | opening | 0 | Rome against the Huns, Duel, Pangaea, 4 city-states, King, Domination the only victory | hosted 2026-11-23 by `--host` | not measured |
 
 Only the first has the built-in AI's study behind it (its share of AI finishes won; `docs/BENCHMARK.md`). A save
 with `"baseline": null` in its manifest has none. How a player's runs on these saves are scored is in
