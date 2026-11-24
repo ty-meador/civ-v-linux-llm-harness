@@ -57,14 +57,46 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   from its own row. The world is now taken inside the game by the same call the runner reads the end with
   (`game_file.END_WITH`), a file has one `end` line, and a turn the engine plays after it is not written.
   Live after the change: the scripted loop's 100 turns from `duel-king-rome-huns-a-t100`, one `end` line, the
-  recording checks with nothing differing. Not seen again yet: a game won under the engine. Four tests.
+  recording checks with nothing differing; and the won game again (the built-in AI from
+  `small-king-poland-a-t200`, the same Cultural victory on turn 292): one `end` line, nothing differs. Four tests.
 - **The scripted loop moves a stacked unit farther than one plot when it has to** (`scripts/play_loop.py`). On the
   Rome duel at King it had trained ten Warriors in Rome and walked each to a plot beside the city; on turn 95
   every such plot held one, the eleventh could go nowhere the loop asked for, and the loop asked sixteen times
   and gave up five turns short of its hundred (found in the run's game file: the units around Rome on its last
   line). The plots two and three away are now asked after the ones beside the stack, and a stack that cannot be
   cleared is logged with the refusal. Live after the change: its 100 turns on the same save on another seed and
-  from the turn-100 save, both played to the end. Three tests (2669).
+  from the turn-100 save, both played to the end; and from the stalled run's own save of turn 90, ten turns, three
+  units walked two plots off the ringed city. Three tests (2669).
+- **The scripted loop plays its 100 turns from a middle game and a late game** (`scripts/play_loop.py`, #200). Six
+  of its nine first runs on the candidate saves ended early, on five things:
+  - *A free policy* (`ENDTURN_BLOCKING_FREE_POLICY`: Poland's opening on turn 44, from its turn-100 save on turn
+    116) and *a reformation belief* (`ENDTURN_BLOCKING_ADD_REFORMATION_BELIEF`: Venice, turn 106) had no handler.
+    A free policy goes to the policy handler; the belief is the first still on offer. Seen live after: both.
+  - *A city the list has nothing for* (Venice from its turn-200 save: every building of the list built, Warrior
+    and Scout obsolete, no Settler for Venice) was given nothing and nothing was logged; the run ended on its
+    first turn. Such a city now takes the building its own production list has done soonest, else a process
+    (Wealth, Research): never a unit, never a project. Seen live after: Venice builds on and the game is played
+    to its end (Germany's Science victory on turn 278).
+  - *A city that never stops training* (from the turn-200 saves Rome trained a Scout nearly every turn and Warsaw
+    a Settler every third; the plots within three of each filled, 28 Scouts and 30 Settlers, and the runs ended
+    on turns 232 and 226). A city whose new unit had to be walked past the plots beside it trains no further
+    unit from the list for the rest of the run: the list's buildings, then what the city offers, and a unit only
+    where there is nothing else. Up to that point the loop plays as before. Seen live after: Warsaw in Poland's
+    opening.
+  - *A stack nothing can be walked off* (Venice, turn 188: a Great Writer born onto a Great Artist, the land
+    within three plots held by the loop's other Great People and the water by its embarked Scouts, and two
+    embarked units never share a plot). The last resort is the unit panel's Delete on the last unit of the
+    stack, only after a unit with moves left was refused every plot asked. Not seen live yet.
+  - Handlers were also written for a free technology, a free Great Person, a Great Person by faith, the Maya Long
+    Count and a dig's choice (the first offered of each, by the harness's own reads). None of these has come up
+    in a run; they are tested against fakes only. Founding and enhancing a religion are still unanswered: the
+    loop never uses a Great Prophet.
+  Fourteen tests.
+- **`benchmark_recording.py check --load` on a game with a dead civilization.** The game file writes a dead
+  civilization as its seat, `alive` and its score; the game still counts its technologies, policies, gold and
+  happiness, and the loaded game beside the file's last line was nine "differs" of a recording that was whole
+  (America, in the game the built-in AI wins from `small-king-poland-a-t200`). A dead civilization is now set
+  beside its line by `alive` and score. Live after the change: that recording, nothing differs. One test (2684).
 
 ## 2.19.0 -- The military situation on every status, and the tools of a siege (2026-11-23)
 

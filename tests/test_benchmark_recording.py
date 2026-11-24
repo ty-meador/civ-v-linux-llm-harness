@@ -468,6 +468,26 @@ class InTheGame(Files):
         self.assertEqual(found[-1], (rec.UNKNOWN, "the saved game (turn 8) is not of the moment game.jsonl ends on (turn 10): "
                                                   "the two are not set beside each other"))
 
+    def test_a_dead_civilization_is_set_beside_its_line_by_what_the_line_holds(self):
+        """Live 2026-11-24 (America, dead in the game Poland wins from `small-king-poland-a-t200`): the game file
+        writes a dead civilization without figures, the game still counts its technologies and its gold, and
+        `check --load` named nine differences in a recording that was whole."""
+        lines = a_game_file(self.dir / "g.jsonl").read_bytes().splitlines()
+        last = json.loads(lines[-1])
+        last["world"]["players"] = [p if p["id"] != 1 else {"id": 1, "team": 1, "human": False, "alive": False, "score": 0}
+                                    for p in last["world"]["players"]]
+        turns = b"\n".join([*lines[:-1], json.dumps(last).encode()]) + b"\n"
+        seen = game_read()
+        seen["players"][1].update(alive=False, score=0)
+        _g, found = self.beside(seen, turns=turns)
+        self.assertEqual([what for _state, what in found if "game.jsonl" in what],
+                         ["the game reads as game.jsonl ends: 2 players, 10 indicators each"])
+        seen = game_read()
+        seen["players"][1].update(alive=False, score=5)
+        _g, found = self.beside(seen, turns=turns)
+        self.assertEqual([what for _state, what in found if "game.jsonl" in what],
+                         ["player 1 (civ1), score: game 5, game.jsonl 0"])
+
     def test_every_figure_that_differs_is_named(self):
         seen = game_read(turn=11, happiness=9)
         seen["players"][1]["score"] = 311

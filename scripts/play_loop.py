@@ -108,7 +108,19 @@ HANDLED_BLOCKERS = {
     "ENDTURN_BLOCKING_STACKED_UNITS", "ENDTURN_BLOCKING_RESEARCH", "ENDTURN_BLOCKING_PRODUCTION",
     "ENDTURN_BLOCKING_UNITS", "ENDTURN_BLOCKING_UNIT_NEEDS_ORDERS",
     "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_VOTES", "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS",
+    "ENDTURN_BLOCKING_CHOOSE_IDEOLOGY", "ENDTURN_BLOCKING_STEAL_TECH",
+    "ENDTURN_BLOCKING_FREE_POLICY", "ENDTURN_BLOCKING_ADD_REFORMATION_BELIEF", "ENDTURN_BLOCKING_FREE_TECH",
+    "ENDTURN_BLOCKING_FREE_ITEMS", "ENDTURN_BLOCKING_FAITH_GREAT_PERSON", "ENDTURN_BLOCKING_MAYA_LONG_COUNT",
+    "ENDTURN_BLOCKING_CHOOSE_ARCHAEOLOGY",
 }
+
+# Cities (by plot) whose new unit has had to be walked past the plots beside them, or could not be walked off at
+# all. Live 2026-11-24, 100 turns from the turn-200 saves: Rome went on training a Scout nearly every turn and
+# Warsaw a Settler every third, the plots within three of each filled (28 Scouts, 30 Settlers), and the loop gave
+# up on turn 232 and turn 226. Such a city trains no further unit from the list (ensure_production); the loop is
+# one process a run, so this is remembered for the run.
+CROWDED_CITIES: set[tuple[int, int]] = set()
+ORDER_OF_KIND = {"building": "ORDER_CONSTRUCT", "process": "ORDER_MAINTAIN", "unit": "ORDER_TRAIN"}
 
 
 def log(msg: str) -> None:
@@ -421,13 +433,16 @@ def resolve_stacked_units(g: Game, seat: int) -> bool:
         # Live t245: a Caravan finished in Goshute on top of a Worker. The old loop only tried the
         # units after the first on the tile -- the Caravan, which cannot be walked anywhere -- and
         # stalled eleven attempts. Try every unit that can walk; a trade unit leaves by route.
-        cleared, refusal = False, None
+        cleared, refusal, asked = False, None, False
         for offsets in (MOVE_OFFSETS, FARTHER_OFFSETS):
+            if offsets is FARTHER_OFFSETS and asked and not cleared:
+                CROWDED_CITIES.add((x, y))
             for u in us:
                 if cleared:
                     break
                 if u["moves"] <= 0 or u["type"] in TRADE_UNIT_TYPES or u.get("domain") == "AIR":
                     continue
+                asked = True
                 for dx, dy in offsets:
                     r = g.move_unit(u["id"], x + dx, y + dy, seat)
                     if r.get("ok") and (r.get("x"), r.get("y")) != (x, y):
@@ -437,6 +452,19 @@ def resolve_stacked_units(g: Game, seat: int) -> bool:
                     refusal = r.get("err") or refusal
         if not cleared:
             log(f"  stack at ({x},{y}): no unit of it could be moved off ({refusal})")
+            # Live 2026-11-24 (Venice from its turn-100 save, turn 188): a Great Writer was born onto a Great
+            # Artist in Venice; the land within three plots held the loop's other Great People and the water its
+            # embarked Scouts (two embarked units never share a plot), nothing could be walked anywhere, and
+            # the loop gave up twelve turns short. The last resort is the unit panel's Delete, on the last unit
+            # of the stack, and only when a unit with moves left was refused every plot.
+            last = next((u for u in reversed(us) if u["type"] not in TRADE_UNIT_TYPES and u.get("domain") != "AIR"), None)
+            if asked and last is not None:
+                r = g.disband_unit(last["id"], seat)
+                if isinstance(r, dict) and r.get("ok"):
+                    moved = True
+                    log(f"  disbanded unit {last['id']} ({last['type']}): the stack at ({x},{y}) could be cleared no other way")
+                else:
+                    log(f"  disband of unit {last['id']} ({last['type']}) refused: {r.get('err') if isinstance(r, dict) else r}")
     # Fallback for units that couldn't move (0 moves left, or boxed in): give orders to
     # whatever is left idle. Won't clear STACKED_UNITS by itself but keeps other
     # blockers (plain UNITS) from piling up behind it.
@@ -531,13 +559,107 @@ def ensure_production(g: Game, seat: int) -> None:
     for c in cities:
         if c["queue_len"] > 0:
             continue
-        for item, order in PRODUCTION_CANDIDATES:
-            if item == "UNIT_WORKER" and enough_workers:
-                continue
-            r = g.set_production(c["id"], order, item, seat)
-            if r.get("ok"):
-                log(f"  city {c['name']}: queued {item}")
-                break
+        crowded = (c.get("x"), c.get("y")) in CROWDED_CITIES
+        if not (queue_from_the_list(g, seat, c, enough_workers, units=not crowded)
+                or queue_what_the_city_offers(g, seat, c, "no more units here" if crowded else "the list had nothing")) and crowded:
+            queue_from_the_list(g, seat, c, enough_workers, units=True)
+
+
+def queue_from_the_list(g: Game, seat: int, c: dict, enough_workers: bool, units: bool) -> bool:
+    for item, order in PRODUCTION_CANDIDATES:
+        if (item == "UNIT_WORKER" and enough_workers) or (order == "ORDER_TRAIN" and not units):
+            continue
+        r = g.set_production(c["id"], order, item, seat)
+        if r.get("ok"):
+            log(f"  city {c['name']}: queued {item}")
+            return True
+    return False
+
+
+def queue_what_the_city_offers(g: Game, seat: int, c: dict, why: str = "the list had nothing") -> bool:
+    """Where the list has nothing for a city: the building the city's own production list has done soonest, else
+    a process (Wealth, Research). Never a unit and never a project.
+
+    Live 2026-11-24 (Venice from the turn-200 save, King): Venice had every building of the list, Warrior and
+    Scout were obsolete and Venice trains no Settler, so nothing was queued, nothing was logged, and the loop
+    asked sixteen times on its first turn and gave up."""
+    try:
+        reply = g.available_production(c["id"], seat) or {}
+    except Exception as e:  # a read that fails leaves the city to the stall counter
+        log(f"  city {c['name']}: available_production raised {e!r}")
+        return False
+    rows = reply.get("items") if isinstance(reply, dict) else reply
+    if not isinstance(rows, list) or (isinstance(reply, dict) and reply.get("purchase_only")):
+        return False
+    rows = [r for r in rows if isinstance(r, dict) and r.get("item")]
+    buildings = sorted((r for r in rows if r.get("kind") == "building"),
+                       key=lambda r: r["turns"] if isinstance(r.get("turns"), (int, float)) else 10 ** 9)
+    for row in buildings + [r for r in rows if r.get("kind") == "process"]:
+        r = g.set_production(c["id"], ORDER_OF_KIND[row["kind"]], row["item"], seat)
+        if r.get("ok"):
+            log(f"  city {c['name']}: queued {row['item']} ({why}; of what the city offers)")
+            return True
+    log(f"  city {c['name']}: nothing of the list can be made and the city offers no building or process")
+    return False
+
+
+def resolve_reformation_belief(g: Game, seat: int) -> bool:
+    """ENDTURN_BLOCKING_ADD_REFORMATION_BELIEF (Piety's Reformation, which the policy list adopts): the first
+    belief still on offer. Live 2026-11-24 (Venice from the turn-100 save): no handler, given up on turn 106."""
+    for row in (g.available_beliefs("reformation", seat) or {}).get("beliefs") or []:
+        r = g.add_reformation_belief(row["belief"], seat)
+        if r.get("ok"):
+            log(f"  reformation belief: {row['belief']}")
+            return True
+        log(f"  reformation belief {row['belief']} refused: {r.get('err')}")
+    return False
+
+
+def resolve_free_tech(g: Game, seat: int) -> bool:
+    """ENDTURN_BLOCKING_FREE_TECH: the first technology the chooser offers (set_research grants it while one is
+    owed and leaves the current research alone, so resolve_research's "did it change" would call it a failure)."""
+    for row in g.available_research(seat) or []:
+        if isinstance(row, dict) and row.get("tech") and g.set_research(row["tech"], seat).get("ok"):
+            log(f"  free technology: {row['tech']}")
+            return True
+    return False
+
+
+def first_taken(what: str, options: list, choose) -> bool:
+    for o in options:
+        r = choose(o)
+        if isinstance(r, dict) and r.get("ok"):
+            log(f"  {what}: {o}")
+            return True
+        log(f"  {what} {o} refused: {r.get('err') if isinstance(r, dict) else r}")
+    return False
+
+
+def resolve_free_great_person(g: Game, seat: int) -> bool:
+    """ENDTURN_BLOCKING_FREE_ITEMS (a Great Person owed, as by the Liberty tree the policy list finishes)."""
+    opts = g.free_great_person_options(seat) or {}
+    return first_taken("free Great Person", [u for u in opts.get("options") or [] if isinstance(u, str)],
+                       lambda u: g.choose_free_great_person(u, seat))
+
+
+def resolve_faith_great_person(g: Game, seat: int) -> bool:
+    opts = g.faith_great_person_options(seat) or {}
+    return first_taken("Great Person by faith", [u for u in opts.get("options") or [] if isinstance(u, str)],
+                       lambda u: g.choose_faith_great_person(u, seat))
+
+
+def resolve_maya_long_count(g: Game, seat: int) -> bool:
+    opts = g.maya_options(seat) or {}
+    units = [o["unit"] for o in opts.get("options") or [] if isinstance(o, dict) and o.get("unit") and o.get("available", True)]
+    return first_taken("Long Count", units, lambda u: g.choose_maya_bonus(u, seat))
+
+
+def resolve_archaeology(g: Game, seat: int) -> bool:
+    opts = g.archaeology_options(seat) or {}
+    if opts.get("x") is None or opts.get("y") is None:
+        return False
+    choices = [o["choice"] for o in opts.get("options") or [] if isinstance(o, dict) and o.get("choice") is not None]
+    return first_taken("dig", choices, lambda ch: g.choose_archaeology(ch, opts["x"], opts["y"], seat))
 
 
 BLOCKER_HANDLERS = {
@@ -553,6 +675,15 @@ BLOCKER_HANDLERS = {
     "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_VOTES": abstain_league_votes,
     "ENDTURN_BLOCKING_LEAGUE_CALL_FOR_PROPOSALS": make_league_proposal,
     "ENDTURN_BLOCKING_STEAL_TECH": resolve_steal_tech,
+    # Live 2026-11-24 (Poland's opening, turn 44, and from its turn-100 save, turn 116): a free policy is asked for
+    # under its own name and had no handler; the policy screen and its calls are the same.
+    "ENDTURN_BLOCKING_FREE_POLICY": resolve_policy,
+    "ENDTURN_BLOCKING_ADD_REFORMATION_BELIEF": resolve_reformation_belief,
+    "ENDTURN_BLOCKING_FREE_TECH": resolve_free_tech,
+    "ENDTURN_BLOCKING_FREE_ITEMS": resolve_free_great_person,
+    "ENDTURN_BLOCKING_FAITH_GREAT_PERSON": resolve_faith_great_person,
+    "ENDTURN_BLOCKING_MAYA_LONG_COUNT": resolve_maya_long_count,
+    "ENDTURN_BLOCKING_CHOOSE_ARCHAEOLOGY": resolve_archaeology,
 }
 
 

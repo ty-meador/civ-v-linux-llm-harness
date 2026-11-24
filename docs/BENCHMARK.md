@@ -523,7 +523,11 @@ during the run is its own. Two players are always on a starting save beside the 
 run (`built-in-ai`, the baseline) and a scripted loop that answers only what the game forces, from fixed lists
 (`scripts/play_loop.py`). The loop was meant as a lower reference point and is not one by construction: on the first
 duel its opening (Worker, Monument, Shrine, Granary, four Tradition policies, the Warrior at home) was worth as much
-as the built-in AI's. It is reported as a second fixed player, not as a lower bound.
+as the built-in AI's. It is reported as a second fixed player, not as a lower bound. Where its lists run out it
+takes what the game itself offers, so that a run from a middle game or a late game is played to its end: the first
+choice offered of a forced one (a free policy, a reformation belief), the soonest building of a city the list has
+nothing for (else Wealth or Research), no further unit in a city whose units no longer fit on the plots beside it,
+and, of a stack that can be walked nowhere, the last unit disbanded.
 
 **4. Seeds.** A player's nth run on a starting save is seed n: before the run 16,000,048 n random numbers are
 generated and thrown away (the skip), the same for every player, since a save otherwise replays the same game. An AI

@@ -199,6 +199,9 @@ class StackWithNoPlotBesideItTest(unittest.TestCase):
             g.moves.append((uid, x, y))
             return {"ok": True, "x": x, "y": y} if (x, y) in free else {"ok": False, "err": "my own unit is on that plot"}
         g.move_unit = move_unit
+        g.disbanded = []
+        g.disband_unit = lambda uid, seat: (g.disbanded.append(uid) or {"ok": g.can_disband})
+        g.can_disband = False
         return g
 
     def test_a_plot_two_away_is_taken_when_every_plot_beside_the_stack_is_held(self):
@@ -221,7 +224,187 @@ class StackWithNoPlotBesideItTest(unittest.TestCase):
         with mock.patch.object(play_loop, "log") as log:
             self.assertFalse(play_loop.resolve_stacked_units(g, 0))
         self.assertEqual(len(g.moves), 2 * (8 + len(play_loop.FARTHER_OFFSETS)))
-        self.assertIn("no unit of it could be moved off (my own unit is on that plot)", log.call_args_list[-1].args[0])
+        self.assertIn("no unit of it could be moved off (my own unit is on that plot)", log.call_args_list[-2].args[0])
+        self.assertIn("disband of unit 2 (WARRIOR) refused", log.call_args_list[-1].args[0])
+
+    def test_the_last_unit_of_a_stack_that_can_go_nowhere_is_disbanded(self):
+        """Live 2026-11-24, Venice, turn 188: a Great Writer born onto a Great Artist, every plot within three held."""
+        g = self.game(free=set())
+        g.can_disband = True
+        with mock.patch.object(play_loop, "log") as log:
+            self.assertTrue(play_loop.resolve_stacked_units(g, 0))
+        self.assertEqual(g.disbanded, [2])
+        self.assertIn("disbanded unit 2 (WARRIOR): the stack at (26,7) could be cleared no other way", log.call_args_list[-1].args[0])
+
+    def test_no_unit_is_disbanded_while_one_can_be_walked_off_or_none_was_asked(self):
+        g = self.game(free={(29, 7)})
+        g.can_disband = True
+        with mock.patch.object(play_loop, "log"):
+            play_loop.resolve_stacked_units(g, 0)
+        self.assertEqual(g.disbanded, [])
+        g = self.game(free=set())
+        g.can_disband = True
+        stack = {"x": 26, "y": 7, "units": [{"id": 1, "type": "WARRIOR", "moves": 0}, {"id": 2, "type": "WARRIOR", "moves": 0}]}
+        g.turn_state = lambda seat=None: {"todo": {"stacked": [stack]}}
+        with mock.patch.object(play_loop, "log"):
+            play_loop.resolve_stacked_units(g, 0)
+        self.assertEqual(g.disbanded, [])
+
+
+class Offering(FakeGame):
+    """A city whose production list is `offered`; of the fixed list it can make what `makeable` names."""
+
+    def __init__(self, offered, makeable=(), **kw):
+        super().__init__(**kw)
+        self.offered, self.makeable = offered, set(makeable)
+
+    def set_production(self, city_id, order, item, seat):
+        ok = item in self.makeable or any(r.get("item") == item for r in self.offered.get("items", []))
+        if ok:
+            self.orders.append((city_id, order, item))
+        return {"ok": ok}
+
+    def available_production(self, city_id, seat):
+        return self.offered
+
+
+class CityTheListHasNothingForTest(unittest.TestCase):
+    """Live 2026-11-24: Venice from its turn-200 save had nothing of the list left to make, and the turn-200 runs
+    of Rome and Warsaw filled the plots within three of the city with Scouts and Settlers."""
+
+    CITY = [{"id": 1, "name": "Venice", "x": 26, "y": 7, "queue_len": 0}]
+
+    def setUp(self):
+        play_loop.CROWDED_CITIES.clear()
+        self.addCleanup(play_loop.CROWDED_CITIES.clear)
+        patcher = mock.patch.object(play_loop, "log")
+        self.log = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_the_building_done_soonest_of_what_the_city_offers(self):
+        g = Offering({"ok": True, "items": [
+            {"item": "UNIT_DESTROYER", "kind": "unit", "turns": 2}, {"item": "BUILDING_STADIUM", "kind": "building", "turns": 9},
+            {"item": "BUILDING_ZOO", "kind": "building", "turns": 4}, {"item": "PROJECT_APOLLO_PROGRAM", "kind": "project", "turns": 1},
+            {"item": "PROCESS_WEALTH", "kind": "process"}]}, units=[_unit(1, "WORKER")], cities=self.CITY)
+        play_loop.ensure_production(g, 0)
+        self.assertEqual(g.orders, [(1, "ORDER_CONSTRUCT", "BUILDING_ZOO")])
+
+    def test_a_process_where_no_building_is_offered(self):
+        g = Offering({"ok": True, "items": [{"item": "UNIT_DESTROYER", "kind": "unit", "turns": 2},
+                                            {"item": "PROCESS_WEALTH", "kind": "process"}]},
+                     units=[_unit(1, "WORKER")], cities=self.CITY)
+        play_loop.ensure_production(g, 0)
+        self.assertEqual(g.orders, [(1, "ORDER_MAINTAIN", "PROCESS_WEALTH")])
+
+    def test_the_list_comes_first_and_the_city_is_not_asked(self):
+        g = Offering({"ok": True, "items": [{"item": "BUILDING_ZOO", "kind": "building", "turns": 1}]},
+                     makeable={"UNIT_SCOUT"}, units=[_unit(1, "WORKER")], cities=self.CITY)
+        g.available_production = mock.Mock(side_effect=AssertionError("not asked"))
+        play_loop.ensure_production(g, 0)
+        self.assertEqual(g.orders, [(1, "ORDER_TRAIN", "UNIT_SCOUT")])
+
+    def test_a_puppets_list_and_a_read_that_fails_queue_nothing(self):
+        for offered in ({"ok": True, "purchase_only": True, "items": [{"item": "BUILDING_ZOO", "kind": "building"}]},
+                        {"ok": False, "err": "no such city"}):
+            g = Offering(offered, units=[_unit(1, "WORKER")], cities=self.CITY)
+            play_loop.ensure_production(g, 0)
+            self.assertEqual(g.orders, [])
+        g = Offering({}, units=[_unit(1, "WORKER")], cities=self.CITY)
+        g.available_production = mock.Mock(side_effect=RuntimeError("tunerd is gone"))
+        play_loop.ensure_production(g, 0)
+        self.assertEqual(g.orders, [])
+
+    def stack_at_the_city(self, g, free):
+        stack = {"x": 26, "y": 7, "units": [{"id": 1, "type": "SCOUT", "moves": 2}, {"id": 2, "type": "SCOUT", "moves": 2}]}
+        g.turn_state = lambda seat=None: {"todo": {"stacked": [stack]}}
+        g.move_unit = lambda uid, x, y, seat: ({"ok": True, "x": x, "y": y} if (x, y) in free
+                                               else {"ok": False, "err": "my own unit is on that plot"})
+        play_loop.resolve_stacked_units(g, 0)
+
+    def test_a_city_whose_unit_had_to_go_past_the_plots_beside_it_trains_no_more(self):
+        g = Offering({"ok": True, "items": [{"item": "BUILDING_ZOO", "kind": "building", "turns": 4}]},
+                     makeable={"UNIT_SCOUT", "BUILDING_WALLS"}, units=[_unit(9, "WORKER")], cities=self.CITY)
+        self.stack_at_the_city(g, free={(28, 7)})
+        self.assertEqual(play_loop.CROWDED_CITIES, {(26, 7)})
+        g.orders = []
+        play_loop.ensure_production(g, 0)
+        self.assertEqual(g.orders, [(1, "ORDER_CONSTRUCT", "BUILDING_WALLS")])   # the list's building, past its Scout
+        g.makeable, g.orders = {"UNIT_SCOUT"}, []
+        play_loop.ensure_production(g, 0)
+        self.assertEqual(g.orders, [(1, "ORDER_CONSTRUCT", "BUILDING_ZOO")])     # then what the city offers
+        g.offered, g.orders = {"ok": True, "items": []}, []
+        play_loop.ensure_production(g, 0)
+        self.assertEqual(g.orders, [(1, "ORDER_TRAIN", "UNIT_SCOUT")])           # a unit only where nothing else is
+
+    def test_a_stack_cleared_beside_the_city_or_with_no_unit_to_ask_marks_nothing(self):
+        g = Offering({}, cities=self.CITY)
+        self.stack_at_the_city(g, free={(27, 7)})
+        self.assertEqual(play_loop.CROWDED_CITIES, set())
+        stack = {"x": 26, "y": 7, "units": [{"id": 1, "type": "SCOUT", "moves": 0}, {"id": 2, "type": "CARAVAN", "moves": 1}]}
+        g.turn_state = lambda seat=None: {"todo": {"stacked": [stack]}}
+        play_loop.resolve_stacked_units(g, 0)
+        self.assertEqual(play_loop.CROWDED_CITIES, set())
+
+
+class ForcedChoiceTest(unittest.TestCase):
+    """Live 2026-11-24: ENDTURN_BLOCKING_FREE_POLICY (Poland, turns 44 and 116) and
+    ENDTURN_BLOCKING_ADD_REFORMATION_BELIEF (Venice, turn 106) had no handler and each ended a run."""
+
+    def setUp(self):
+        patcher = mock.patch.object(play_loop, "log")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def game(self, **methods):
+        g = mock.Mock(spec_set=list(methods))
+        for name, value in methods.items():
+            getattr(g, name).side_effect = value if callable(value) else None
+            if not callable(value):
+                getattr(g, name).return_value = value
+        return g
+
+    def test_every_blocker_with_a_handler_is_named_as_handled(self):
+        self.assertEqual(set(play_loop.BLOCKER_HANDLERS), play_loop.HANDLED_BLOCKERS)
+
+    def test_a_free_policy_is_a_policy(self):
+        self.assertIs(play_loop.BLOCKER_HANDLERS["ENDTURN_BLOCKING_FREE_POLICY"], play_loop.resolve_policy)
+
+    def test_the_first_reformation_belief_that_is_taken(self):
+        g = self.game(available_beliefs={"ok": True, "beliefs": [{"belief": "BELIEF_JESUIT_EDUCATION"}, {"belief": "BELIEF_TO_GLORY_OF_GOD"}]},
+                      add_reformation_belief=lambda b, seat: {"ok": b == "BELIEF_TO_GLORY_OF_GOD", "err": "taken"})
+        self.assertTrue(play_loop.BLOCKER_HANDLERS["ENDTURN_BLOCKING_ADD_REFORMATION_BELIEF"](g, 0))
+        g.available_beliefs.assert_called_once_with("reformation", 0)
+        self.assertEqual([c.args[0] for c in g.add_reformation_belief.call_args_list],
+                         ["BELIEF_JESUIT_EDUCATION", "BELIEF_TO_GLORY_OF_GOD"])
+        none = self.game(available_beliefs={"ok": False, "err": "no reformation belief is pending"}, add_reformation_belief={})
+        self.assertFalse(play_loop.resolve_reformation_belief(none, 0))
+
+    def test_a_free_technology_is_the_first_the_chooser_offers(self):
+        g = self.game(available_research=[{"tech": "TECH_RADIO"}, {"tech": "TECH_FLIGHT"}],
+                      set_research={"ok": True, "granted": "TECH_RADIO"})
+        self.assertTrue(play_loop.BLOCKER_HANDLERS["ENDTURN_BLOCKING_FREE_TECH"](g, 0))
+        g.set_research.assert_called_once_with("TECH_RADIO", 0)
+
+    def test_a_great_person_owed_and_one_by_faith(self):
+        g = self.game(free_great_person_options={"count": 1, "options": ["UNIT_SCIENTIST", "UNIT_ENGINEER"]},
+                      choose_free_great_person={"ok": True})
+        self.assertTrue(play_loop.BLOCKER_HANDLERS["ENDTURN_BLOCKING_FREE_ITEMS"](g, 0))
+        g.choose_free_great_person.assert_called_once_with("UNIT_SCIENTIST", 0)
+        g = self.game(faith_great_person_options={"ok": True, "options": ["UNIT_PROPHET"]},
+                      choose_faith_great_person={"ok": False, "err": "not enough faith"})
+        self.assertFalse(play_loop.BLOCKER_HANDLERS["ENDTURN_BLOCKING_FAITH_GREAT_PERSON"](g, 0))
+
+    def test_the_long_count_and_a_dig(self):
+        g = self.game(maya_options={"ok": True, "count": 1, "options": [{"unit": "UNIT_ARTIST", "available": False},
+                                                                        {"unit": "UNIT_ENGINEER"}]},
+                      choose_maya_bonus={"ok": True})
+        self.assertTrue(play_loop.BLOCKER_HANDLERS["ENDTURN_BLOCKING_MAYA_LONG_COUNT"](g, 0))
+        g.choose_maya_bonus.assert_called_once_with("UNIT_ENGINEER", 0)
+        g = self.game(archaeology_options={"pending": True, "x": 4, "y": 9, "options": [{"choice": 1}, {"choice": 2}]},
+                      choose_archaeology={"ok": True})
+        self.assertTrue(play_loop.BLOCKER_HANDLERS["ENDTURN_BLOCKING_CHOOSE_ARCHAEOLOGY"](g, 0))
+        g.choose_archaeology.assert_called_once_with(1, 4, 9, 0)
+        self.assertFalse(play_loop.resolve_archaeology(self.game(archaeology_options={"pending": False}, choose_archaeology={}), 0))
 
 
 class RefusedSkipTest(unittest.TestCase):

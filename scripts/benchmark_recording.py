@@ -632,6 +632,13 @@ def beside_the_game_file(seen: dict, of: dict, turns: bytes | None) -> list[tupl
         if q is None:
             differs.append(f"player {p['id']} ({p['civ']}): in the game and not in {TURNS}")
             continue
+        if q.get("alive") is False:
+            # A dead civilization's line in the game file is its seat, `alive` and its score, and no figures; the
+            # game still counts its technologies, policies, gold and happiness (live 2026-11-24, America in the
+            # game Poland wins from `small-king-poland-a-t200`: nine "differs" of a recording that was whole).
+            differs += [f"player {p['id']} ({p['civ']}), {k}: game {p.get(k)}, {TURNS} {q.get(k)}"
+                        for k in ("alive", "score") if p.get(k) != q.get(k)]
+            continue
         differs += [f"player {p['id']} ({p['civ']}), {k}: game {p[k]}, {TURNS} {v}" for k, v in figures(q).items() if p[k] != v]
     if differs:
         return [(DIFFERS, d) for d in differs]
