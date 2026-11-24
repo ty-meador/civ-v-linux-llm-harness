@@ -30,7 +30,7 @@ the table and sees no more than you would.
 
 | Requirements | Current release | Ways to play |
 | --- | --- | --- |
-| Native Linux Steam build, Brave New World | **2.18.0** · Lua runtime **v343** | Solo · hotseat · LAN · multi-LLM |
+| Native Linux Steam build, Brave New World | **2.19.0** · Lua runtime **v348** | Solo · hotseat · LAN · multi-LLM |
 
 ## On this page
 
@@ -117,6 +117,15 @@ than on scrolling. That is what keeps a turn affordable and the game moving whil
   ends it, refused with why, enemy). `state(what="compare")` lays out a few production, research or worker options
   side by side with costs, turns and effects (a building already in the queue reads as queued, not refused).
   Neither picks for the agent.
+- **It sees a war coming, and has the tools of a siege.** Every status of the seat's own turn carries
+  `military`: the Soldiers row of the Demographics screen, the armies in sight near its cities, each threatened
+  city with what the treasury buys there, the upgrades the unit panel offers and the game's own Military
+  Advisor, word for word. `todo.unit_attacks` lists every unit with something to attack, a garrison too, and a
+  siege unit that has not set up only when a target is in its line of fire. A move that would embark a land
+  unit is refused with both routes, a move that ends in an enemy's range says whose, and a move that takes
+  more than a turn says how many. `state(what="map", view="window", x, y, detail="threats")` asks who can
+  strike a plot before a unit goes there, and `detail="ring"` lists the plots at a distance, so a siege line
+  is read and not worked out from offset coordinates. Only what the seat sees is counted.
 - **Batches and safe retries.** `batch(actions=[...])` runs a list of orders and stops at the first refusal. An `action_id`
   makes a retried call a replay, never a second move.
 - **A refusal says what to do instead.** A mission name the engine does not have comes back with the
@@ -349,7 +358,7 @@ the long version.
 ```bash
 sudo apt install lua5.4 liblua5.4-0   # luac for the runtime lint, liblua for the Lua tests
 uv sync --group dev
-scripts/check.sh            # 2441 tests: the shipped Lua under lupa, the Python layer against fake bridges; no game needed
+scripts/check.sh            # 2598 tests: the shipped Lua under lupa, the Python layer against fake bridges; no game needed
 ```
 
 `CIV5_CALL_LOG=/path/calls.jsonl` in the server's environment writes one line per tool call (bytes, trips,

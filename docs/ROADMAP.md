@@ -349,6 +349,15 @@ With it every stage of the token-accounting plan is built; no issue is open.
 
 First thoughts on CivBench (arXiv 2604.07733): `docs/CIVBENCH.md`. Decided 2026-11-13: no Vox Populi, a benchmark of our own; the sketch is `docs/BENCHMARK.md`. #189 (spectator) is off the 2.15.0 milestone.
 
+**What a seat knows of a war, and the benchmark's starting saves, are released as `v2.19.0` (2026-11-23, runtime
+v348, 2598 tests)**: `status.military` and `todo.unit_attacks` on every status of the seat's own turn, the game's
+Military Advisor's question before a bad attack as a refusal with `confirm`, no quiet turn passed while a rival is
+close to a victory, a move that would embark refused with both routes, who can strike a plot before and after a
+move, the plots at a distance, the turns a standing move takes, and the line of fire on a siege unit's set-up;
+starting saves made by one command with a manifest, their rivals and victories named, saves kept on the way and
+at a game's end. Not in it, open on the milestone: #195 (the tests that could overturn the rules) and #212 (a
+run's recording as one file).
+
 **The benchmark's tools and its baseline are released as `v2.18.0` (2026-11-22, runtime v343, 2441 tests)**:
 `scripts/benchmark_run.py` (a player's 100 turns on a starting save, AI finishes, the summary and the split of the
 spread), `scripts/benchmark_fit.py` (the win-chance formula) and `scripts/benchmark_seed_likeness.py`; seeds that

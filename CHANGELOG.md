@@ -14,7 +14,18 @@ Two counters, on purpose (GitLab #26):
 
 Dates are the day the change was committed; "live tNNN" is the game turn it was checked on.
 
-## Unreleased
+## 2.19.0 -- The military situation on every status, and the tools of a siege (2026-11-23)
+
+Runtime v348 (v343 in 2.18.0), 9 tools, 2598 tests. A seat is told of the military situation the way a player
+watching the screen is, on every status of its own turn (`status.military`, `todo.unit_attacks`, the game's own
+Military Advisor), the game's question before a bad attack is a refusal that `confirm` answers, and no quiet turn
+passes while a rival is close to a victory. For the war itself: a move that would embark a land unit is refused
+with both routes, a move says who can strike the plot it ended on and how many turns it takes, a plot can be
+asked who strikes it before a unit goes there, the plots at a distance are a read, and a siege unit's set-up is
+offered only where it has a line of fire. The tactical view is a quarter smaller and the playbook's `quiet_turns`
+topic less than half. For the benchmark: a starting save is made by one command and kept with a manifest, names
+its rivals and its victories, and a run keeps saves on the way and at a game's end. Everything of the war was
+written from the reports of models that played it and seen on the live game.
 
 - **The four gaps left from the war reports: who can strike a plot before the move, the plots at a distance, the
   turns a standing move takes, and the line of fire on a set-up row (2026-11-23; runtime v348).** From Opus
