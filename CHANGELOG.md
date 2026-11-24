@@ -75,8 +75,8 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   - *A city the list has nothing for* (Venice from its turn-200 save: every building of the list built, Warrior
     and Scout obsolete, no Settler for Venice) was given nothing and nothing was logged; the run ended on its
     first turn. Such a city now takes the building its own production list has done soonest, else a process
-    (Wealth, Research): never a unit, never a project. Seen live after: Venice builds on and the game is played
-    to its end (Germany's Science victory on turn 278).
+    (Wealth, Research): never a unit, never a project. Seen live after: Venice builds on, in one run to the
+    game's end (Germany's Science victory on turn 278) and in the kept one through its 100 turns.
   - *A city that never stops training* (from the turn-200 saves Rome trained a Scout nearly every turn and Warsaw
     a Settler every third; the plots within three of each filled, 28 Scouts and 30 Settlers, and the runs ended
     on turns 232 and 226). A city whose new unit had to be walked past the plots beside it trains no further
@@ -86,7 +86,9 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   - *A stack nothing can be walked off* (Venice, turn 188: a Great Writer born onto a Great Artist, the land
     within three plots held by the loop's other Great People and the water by its embarked Scouts, and two
     embarked units never share a plot). The last resort is the unit panel's Delete on the last unit of the
-    stack, only after a unit with moves left was refused every plot asked. Not seen live yet.
+    stack, only after a unit with moves left was refused every plot asked. Seen live after: one Great Person
+    deleted on turn 188 of the run from turn 100 and four in the run from turn 200 (turns 258, 285, 288 twice);
+    both runs played their 100 turns. Asking every plot first takes about two minutes each time.
   - Handlers were also written for a free technology, a free Great Person, a Great Person by faith, the Maya Long
     Count and a dig's choice (the first offered of each, by the harness's own reads). None of these has come up
     in a run; they are tested against fakes only. Founding and enhancing a religion are still unanswered: the
