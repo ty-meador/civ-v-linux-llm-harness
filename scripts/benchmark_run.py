@@ -788,6 +788,19 @@ def begin_game_file(record, seat: int):
         return None, f"{type(e).__name__}: {e}"
 
 
+def read_the_end(g, recording) -> dict:
+    """The run's last read. With a game file being written, the file's `end` line is taken inside the game by the
+    same call (game_file.END_WITH), so the row and the line are of one moment.
+
+    Live 2026-11-24, the built-in AI on small-king-poland-a-t200: Poland won on turn 292, the engine went on with
+    the other civilizations' moves of that turn, the row was read, and the `end` line taken a moment later had two
+    of them four points of score further; the recording's check said the two differ."""
+    if not recording:
+        return g.q(READ)
+    from harness.spectator import game_file
+    return g.q(game_file.END_WITH + READ)
+
+
 def end_game_file(row: dict, end, error: str | None) -> None:
     if end:
         try:
@@ -874,7 +887,7 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
             name = (end_save.removesuffix("-end") if end_save else checkpoint_name) + "-game-over"
             keep_game_over(g, row, name, quick_was, seen=now.get("over", -1), sleep=sleep, clock=clock)
             say(f"  saved at the game's end, turn {row['game_over_save_turn']}: {row['game_over_save'] or 'no file'}")
-        after = g.q(READ)
+        after = read_the_end(g, record_end)
         row.update(seconds=round(clock() - t0, 1), end=seat_view(after, seat), winner=after["winner"],
                    victory=after["victory"], turns_played=after["turn"] - before["turn"],
                    players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],
@@ -971,7 +984,7 @@ def run_player(g, save: str, command: list[str], label: str, turns: int, seat: i
                 break
             sleep(poll)
             waited += poll
-        after = g.q(READ)
+        after = read_the_end(g, record_end)
         end = seat_view(after, seat)
         if not end["alive"]:
             row["end_reason"] = "seat_dead"

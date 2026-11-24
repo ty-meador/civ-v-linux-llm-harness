@@ -166,7 +166,12 @@ rows. A game file that cannot begin or end costs the run nothing: the row says w
 - **A whole game on the duel** (the built-in AI, seed 0, lost to the Huns' Domination on turn 305): 308 lines,
   7 MB, 25 MB packed with 30 saves on the way.
 - **The start and the end are the row's.** The seat's ten indicators on the `start` line and on the `end` line,
-  and every player's score on the `end` line, are what the runner read.
+  and every player's score on the `end` line, are what the runner read. The `end` line is taken inside the game
+  by the same call the runner's last read is (`game_file.END_WITH`), and a file has one end: what the engine
+  plays after it is not written. Before that the line was asked for after the read, and on a game the engine
+  won on the seat (small-king-poland-a-t200, a Cultural victory on turn 292) the engine went on with the other
+  civilizations' moves of that turn between the two: two of them were four points of score further on the line
+  than in the row, and the recording's check said so.
 - **Packed and checked.** 763 KB with the one save; packed twice, the same bytes; `check` and `check --load`
   find nothing that differs, the loaded save reading as the game file ends for both players.
 - **On another machine.** The Steam Deck, Python 3.14, given the one script and the one file: `check` exits 0,

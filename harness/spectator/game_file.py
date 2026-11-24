@@ -422,6 +422,10 @@ return out
 """
 
 # The world now, asked for: the handler's own capture, kept with the turns it took.
+# Before a caller's own Lua, in one call: the world is taken as the file's `end` line at the moment the caller reads.
+# Nothing happens where no handler is in the game.
+END_WITH = "if SpectatorTurns and SpectatorTurns.put then pcall(SpectatorTurns.put, 'end', -1) end\n"
+
 NOW = """
 local R = SpectatorTurns
 if not R or R.version ~= @VERSION@ or not R.put then return {installed = false} end
@@ -776,6 +780,7 @@ class Recorder:
         self.since = 0
         self.key: str | None = None
         self.missed = 0                     # worlds that fell out of the game's hold before they were fetched
+        self.ended = False                  # an `end` line is written: what the game takes after it is not this file's
         self.written = {k: 0 for k in KINDS}
         self.missing: dict = {}
         self.error: str | None = None
@@ -794,6 +799,7 @@ class Recorder:
         elif file.header.get("key") != key:
             raise ValueError(f"{path} is the file of another game ({file.header.get('key')}); this game is {key}")
         self.file, self.key, self.state, self.since = file, key, made.get("id"), int(made.get("seq") or 0)
+        self.ended = False
         self.take(now(self.client, "start"))
 
     def take(self, asked: dict | None = None) -> int:
@@ -817,6 +823,8 @@ class Recorder:
                     self.missed += gap
                     body["missed"] = gap     # worlds the game let go of before this one was fetched
                 self.since = row["seq"]
+                if self.ended:              # the engine played on after the run's end was taken
+                    continue
                 world = row["world"]
                 at = world.pop("at", None)
                 world.pop("kind", None)
@@ -824,6 +832,7 @@ class Recorder:
                 assert self.file is not None
                 self.file.append(row["kind"], body, t=at if isinstance(at, (int, float)) else self.clock())
                 self.written[row["kind"]] = self.written.get(row["kind"], 0) + 1
+                self.ended = row["kind"] == "end"
                 n += 1
             if not rows or self.since >= int(reply.get("seq") or 0):
                 return n
@@ -835,12 +844,19 @@ class Recorder:
         return self.take()
 
     def end(self) -> dict:
-        """A last look and an `end` line (the world as it is now). Says what was written; never raises."""
+        """A last look and an `end` line (the world as it is now). Says what was written; never raises.
+
+        The file has one end. A caller that reads the game's last figures itself can have the world taken in the
+        same call (`END_WITH` before its own Lua): that `end` line is then the file's, no second one is asked for,
+        and a turn the engine plays after it is not written. So the caller's figures and the line are of one
+        moment also while the engine is moving (a game won under the engine goes on through the turn it was won
+        in)."""
         try:
             if self.state is None:
                 self.begin()
             self.take()
-            self.take(now(self.client, "end"))
+            if not self.ended:
+                self.take(now(self.client, "end"))
         except Exception as e:       # the file stands as far as it got
             self.error = f"{type(e).__name__}: {e}"
         return self.said()

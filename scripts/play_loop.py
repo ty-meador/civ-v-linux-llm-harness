@@ -94,6 +94,12 @@ PRODUCTION_CANDIDATES = [
 ]
 
 MOVE_OFFSETS = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]
+# Live 2026-11-24 (the Rome duel, King, turn 95): the loop had trained ten Warriors in Rome and walked each one
+# plot off the city, so every plot beside Rome held one, the eleventh could go nowhere among MOVE_OFFSETS, and the
+# loop asked sixteen times and gave up five turns short of its hundred. The plots two and three away are tried
+# after the ones beside the stack (the move is a route, it passes through my own units).
+FARTHER_OFFSETS = [(dx, dy) for ring in (2, 3) for dx in range(-ring, ring + 1) for dy in range(-ring, ring + 1)
+                   if max(abs(dx), abs(dy)) == ring]
 
 # Blockers we know how to resolve with an existing harness tool. Anything else counts
 # as a stall -- see module docstring.
@@ -415,18 +421,22 @@ def resolve_stacked_units(g: Game, seat: int) -> bool:
         # Live t245: a Caravan finished in Goshute on top of a Worker. The old loop only tried the
         # units after the first on the tile -- the Caravan, which cannot be walked anywhere -- and
         # stalled eleven attempts. Try every unit that can walk; a trade unit leaves by route.
-        cleared = False
-        for u in us:
-            if cleared:
-                break
-            if u["moves"] <= 0 or u["type"] in TRADE_UNIT_TYPES or u.get("domain") == "AIR":
-                continue
-            for dx, dy in MOVE_OFFSETS:
-                r = g.move_unit(u["id"], x + dx, y + dy, seat)
-                if r.get("ok") and (r.get("x"), r.get("y")) != (x, y):
-                    moved = cleared = True
-                    log(f"  moved unit {u['id']} off stack at ({x},{y}) -> ({r.get('x')},{r.get('y')})")
+        cleared, refusal = False, None
+        for offsets in (MOVE_OFFSETS, FARTHER_OFFSETS):
+            for u in us:
+                if cleared:
                     break
+                if u["moves"] <= 0 or u["type"] in TRADE_UNIT_TYPES or u.get("domain") == "AIR":
+                    continue
+                for dx, dy in offsets:
+                    r = g.move_unit(u["id"], x + dx, y + dy, seat)
+                    if r.get("ok") and (r.get("x"), r.get("y")) != (x, y):
+                        moved = cleared = True
+                        log(f"  moved unit {u['id']} off stack at ({x},{y}) -> ({r.get('x')},{r.get('y')})")
+                        break
+                    refusal = r.get("err") or refusal
+        if not cleared:
+            log(f"  stack at ({x},{y}): no unit of it could be moved off ({refusal})")
     # Fallback for units that couldn't move (0 moves left, or boxed in): give orders to
     # whatever is left idle. Won't clear STACKED_UNITS by itself but keeps other
     # blockers (plain UNITS) from piling up behind it.

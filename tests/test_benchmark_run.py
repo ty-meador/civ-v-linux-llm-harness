@@ -287,6 +287,19 @@ class TheRunsOwnMaking(unittest.TestCase):
         self.assertEqual(order, ["game file begins, seat 0", "handed over", "game file ends, left 0"])
         self.assertEqual((row["game_file"]["lines"], row["game_build"], g.left), (13, "1.0.3.279(130961)", 1))
 
+    def test_the_runs_last_read_takes_the_game_files_end_in_the_same_call(self):
+        """Live 2026-11-24, small-king-poland-a-t200: the game was won, the engine went on with the turn, and the
+        `end` line asked for after the row's read had two civilizations four points of score further."""
+        from harness.spectator import game_file
+        g = FakeGame([read(), read(turn=252)], polls=[poll(252, 0)])
+        run(g, record=lambda seat: lambda: {"file": "g.jsonl", "lines": 13, "bytes": 20})
+        reads = [s for s in g.sent if "players = {}" in s]
+        self.assertEqual([s.startswith(game_file.END_WITH) for s in reads], [False, True], "the first read takes no end")
+        self.assertEqual(reads[1], game_file.END_WITH + benchmark_run.READ)
+        plain = FakeGame([read(), read(turn=252)], polls=[poll(252, 0)])
+        run(plain)
+        self.assertFalse(any("SpectatorTurns" in s for s in plain.sent), "no game file, nothing taken")
+
     def test_the_runs_game_file_is_written_by_the_recorder_of_the_page_with_the_seat_and_the_run_said(self):
         from harness.game_parts.support import RUNTIME_VERSION
         from harness.spectator import game_file

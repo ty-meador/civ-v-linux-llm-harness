@@ -50,6 +50,21 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   the game process with it (three of three on the duel). The check now waits for the seat to be handed back
   before it leaves (`benchmark_run.wait_for_the_seat`), and a game that stops answering under it is said with
   what was found, not as a traceback. Sixty-four tests (2662).
+- **A run's row and its game file's `end` line are of one moment.** The line was asked for after the runner's
+  last read. On a game the engine won on the seat (the built-in AI on `small-king-poland-a-t200`, a Cultural
+  victory on turn 292) the engine went on with the other civilizations' moves of that turn between the two, two
+  of them were four points of score further on the line than in the row, and `check` said the recording differs
+  from its own row. The world is now taken inside the game by the same call the runner reads the end with
+  (`game_file.END_WITH`), a file has one `end` line, and a turn the engine plays after it is not written.
+  Live after the change: the scripted loop's 100 turns from `duel-king-rome-huns-a-t100`, one `end` line, the
+  recording checks with nothing differing. Not seen again yet: a game won under the engine. Four tests.
+- **The scripted loop moves a stacked unit farther than one plot when it has to** (`scripts/play_loop.py`). On the
+  Rome duel at King it had trained ten Warriors in Rome and walked each to a plot beside the city; on turn 95
+  every such plot held one, the eleventh could go nowhere the loop asked for, and the loop asked sixteen times
+  and gave up five turns short of its hundred (found in the run's game file: the units around Rome on its last
+  line). The plots two and three away are now asked after the ones beside the stack, and a stack that cannot be
+  cleared is logged with the refusal. Live after the change: its 100 turns on the same save on another seed and
+  from the turn-100 save, both played to the end. Three tests (2669).
 
 ## 2.19.0 -- The military situation on every status, and the tools of a siege (2026-11-23)
 

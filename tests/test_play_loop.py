@@ -184,6 +184,46 @@ class IdleWorkerTest(unittest.TestCase):
         self.assertEqual(g.orders, [(7, "AUTOMATE_BUILD"), (7, "MISSION_SKIP")])
 
 
+class StackWithNoPlotBesideItTest(unittest.TestCase):
+    """Live 2026-11-24, the Rome duel at King, turn 95: ten Warriors trained in Rome stood on every plot beside it,
+    the eleventh could be moved to none of them, and the loop asked sixteen times and gave up at 95 turns of 100."""
+
+    def game(self, free):
+        g = FakeGame(units=[])
+        stack = {"x": 26, "y": 7, "class": "combat", "units": [{"id": 1, "type": "WARRIOR", "moves": 2},
+                                                               {"id": 2, "type": "WARRIOR", "moves": 2}]}
+        g.turn_state = lambda seat=None: {"todo": {"stacked": [stack]}}
+        g.moves = []
+
+        def move_unit(uid, x, y, seat):
+            g.moves.append((uid, x, y))
+            return {"ok": True, "x": x, "y": y} if (x, y) in free else {"ok": False, "err": "my own unit is on that plot"}
+        g.move_unit = move_unit
+        return g
+
+    def test_a_plot_two_away_is_taken_when_every_plot_beside_the_stack_is_held(self):
+        g = self.game(free={(28, 7)})
+        with mock.patch.object(play_loop, "log") as log:
+            self.assertTrue(play_loop.resolve_stacked_units(g, 0))
+        # every plot beside the stack is asked for both units before any farther one
+        self.assertEqual(g.moves[:16], [(u, 26 + dx, 7 + dy) for u in (1, 2) for dx, dy in play_loop.MOVE_OFFSETS])
+        self.assertEqual(g.moves[-1], (1, 28, 7))
+        self.assertIn("moved unit 1 off stack at (26,7) -> (28,7)", log.call_args_list[-1].args[0])
+
+    def test_a_plot_beside_the_stack_is_still_the_first_asked(self):
+        g = self.game(free={(27, 7), (28, 7)})
+        with mock.patch.object(play_loop, "log"):
+            play_loop.resolve_stacked_units(g, 0)
+        self.assertEqual(g.moves, [(1, 27, 7)])
+
+    def test_a_stack_that_cannot_be_cleared_says_why(self):
+        g = self.game(free=set())
+        with mock.patch.object(play_loop, "log") as log:
+            self.assertFalse(play_loop.resolve_stacked_units(g, 0))
+        self.assertEqual(len(g.moves), 2 * (8 + len(play_loop.FARTHER_OFFSETS)))
+        self.assertIn("no unit of it could be moved off (my own unit is on that plot)", log.call_args_list[-1].args[0])
+
+
 class RefusedSkipTest(unittest.TestCase):
     """Live 2026-11-18, the Celts duel: a Warrior with a standing move held back by a barbarian ship beside it
     blocked the end of the turn, MISSION_SKIP was refused ("already on a multi-turn move and does not block

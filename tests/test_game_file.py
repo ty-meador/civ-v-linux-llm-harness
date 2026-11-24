@@ -314,6 +314,46 @@ class TheRecorder(WithAGame):
                                 "start": 1, "turn": 5, "end": 1})
         self.assertEqual(G.problems((raw, row) for _o, raw, row in G.read(path)), [])
 
+    def test_an_end_taken_with_the_callers_own_last_read_is_the_files_one_end(self):
+        """Live 2026-11-24: a game won under the engine went on through the turn it was won in, and the `end` line
+        asked for after the runner's last read was of a later moment than the row."""
+        path = self.dir / "g.jsonl"
+        rec = G.Recorder(object(), path=path)
+        rec.step()
+        self.game.play(2)
+        self.game.put("end")                      # what END_WITH does inside the game, in the caller's own call
+        self.game.play(3)                         # the engine plays on before the recorder looks again
+        said = rec.end()
+        self.assertEqual(self.kinds(path), [("game", None), ("start", 0), ("turn", 1), ("turn", 2), ("end", 2)])
+        self.assertNotIn("end", self.game.asked, "no second end was asked of the game")
+        self.assertEqual((said["lines"], said["turn"], said["end"]), (5, 2, 1))
+        self.assertNotIn("missed", said)
+        self.assertEqual(G.problems((raw, row) for _o, raw, row in G.read(path)), [])
+
+    def test_a_game_loaded_again_after_an_end_is_written_on(self):
+        path = self.dir / "g.jsonl"
+        rec = G.Recorder(object(), path=path)
+        rec.step()
+        self.game.play(1)
+        self.game.put("end")
+        rec.step()
+        self.game.load(1)
+        rec.step()                                # sees another Lua state
+        rec.step()                                # and begins again in it
+        self.game.play(1)
+        rec.end()
+        self.assertEqual(self.kinds(path), [("game", None), ("start", 0), ("turn", 1), ("end", 1), ("start", 1), ("turn", 2), ("end", 2)])
+
+    def test_the_call_that_takes_the_end_does_nothing_where_no_handler_is(self):
+        try:
+            import lupa
+        except ImportError:
+            self.skipTest("lupa is not installed")
+        lua = lupa.LuaRuntime()
+        self.assertEqual(lua.execute(G.END_WITH + "return 7"), 7)
+        lua.execute("taken = {}; SpectatorTurns = {put = function(kind, turn) taken[#taken + 1] = kind .. turn end}")
+        self.assertEqual(lua.execute(G.END_WITH + "return taken[1]"), "end-1")
+
     def test_worlds_the_game_let_go_of_before_they_were_fetched_are_counted_in_the_line_after_them(self):
         self.game.keep = 3
         path = self.dir / "g.jsonl"
