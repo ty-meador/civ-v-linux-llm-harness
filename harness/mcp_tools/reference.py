@@ -51,7 +51,8 @@ def how_to_play(topic: str = "") -> str:
     """How to play through these tools, from the playbook shipped with this server; needs no game and works at
     any time. With no topic: the index of topics and the introduction (what you are, what you see, `gate`,
     seats, loading a game). Playbook topics: start, turn_loop (every turn in order; two agents or two clients on
-    one game), quiet_turns (skip_quiet_turns and what wakes a run), batches (do and action_id), verify,
+    one game), quiet_turns (skip_quiet_turns and what wakes a run), war (status.military, attacks, moves),
+    batches (do and action_id), verify,
     blockers (the end-turn blocker table and what clears each), diplomacy (leader screens, discussions, the
     trade table), rules (what the harness refuses on purpose), first_turn; "all" is the whole playbook. A tool
     name -- finish_turn, briefing, turn_status, overview, compare, propose_deal, give_order -- is that reply's
@@ -75,8 +76,8 @@ def reference(section: Annotated[str | None, Field(description="one section: a r
     `section`: one part per call. Rules sections: terrain, resources, improvements, units, buildings, projects,
     processes, promotions, policies, techs, beliefs, specialists, actions; left out, the whole book (tens of
     thousands of tokens: read it once at the start of a game if you can hold it, else the section a choice needs).
-    Playbook topics: start, turn_loop, quiet_turns, batches, verify, blockers, diplomacy, rules, first_turn, orders
-    (the action table), all; left out, the index of topics with the start section; city_state(s), deals, trade and
+    Playbook topics: start, turn_loop, quiet_turns, war, batches, verify, blockers, diplomacy, rules, first_turn,
+    orders (the action table), all; left out, the index of topics with the start section; city_state(s), deals, trade and
     league answer with diplomacy. section="legend" (either book): how to read the tactical view's grid.
     Returns Markdown. An unknown rules section is refused as {ok: false, err, sections}; an unknown playbook topic
     answers with the topic list. Also served as the MCP resources civ5://reference and civ5://reference/{section}."""

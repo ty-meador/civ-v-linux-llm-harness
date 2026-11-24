@@ -16,6 +16,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The playbook's `quiet_turns` topic is 5.5 KB, and war has a topic of its own (2026-11-23; no runtime
+  change).** The seat's prompt names the playbook for passing quiet turns, so a player reads `quiet_turns` once
+  an instance and every later request carries it; it had grown to 12.5 KB, most of it what `status.military` and
+  `todo.unit_attacks` hold and what an attack or a move asks first. That text is now
+  `reference(book="playbook", section="war")` (also `military`, `combat`), unchanged but for its first words, and
+  `quiet_turns` keeps `skip_quiet_turns`, `wake_on`, every `woke_because` word, `status.alerts` and
+  `todo.ongoing`, with one line that points at `war`. `turn_loop` and `all` hold both as before. One test.
+
 - **The tactical view's legend comes back after a context reset and has a short name (2026-11-23; no runtime
   change).** With the one-line `key` gone from every reply (the entry below), a reader whose context was reset
   under a server that lives on had the grid and nothing to read it by. `turn(action="briefing", since="turn")`,

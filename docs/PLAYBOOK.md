@@ -188,6 +188,42 @@ comes back with `woke_because` `rival_close_to_victory:<civ>:<victory>`, whateve
 the reply says so in `quiet_turns_held`. The briefing warns of the same rivals (`warnings`, kind
 `culture_victory_threat` or `victory_threat`).
 
+A run of quiet turns also stops on the military situation: when an army at peace comes into sight near a
+city or grows by two (`woke_because` `foreign_forces_near:<civ>:<was>-><now>`), on every turn an enemy army is in
+sight there (`enemy_forces_near:<civ>:<units>`), when a city is first listed (`city_threatened:<name>`) or loses
+hit points (`city_damaged:<name>:<was>-><now>`), when your Soldiers figure becomes the lowest with the highest
+half again yours (`soldiers_rank_lowest`), when a leader's word turns GUARDED, HOSTILE or WAR
+(`approach_changed:<civ>:<was>-><now>`), and when a unit of yours has something to attack (`todo.unit_attacks`).
+What `status.military` and `todo.unit_attacks` hold, and what an attack or a move asks before it is made:
+`reference(book="playbook", section="war")`.
+
+`status.alerts` is the exception to "quiet means todo is empty": it lists low happiness (2 or below, or an
+unhappy tier) and every revealed strategic resource in deficit, on every status, without blocking anything.
+A run wakes on it only when the figure worsens against the previous turn this seat saw (`woke_because`
+`happiness_drop:4->1`, `unhappy:unhappy`, `strategic_deficit:IRON:-2`); a steady happiness of 1 through a
+five-turn Circus lets the run continue; a drop of one or two is a city growing and stays quiet (3 -> 2 is not
+news); a drop of 3 or more that lands below 10, any drop into the negative, or 5 or more at once anywhere (a
+luxury lost) wakes. The baseline lives in the notebook file, so a server started mid-game compares against the
+last turn any process of this seat saw; a seat no process has seen yet has none. An expiring deal, friendship
+or city-state ally wakes a run once, the turn it enters its warning window, and that too is remembered across
+processes; the AI usually offers a deal's renewal itself at the turn it ends (a deal screen with `renewal:
+true`, `answer(choice="accept")`) -- propose on `reoffer_on` only when it did not. Read the alert before
+swapping a build: on 2026-09-26 the
+Circus that held Mongolia at happiness 1 was the easy thing to swap away while the total sat on the empire
+read, one the loop never called.
+
+`todo.ongoing` is the other exception: units the game is already moving -- on `AUTOMATE_EXPLORE` /
+`AUTOMATE_BUILD`, or walking a move that needs more turns (`going_to: {x, y}`, also on
+`state(what="units")`) -- with their plot, moves and hp. They are yours but not decisions: they never block
+end-turn and a run does not wake for an explorer merely exploring. Each row's `attention` lists what would
+pull a human back -- a visible barbarian camp on or beside the unit, a visible hostile combat unit beside it,
+a destination no longer revealed or passable -- and any of those wakes the run (`woke_because`
+`ongoing:<id>:camp`). Only plots you can see are read. A new move or mission takes an automated unit back; a
+standing move is replaced by any new order. On 2026-09-26 (Mongolia, t42) the auto-explore scout drifting
+toward a camp was on no list at all.
+
+### War: the military status, attacks and moves
+
 `status.military` is on every status of your own turn: what a player watching the screen knows of the military
 situation without asking. `soldiers` is the Soldiers row of the Demographics screen (`mine`, `rank` of `of` living
 civilizations, `best` with `best_civ` when that civilization is met, `average`, `lowest`); `combat_units` is your own count.
@@ -249,12 +285,7 @@ for the turn and keeps the standing move (`standing_move_kept`), `COMMAND_CANCEL
 (`standing_move_dropped`). An upgrade that is refused names what is in the way of this unit (`blocked`: the
 unit panel's red line, or that the unit has moved or attacked this turn).
 
-A run of quiet turns stops when an army at peace comes into sight near a
-city or grows by two (`woke_because` `foreign_forces_near:<civ>:<was>-><now>`), on every turn an enemy army is in
-sight there (`enemy_forces_near:<civ>:<units>`), when a city is first listed (`city_threatened:<name>`) or loses
-hit points (`city_damaged:<name>:<was>-><now>`), when your Soldiers figure becomes the lowest with the highest
-half again yours (`soldiers_rank_lowest`), and when a leader's word turns GUARDED, HOSTILE or WAR
-(`approach_changed:<civ>:<was>-><now>`). The briefing carries the same as `warnings`: `military_standing` (your
+The briefing carries the military situation as `warnings`: `military_standing` (your
 Soldiers figure is the lowest with the highest half again yours, or the highest is twice yours), `foreign_forces_near`, `enemy_forces_near`,
 `city_threatened`, `wary_leaders`, `enemy_city_in_reach`; and its `changes.soldiers` says how the Soldiers figures
 (`mine`, `highest`, `lowest`) moved since the briefing before. The briefing that carries `civ_rules` also names the
@@ -266,31 +297,6 @@ player holding their own original capital. In such a game every status of your o
 in your hands (`city`, `civ`, `held_by`, `x` and `y` when you know the plot, `distance_from_my_capital`). The
 briefing lists each of them whose plot you know as an `opportunities` row, `capital_to_take`: where it stands,
 whether you are at war with its holder, and in a game of two both Soldiers figures of the Demographics screen.
-
-`status.alerts` is the exception to "quiet means todo is empty": it lists low happiness (2 or below, or an
-unhappy tier) and every revealed strategic resource in deficit, on every status, without blocking anything.
-A run wakes on it only when the figure worsens against the previous turn this seat saw (`woke_because`
-`happiness_drop:4->1`, `unhappy:unhappy`, `strategic_deficit:IRON:-2`); a steady happiness of 1 through a
-five-turn Circus lets the run continue; a drop of one or two is a city growing and stays quiet (3 -> 2 is not
-news); a drop of 3 or more that lands below 10, any drop into the negative, or 5 or more at once anywhere (a
-luxury lost) wakes. The baseline lives in the notebook file, so a server started mid-game compares against the
-last turn any process of this seat saw; a seat no process has seen yet has none. An expiring deal, friendship
-or city-state ally wakes a run once, the turn it enters its warning window, and that too is remembered across
-processes; the AI usually offers a deal's renewal itself at the turn it ends (a deal screen with `renewal:
-true`, `answer(choice="accept")`) -- propose on `reoffer_on` only when it did not. Read the alert before
-swapping a build: on 2026-09-26 the
-Circus that held Mongolia at happiness 1 was the easy thing to swap away while the total sat on the empire
-read, one the loop never called.
-
-`todo.ongoing` is the other exception: units the game is already moving -- on `AUTOMATE_EXPLORE` /
-`AUTOMATE_BUILD`, or walking a move that needs more turns (`going_to: {x, y}`, also on
-`state(what="units")`) -- with their plot, moves and hp. They are yours but not decisions: they never block
-end-turn and a run does not wake for an explorer merely exploring. Each row's `attention` lists what would
-pull a human back -- a visible barbarian camp on or beside the unit, a visible hostile combat unit beside it,
-a destination no longer revealed or passable -- and any of those wakes the run (`woke_because`
-`ongoing:<id>:camp`). Only plots you can see are read. A new move or mission takes an automated unit back; a
-standing move is replaced by any new order. On 2026-09-26 (Mongolia, t42) the auto-explore scout drifting
-toward a camp was on no list at all.
 
 ## Many orders, one call
 

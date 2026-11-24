@@ -74,6 +74,27 @@ class GuideTests(unittest.TestCase):
         self.assertTrue(guide.how_to_play("quiet_turns").startswith("### Letting quiet turns pass"))
         self.assertNotIn("## Many orders", guide.how_to_play("turn_loop"))
 
+    def test_the_quiet_turns_topic_is_short_and_war_is_a_topic_of_its_own(self):
+        """Codex gpt-6-astra read quiet_turns once an instance (the seat's prompt names the playbook for quiet
+        turns), 12.5 KB carried by every later request, most of it the military status (2026-11-23)."""
+        quiet, war = guide.how_to_play("quiet_turns"), guide.how_to_play("war")
+        self.assertLess(len(quiet), 6000)
+        for word in ("skip_quiet_turns", "wake_on", "rival_close_to_victory", "foreign_forces_near",
+                     "status.alerts", "todo.ongoing", 'section="war"'):
+            self.assertIn(word, quiet)
+        self.assertNotIn("### War", quiet)
+        self.assertTrue(war.startswith("### War: the military status"))
+        for word in ("status.military", "todo.unit_attacks"):   # the quiet topic names them in its pointer
+            self.assertIn(word, war)
+        for word in ("confirm: true", "land_only", "in_range_of", "standing_move_kept", "only_victory",
+                     "capital_to_take", "`soldiers`", "`sieges`"):
+            self.assertIn(word, war)
+            self.assertNotIn(word, quiet)
+        self.assertNotIn("skip_quiet_turns", war)
+        self.assertIn(war, guide.how_to_play("turn_loop"))
+        self.assertEqual(guide.how_to_play("military"), war)
+        self.assertIn("- `war`:", guide.how_to_play(""))
+
     def test_the_orders_topic_is_the_action_table(self):
         from harness.surface import table
         self.assertEqual(guide.how_to_play("orders"), table.render())

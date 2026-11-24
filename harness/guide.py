@@ -24,6 +24,7 @@ PLAYBOOK_TOPICS: dict[str, tuple[str, str]] = {
     "start": ("", "what you are, what you see, `gate`, seats, loading a game"),
     "turn_loop": ("## The turn loop", "every turn in order: turn(action=\"finish\"), the decisions, the notebook; two agents or two clients on one game"),
     "quiet_turns": ("### Letting quiet turns pass", "skip_quiet_turns, wake_on, what wakes a run"),
+    "war": ("### War: the military status", "status.military, todo.unit_attacks, what an attack or a move asks first, a game only Domination wins"),
     "batches": ("## Many orders, one call", "batch(actions), turn(action=\"finish\", actions), action_id replay"),
     "verify": ("## Verify, do not assume", "read back what an order did; ids and plots"),
     "blockers": ("## What `blocking_name` means", "the end-turn blocker table and the read and order that clear each"),
@@ -35,6 +36,7 @@ PLAYBOOK_TOPICS: dict[str, tuple[str, str]] = {
 TOPIC_ALIASES: dict[str, str] = {
     "city_state": "diplomacy", "city_states": "diplomacy", "deals": "diplomacy", "trade": "diplomacy",
     "league": "diplomacy", "loop": "turn_loop", "batch": "batches", "blocking": "blockers",
+    "military": "war", "combat": "war",
     # the tactical view's legend under a word a reader can remember (2026-11-23: its only name was the heading)
     "legend": 'state(what="unit", view="tactical")', "tactical": 'state(what="unit", view="tactical")',
 }
