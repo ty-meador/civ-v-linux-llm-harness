@@ -251,8 +251,9 @@ game's, not the harness's. The briefing carries the Military and Foreign advisor
 a unit that sleeps or stands fortified, a garrison too, is in no other list. One row a unit: `ranged`, `targets`
 (how many), and `most_damage_on`, the target its preview gives the most damage on (`deals`, `takes`, the
 target's `hp`). A siege unit that has not set up strikes nothing yet: its row has `needs_set_up` and `in_range`,
-the enemy units and cities in your sight within its range; `MISSION_SET_UP_FOR_RANGED_ATTACK` costs one move, and
-with a move left the unit fires in the same turn. A siege unit's row in `state(what="units")` says `set_up`
+the enemy units and cities in your sight within its range and in its line of fire from that plot (the ones hills
+or forest hide are counted apart as `out_of_line_of_fire`, and a unit with none it could hit has no row);
+`MISSION_SET_UP_FOR_RANGED_ATTACK` costs one move, and with a move left the unit fires in the same turn. A siege unit's row in `state(what="units")` says `set_up`
 (true or false); a set-up asked of a unit that is set up answers `already: true` and sends nothing.
 `state(what="unit", id, view="targets")` is what a unit that shoots can hit from the plot it stands on: each
 visible enemy unit and city within its range with the combat preview, `fires_now` and `why_not_now` (no moves,
@@ -278,7 +279,21 @@ on a plot another of your units holds), the order is refused before anything mov
 `args={x, y, confirm: true}` takes the water. A move to a water plot is your own choice and is never asked about.
 A standing move that would have to embark at a later turn is held (`would_embark`) and the unit keeps its moves. A move that ends
 where an enemy city or a ranged enemy unit in sight can strike says so in the reply: `in_range_of` (each with its
-`range` and `distance`) and `in_range_note`.
+`range` and `distance`) and `in_range_note`. A move that does not arrive this turn says `arrives_in_turns` and
+`arrives_turn` (the game turn), and the unit's `going_to` keeps `arrives_turn`: the harness's own count over the
+map you know, taken again each turn the standing move goes on (`resumed_moves` rows say `arrives_in_turns`); the
+engine's path cannot be read, so a blocked plot or a zone of control can add a turn.
+
+Before the move, the same question is a read of the plot: `state(what="map", view="window", x, y,
+detail="threats")` names every enemy city and ranged enemy unit in your sight whose range covers (x, y) from
+where it stands (`in_range_of`), the ranged units a move would bring inside their range (`could_move_into_range`:
+plot distance against range plus the moves of their kind, an upper bound that counts no terrain), and how many
+plots within 4 you do not see (`not_in_sight`: a unit standing there is not listed, so an empty answer is not
+"safe"). `detail="ring"` with `radius=N` (1 to 6) lists the plots at exactly N plots from (x, y), by the
+engine's own distance: each with its `ground` (flat, hills, water, mountain), a `feature` that blocks a line of
+fire (forest, jungle, marsh), the `city` and `units` you see on it, and `struck_by`, how many of those cities and
+units cover it now. A siege line three plots from a city is one read: the ring at radius 3 around the city's
+plot, the rows with no `struck_by`.
 
 A unit on a standing move that stopped short with moves left is on the end-turn list: `MISSION_SKIP` passes it
 for the turn and keeps the standing move (`standing_move_kept`), `COMMAND_CANCEL` drops the standing move

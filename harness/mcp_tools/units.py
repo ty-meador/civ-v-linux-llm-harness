@@ -85,7 +85,7 @@ def unit_mission_targets(unit_id: int, mission: str = "", offset: int = 0, limit
 
 @retired
 @guarded
-def map_window(x: int, y: int, radius: int = 3) -> str:
+def map_window(x: int, y: int, radius: int = 3, detail: str = "plots") -> str:
     """Revealed plots within `radius` of (x, y). vis=true is in sight now and includes yields
     (food/production/gold/science/culture/faith), fresh_water, worked, under_construction, trade_route
     (the plot hover's "Trade Route": a city connection to the capital, not a caravan line; those are
@@ -95,7 +95,20 @@ def map_window(x: int, y: int, radius: int = 3) -> str:
     on every tile. A revealed Oil/Aluminum/Coal tile that we cannot yet hook has
     `resource_requires_tech`. A barbarian camp with a city-state kill-camp quest has `cs_quest`.
     vis=false is discovered but fogged (no live units/owners/features/yields). Prefer known_world
-    for the full discovered map."""
+    for the full discovered map.
+    detail="threats": who can strike the plot (x, y), asked before a unit moves there -- `in_range_of`, the enemy
+    cities and ranged enemy units in my sight whose range covers it from where they stand (`distance`, `range`,
+    a unit's `hp`), and `could_move_into_range`, the ranged units a move would bring inside it (an upper bound
+    by distance, range and their kind's `moves`); `not_in_sight` counts the plots within 4 I do not see.
+    detail="ring": the plots at exactly `radius` plots from (x, y) (1 to 6), by the engine's own distance, one
+    row each: `ground` (flat, hills, water, mountain), `feature` (forest, jungle, marsh), `city`, `units`,
+    `fogged` / `unrevealed`, and `struck_by`, how many of those cities and units cover the plot now."""
+    if detail == "threats":
+        return J(core.game().plot_threats(x, y))
+    if detail == "ring":
+        return J(core.game().plot_ring(x, y, radius))
+    if detail not in ("", "plots"):
+        return J({"ok": False, "err": f"detail is one of plots (default), threats, ring, not {detail!r}"})
     return J(core.game().plots_around(x, y, radius))
 
 

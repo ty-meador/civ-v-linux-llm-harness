@@ -127,6 +127,19 @@ class ReadsMixin:
             raise ValueError("radius must be between 0 and 12")
         return self.q(self.h("plots_around", x, y, r))
 
+    def plot_threats(self, x: int, y: int, pid: int | None = None) -> dict:
+        """Who can strike a plot, before the move (runtime v348, H.plot_threats): the enemy cities and ranged enemy
+        units in sight whose range covers it, and the ranged units that could cover it after a move."""
+        return self.q(self.h("plot_threats", int(x), int(y), pid=pid))
+
+    RING_MAX = 6
+
+    def plot_ring(self, x: int, y: int, radius: int = 2, pid: int | None = None) -> dict:
+        """The plots at exactly `radius` plots from (x, y) (runtime v348, H.plot_ring)."""
+        if not 1 <= int(radius) <= self.RING_MAX:
+            raise ValueError(f"radius must be between 1 and {self.RING_MAX}")
+        return self.q(self.h("plot_ring", int(x), int(y), int(radius), pid=pid))
+
     def explore_frontier(self, unit_id: int, pid: int | None = None, limit: int = 12) -> dict:
         """Where the known map ends for one unit: revealed, passable plots of its domain (water for a
         ship, land otherwise, both when embarked) that touch unrevealed plots, nearest first. The fog

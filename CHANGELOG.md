@@ -16,6 +16,28 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The four gaps left from the war reports: who can strike a plot before the move, the plots at a distance, the
+  turns a standing move takes, and the line of fire on a set-up row (2026-11-23; runtime v348).** From Opus
+  5.5's reports of its siege of Attila's Court (the duel against the Huns, turns 198 to 219).
+  - `state(what="map", view="window", x, y, detail="threats")`: every enemy city and ranged enemy unit in sight
+    whose range covers the plot from where it stands (`in_range_of`, as a move's reply says it of the plot the
+    move ended on), the ranged units a move would bring inside their range (`could_move_into_range`: plot
+    distance against range plus the moves of their kind, an upper bound), and `not_in_sight`, the plots within 4
+    that are not seen (`H.plot_threats`). "A 'threat map' per tile: which enemy ranged units and cities can hit
+    it next turn, for picking siege positions."
+  - `detail="ring"` with `radius=N` (1 to 6): the plots at exactly N plots from (x, y) by the engine's own
+    distance, each with its `ground`, a `feature` that blocks a line of fire, the `city` and `units` in sight
+    and `struck_by` (`H.plot_ring`). "Working out offset-hex distance by hand was slow and error-prone."
+  - A move that does not arrive this turn says `arrives_in_turns` and `arrives_turn`; `going_to` (the units
+    list, `todo.ongoing`) keeps `arrives_turn`, and a `resumed_moves` row says `arrives_in_turns`. The count is
+    `H.move_route`'s over the map the seat knows, the faster of its two ways unless the unit walks by land; a
+    unit with no moves left starts next turn. Nothing for an attack, an air unit or a way the walk does not find.
+  - A `needs_set_up` row of `todo.unit_attacks` counts in `in_range` only the targets in the unit's line of fire
+    from its plot (`CvPlot::canSeePlot` with the unit's range, the test the shot must pass), says the hidden
+    ones as `out_of_line_of_fire`, and is not there at all when every target is hidden. "The unit_attacks row
+    had listed this cannon as 'in_range 2, needs_set_up', so I spent a move setting it up for nothing."
+  Both reads are details of the map window, so the catalog of old handlers is what it was. Eighteen tests.
+
 - **The playbook's `quiet_turns` topic is 5.5 KB, and war has a topic of its own (2026-11-23; no runtime
   change).** The seat's prompt names the playbook for passing quiet turns, so a player reads `quiet_turns` once
   an instance and every later request carries it; it had grown to 12.5 KB, most of it what `status.military` and

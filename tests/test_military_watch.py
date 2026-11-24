@@ -345,6 +345,48 @@ class MilitaryWatchLuaTests(unittest.TestCase):
         assert(#H.unit_attacks(0) == 0, 'nothing in range, nothing listed')
         """)
 
+    def test_a_set_up_row_counts_only_what_is_in_the_line_of_fire(self):
+        """Opus, the duel t211: "The unit_attacks row had listed this cannon as 'in_range 2, needs_set_up', so I
+        spent a move setting it up for nothing" -- hills hid both targets. v348 asks the engine's own test."""
+        self.run_lua("""
+        UNITS[6] = { ID = 6, Type = 'UNIT_CANNON', Combat = 14, RangedCombat = 20, Range = 2 }
+        local cannon = unit(6, 10, 10)
+        cannon.GetID = function() return 9 end; cannon.MovesLeft = function() return 60 end
+        cannon.GetCurrHitPoints = function() return 100 end
+        cannon.IsMustSetUpToRangedAttack = function() return true end
+        cannon.IsSetUpForRangedAttack = function() return false end
+        Players[0].units = { cannon }
+        H.ranged_targets = function() return {} end
+        Map.PlotXYWithRangeCheck = function(x, y, dx, dy, range)
+          return { GetX = function() return x + dx end, GetY = function() return y + dy end }
+        end
+        H.ranged_target_info = function(u, q)
+          if q:GetY() == 10 and (q:GetX() == 12 or q:GetX() == 8) then return { unit = 'PIKEMAN' } end
+          return {}
+        end
+        HIDDEN = { [12] = true }
+        ASKED = {}
+        cannon.GetPlot = function() return { CanSeePlot = function(_, q, team, range, dir)
+          ASKED[#ASKED + 1] = { team, range, dir }
+          return not HIDDEN[q:GetX()]
+        end } end
+        local rows = H.unit_attacks(0)
+        assert(#rows == 1 and rows[1].needs_set_up == true and rows[1].in_range == 1 and rows[1].out_of_line_of_fire == 1, H.json(rows))
+        assert(ASKED[1][1] == 0 and ASKED[1][2] == 2 and ASKED[1][3] == -1, 'the test a shot must pass: ' .. H.json(ASKED[1]))
+        HIDDEN = { [12] = true, [8] = true }
+        assert(#H.unit_attacks(0) == 0, 'nothing it could hit after a set-up: no row')
+        HIDDEN = {}
+        rows = H.unit_attacks(0)
+        assert(rows[1].in_range == 2 and rows[1].out_of_line_of_fire == nil, H.json(rows))
+        cannon.IsRangeAttackIgnoreLOS = function() return true end
+        HIDDEN = { [12] = true, [8] = true }
+        assert(H.unit_attacks(0)[1].in_range == 2, 'a unit that fires over obstacles is not asked')
+        cannon.Range = function() return 3 end
+        ASKED = {}; cannon.IsRangeAttackIgnoreLOS = nil; HIDDEN = {}
+        H.unit_attacks(0)
+        assert(ASKED[1][2] == 3, 'the range the unit has, a promotion included')
+        """)
+
     def test_a_seat_with_no_city_has_its_soldiers_row_and_nothing_else(self):
         self.run_lua("""
         Players[0].cities = {}

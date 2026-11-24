@@ -155,7 +155,8 @@ end
 --     walks, "confirm" lets the engine route it. A standing move taken up at the turn start (`resumed`) walks the
 --     land route when there is one and is refused when there is none (H.resume_moves then holds it).
 -- A leg is this turn's last plot of the land route: within one turn's move the engine cannot go by water, since
--- embarking spends every move. Returns nil, { refuse = <the reply> } or { mode = "land", stop = <plot>, ... }.
+-- embarking spends every move. Returns nil, { refuse = <the reply> } or { mode = "land", stop = <plot>, ... };
+-- with nil, the route it walked as a second value when it walked one (v348: H.move_unit reads the turns from it).
 local function arrives(turns)
   if turns <= 0 then return "this turn" end
   if turns == 1 then return "next turn" end
@@ -173,11 +174,11 @@ function H.embark_plan(u, dest, pid, mode, resumed)
   if not can then return nil end
   if Map.PlotDistance(u:GetX(), u:GetY(), dest:GetX(), dest:GetY()) <= 1 then return nil end
   local r = H.move_route and H.move_route(u, dest, pid) or nil
-  if not (r and r.water) then return nil end
+  if not (r and r.water) then return nil, r end
   local land, water = r.land, r.water
-  if land and (land.turns <= 0 or not land.stop) then return nil end
+  if land and (land.turns <= 0 or not land.stop) then return nil, r end
   local walks = mode == "land" or resumed
-  if land and not walks and land.turns + 1 < water.turns then return nil end
+  if land and not walks and land.turns + 1 < water.turns then return nil, r end
   local at = water.embark_at and { x = water.embark_at:GetX(), y = water.embark_at:GetY() } or nil
   if land and (land.turns <= water.turns or walks) then
     return { mode = "land", stop = land.stop, turns = land.turns, water_turns = water.turns, embark_at = at }
@@ -234,9 +235,32 @@ function H.move_unit(unit_id, x, y, pid, mode)
   if refused then return refused end
   -- v347: where the engine's route would embark the unit, the order says so first or walks by land (H.embark_plan).
   -- A plan that cannot be read changes nothing: the move goes out as it always did.
-  local okp, plan = pcall(H.embark_plan, u, dest, pid, mode, resumed)
-  if not okp then plan = nil end
+  local okp, plan, way = pcall(H.embark_plan, u, dest, pid, mode, resumed)
+  if not okp then plan, way = nil, nil end
   if plan and plan.refuse then return plan.refuse end
+  -- v348: how many turns the move takes, 0 when it arrives in this turn's move (Opus, the duel: "how many turns a
+  -- standing move takes"). H.move_route's count over the map the seat knows, the faster of its two ways unless the
+  -- unit walks by land; the engine's own path is closed to Lua, so this is the harness's figure. A unit with no
+  -- moves left starts next turn (the walk prices it at full moves). Nothing for an attack, an air unit or a way
+  -- the walk does not find.
+  local turns, now_turn = nil, nil
+  pcall(function() now_turn = Game.GetGameTurn() end)
+  if not (H.melee_defender(u, dest, pid) or H.enemy_city_at(dest, pid)) then
+    pcall(function()
+      if plan and plan.stop then
+        turns = plan.turns
+      else
+        if not way and H.move_route and Map.PlotDistance(u:GetX(), u:GetY(), x, y) > 1 then way = H.move_route(u, dest, pid) end
+        if way then
+          local a, b = way.land and way.land.turns, way.water and way.water.turns
+          turns = (a and b) and math.min(a, b) or a or b
+        elseif Map.PlotDistance(u:GetX(), u:GetY(), x, y) <= 1 then
+          turns = 0
+        end
+      end
+      if turns and u:MovesLeft() <= 0 then turns = turns + 1 end
+    end)
+  end
   local gx, gy = x, y
   if plan and plan.stop then gx, gy = plan.stop:GetX(), plan.stop:GetY() end
   local x0, y0, m0 = u:GetX(), u:GetY(), u:MovesLeft()
@@ -269,9 +293,11 @@ function H.move_unit(unit_id, x, y, pid, mode)
     H.pending_moves[H.pm_key(unit_id, pid)] = nil
   else
     H.pending_moves[H.pm_key(unit_id, pid)] = { x = x, y = y, pid = pid, unit_id = unit_id,
-                                                 route = (plan and plan.mode) or mode }
+                                                 route = (plan and plan.mode) or mode,
+                                                 arrives_turn = (turns and now_turn) and (now_turn + math.max(turns, 1)) or nil }
   end
-  local out = { ok = true, x = x0, y = y0, moves = m0 / move_denom(), swap_candidates = swap_candidates }
+  local out = { ok = true, x = x0, y = y0, moves = m0 / move_denom(), swap_candidates = swap_candidates,
+                turns = turns, turn = now_turn }
   if plan and plan.stop then
     out.route = { by = "land", leg = { x = gx, y = gy }, arrives = arrives(plan.turns),
                   note = "walking by land, a leg a turn: this turn to (" .. gx .. "," .. gy .. "), and the standing move "
@@ -445,7 +471,8 @@ function H.going_to(u, pid)
   local pm = H.pending_moves[H.pm_key(u:GetID(), pid)]
   if not pm or pm.pid ~= pid then return nil end
   if pm.x == u:GetX() and pm.y == u:GetY() then return nil end
-  return { x = pm.x, y = pm.y }
+  -- arrives_turn (v348): the game turn H.move_unit's count put the arrival on, when the move was last sent
+  return { x = pm.x, y = pm.y, arrives_turn = pm.arrives_turn }
 end
 
 -- Why an ongoing unit (automated, or walking a standing move) needs the seat back this turn (#37): a
@@ -654,8 +681,10 @@ function H.resume_moves(pid, skip)
           pm.last_x, pm.last_y = u:GetX(), u:GetY()
           local r = H.move_unit(id, pm.x, pm.y, pid, pm)
           if r.ok then
+            pm.arrives_turn = (r.turns and r.turn) and (r.turn + math.max(r.turns, 1)) or nil
             H.pending_moves[key] = pm  -- H.move_unit replaced the record; keep the progress marker
-            out[#out + 1] = { unit_id = id, x = pm.x, y = pm.y, resumed = true, route = r.route }
+            out[#out + 1] = { unit_id = id, x = pm.x, y = pm.y, resumed = true, route = r.route,
+                              arrives_in_turns = r.turns }
           elseif r.embarks then
             -- v347: the way on now goes by water and nobody said it may (H.embark_plan). The record is kept and the
             -- unit keeps its moves: it stands in todo.units with the sentence, as a move held for a hostile does.

@@ -187,7 +187,7 @@ penalty is not a row). `happiness` (the bare total) rides on every status. Empty
 iron has []. No advice is attached: which building or trade would change the number is a different read.
 `todo.ongoing` lists my units the game is already moving -- automated (AUTOMATE_EXPLORE / AUTOMATE_BUILD) or
 walking a move that needs more turns -- with id, type, x, y, moves, hp, `automated`, `mission_name`
-and `going_to: {x, y}` when a destination is stored. They never block end_turn and are not decisions; a new
+and `going_to: {x, y, arrives_turn}` when a destination is stored (`arrives_turn`: the game turn the harness's own count of the route puts the arrival on, absent when it found no count). They never block end_turn and are not decisions; a new
 a move or mission order takes an automated unit back (`todo.ongoing_note` says so once for the list; a row has a
 `note` of its own only when its standing move was held or dropped this turn). An automated unit with nothing to
 look at (no `attention`, no stored destination, full health) is not a row: `todo.automated` holds such units as

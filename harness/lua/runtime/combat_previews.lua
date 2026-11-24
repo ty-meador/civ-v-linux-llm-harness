@@ -212,6 +212,18 @@ end
 -- every visible enemy unit and city within its range with the combat panel's preview, the ones the line of fire
 -- does not reach apart (CvPlot::canSeePlot with the range, the engine's own test and the tactical view's
 -- fire_los), and whether the unit fires now -- a siege unit that is not set up is shown what it would have.
+-- Whether a shot from the plot `u` stands on reaches `q`: CvPlot::canSeePlot with the range, the engine's own test
+-- for a ranged attack; true for a unit that fires over obstacles, and when the test cannot be read.
+function H.in_line_of_fire(u, q, pid, range)
+  local ignores = false
+  pcall(function() ignores = u:IsRangeAttackIgnoreLOS() and true or false end)
+  local here = u.GetPlot and u:GetPlot() or nil
+  if ignores or not (here and here.CanSeePlot) then return true end
+  local ok, v = pcall(function() return here:CanSeePlot(q, Players[pid]:GetTeam(), range, -1) end)
+  if not ok then return true end
+  return v and true or false
+end
+
 function H.range_attack_targets(u, pid)
   local range = 0
   pcall(function() range = u:Range() or 0 end)
@@ -221,7 +233,6 @@ function H.range_attack_targets(u, pid)
                                .. "lists what it can attack with the combat previews" }
   end
   local team = Players[pid]:GetTeam()
-  local here = u:GetPlot()
   local function flag(name)
     local f = u[name]
     if not f then return false end
@@ -229,7 +240,6 @@ function H.range_attack_targets(u, pid)
     return (ok and v) and true or false
   end
   local must, is_set = flag("IsMustSetUpToRangedAttack"), flag("IsSetUpForRangedAttack")
-  local ignores = flag("IsRangeAttackIgnoreLOS")
   local denom = (GameDefines and GameDefines.MOVE_DENOMINATOR) or 60
   local moves = u:MovesLeft()
   local out, hidden = {}, {}
@@ -242,12 +252,7 @@ function H.range_attack_targets(u, pid)
         for k, v in pairs(info) do e[k] = v end
         e.x, e.y = q:GetX(), q:GetY()
         e.distance = math.floor(Map.PlotDistance(u:GetX(), u:GetY(), q:GetX(), q:GetY()))
-        local los = true
-        if not ignores and here and here.CanSeePlot then
-          local ok, v = pcall(function() return here:CanSeePlot(q, team, range, -1) end)
-          if ok then los = v and true or false end
-        end
-        if los then out[#out + 1] = e
+        if H.in_line_of_fire(u, q, pid, range) then out[#out + 1] = e
         else e.preview = nil; e.line_of_fire = false; hidden[#hidden + 1] = e end
       end
     end

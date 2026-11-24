@@ -452,55 +452,172 @@ function H.move_route(u, dest, pid)
   return out
 end
 
--- Who can strike the plot a unit stands on (v347): the enemy cities in sight whose strike reaches it (a city
+-- Who can strike a plot (v347, any plot since v348): the enemy cities in sight whose strike reaches it (a city
 -- fires over hills and forest) and the enemy units in sight with a ranged attack whose range covers it, by the
 -- range of their kind (Units.Range, the pedia's figure: a promotion the banner does not show is not read). Units
--- at war with me and barbarians; an embarked land unit does not fire. nil when nothing does. A move's reply
--- carries it as `in_range_of` (H.unit_pos): Artillery that ended a move inside a city's two plots was lost to it
--- with nothing said (live 2026-11-23, the duel t201).
-local THREAT_LOOK = 4
+-- at war with me and barbarians; an embarked land unit does not fire. A move's reply carries it for the plot the
+-- move ended on as `in_range_of` (H.unit_pos): Artillery that ended a move inside a city's two plots was lost to
+-- it with nothing said (live 2026-11-23, the duel t201).
+-- `reach` (v348, H.plot_threats) looks farther and also names the ranged units that stand outside their range
+-- and could be inside it after a move: the plot distance against range plus the moves of their kind
+-- (Units.Moves), an upper bound that counts no terrain, zone of control or set-up. Third value: how many plots
+-- within THREAT_LOOK are not in my sight, since a unit there is not listed.
+local THREAT_LOOK, THREAT_REACH = 4, 8
 
-function H.strike_threats(u, pid)
+local function strike_rows(px, py, pid, reach)
   local team = Players[pid]:GetTeam()
-  local ux, uy = u:GetX(), u:GetY()
   local city_range = (GameDefines and GameDefines.CITY_ATTACK_RANGE) or 2
   local air = DomainTypes and DomainTypes.DOMAIN_AIR
-  local out = {}
-  for dx = -THREAT_LOOK, THREAT_LOOK do for dy = -THREAT_LOOK, THREAT_LOOK do
-    local q = Map.PlotXYWithRangeCheck(ux, uy, dx, dy, THREAT_LOOK)
-    if q and q:IsVisible(team, false) and not (q:GetX() == ux and q:GetY() == uy) then
-      local d = math.floor(Map.PlotDistance(ux, uy, q:GetX(), q:GetY()))
-      local c = H.enemy_city_at(q, pid)
-      if c then
-        if d <= city_range then
-          out[#out + 1] = { city = c:GetName(), owner = H.owner_label(c:GetOwner(), pid), x = q:GetX(), y = q:GetY(),
-                            distance = d, range = city_range }
-        end
+  local look = reach and THREAT_REACH or THREAT_LOOK
+  local now, later, unseen, done = {}, {}, 0, {}
+  for dx = -look, look do for dy = -look, look do
+    local q = Map.PlotXYWithRangeCheck(px, py, dx, dy, look)
+    local k = q and (q:GetX() .. "," .. q:GetY())
+    if q and not done[k] and not (q:GetX() == px and q:GetY() == py) then
+      done[k] = true   -- a narrow wrapped map meets the same plot from both sides
+      local d = math.floor(Map.PlotDistance(px, py, q:GetX(), q:GetY()))
+      if not q:IsVisible(team, false) then
+        if d <= THREAT_LOOK then unseen = unseen + 1 end
       else
-        for i = 0, q:GetNumUnits() - 1 do
-          local o = q:GetUnit(i)
-          if o and o:GetOwner() ~= pid and not o:IsInvisible(team, false) and not o:IsDelayedDeath() then
-            local op = Players[o:GetOwner()]
-            local row = GameInfo.Units[o:GetUnitType()]
-            local range, ranged = row and row.Range or 0, row and row.RangedCombat or 0
-            if op and row and range > 0 and ranged > 0 and d <= range and o:GetDomainType() ~= air
-               and not (o.IsEmbarked and o:IsEmbarked())
-               and (op:IsBarbarian() or Teams[team]:IsAtWar(op:GetTeam())) then
-              out[#out + 1] = { unit = short(row.Type), owner = H.owner_label(o:GetOwner(), pid), x = q:GetX(),
-                                y = q:GetY(), distance = d, range = range, hp = o:GetCurrHitPoints() }
+        local c = H.enemy_city_at(q, pid)
+        if c then
+          if d <= city_range then
+            now[#now + 1] = { city = c:GetName(), owner = H.owner_label(c:GetOwner(), pid), x = q:GetX(), y = q:GetY(),
+                              distance = d, range = city_range }
+          end
+        else
+          for i = 0, q:GetNumUnits() - 1 do
+            local o = q:GetUnit(i)
+            if o and o:GetOwner() ~= pid and not o:IsInvisible(team, false) and not o:IsDelayedDeath() then
+              local op = Players[o:GetOwner()]
+              local row = GameInfo.Units[o:GetUnitType()]
+              local range, ranged = row and row.Range or 0, row and row.RangedCombat or 0
+              if op and row and range > 0 and ranged > 0 and o:GetDomainType() ~= air
+                 and not (o.IsEmbarked and o:IsEmbarked())
+                 and (op:IsBarbarian() or Teams[team]:IsAtWar(op:GetTeam())) then
+                local e = { unit = short(row.Type), owner = H.owner_label(o:GetOwner(), pid), x = q:GetX(),
+                            y = q:GetY(), distance = d, range = range, hp = o:GetCurrHitPoints() }
+                if d <= range then
+                  now[#now + 1] = e
+                elseif reach and d <= range + (row.Moves or 0) then
+                  e.moves = row.Moves or 0
+                  later[#later + 1] = e
+                end
+              end
             end
           end
         end
       end
     end
   end end
-  if #out == 0 then return nil end
-  table.sort(out, function(a, b)
+  local function nearest(a, b)
     if a.distance ~= b.distance then return a.distance < b.distance end
     if a.y ~= b.y then return a.y > b.y end
     return a.x < b.x
-  end)
+  end
+  table.sort(now, nearest); table.sort(later, nearest)
+  return now, later, unseen
+end
+
+function H.strike_threats(u, pid)
+  local now = strike_rows(u:GetX(), u:GetY(), pid, false)
+  if #now == 0 then return nil end
+  return now
+end
+
+-- state(what="map", view="threats", x, y) (v348): who can strike a plot, asked before the move. Opus's wish from
+-- the siege of Attila's Court: "A 'threat map' per tile: which enemy ranged units and cities can hit it next turn,
+-- for picking siege positions" -- `in_range_of` on a move's reply came after the Artillery stood there.
+function H.plot_threats(x, y, pid)
+  local team = Players[pid]:GetTeam()
+  local plot = Map.GetPlot(x, y)
+  if not plot or not plot:IsRevealed(team, false) then
+    return { ok = false, err = "plot (" .. tostring(x) .. "," .. tostring(y) .. ") is not on the map I have revealed" }
+  end
+  local now, later, unseen = strike_rows(x, y, pid, true)
+  local out = { ok = true, x = x, y = y, in_range_of = now, total = #now,
+                scope = "enemy cities and ranged enemy units in my sight (at war with me, and barbarians) whose range "
+                        .. "covers this plot from where they stand; a city fires over hills and forest, and a unit's "
+                        .. "line of fire is not tested" }
+  if #later > 0 then
+    out.could_move_into_range = later
+    out.could_move_note = "outside their range now and inside it after a move, by plot distance, range and the moves of "
+                          .. "their kind alone: terrain, zone of control and a siege unit's set-up are not counted"
+  end
+  if unseen > 0 then
+    out.not_in_sight = unseen
+    out.not_in_sight_note = unseen .. " of the plots within " .. THREAT_LOOK .. " are not in my sight: a unit standing "
+                            .. "there is not listed"
+  end
   return out
+end
+
+-- state(what="map", view="ring", x, y, radius=N) (v348): the plots at exactly N plots from (x, y), the engine's
+-- own distance, so a siege line is read and not worked out from offset coordinates (Opus, the duel t205: "A
+-- hex-distance helper, or a ring listing such as 'plots at distance N from (x,y)'. Working out offset-hex distance
+-- by hand was slow and error-prone"). One row a plot: its ground, the feature that blocks a line of fire (a fogged
+-- plot's is the remembered one), what stands on it in my sight, and `struck_by`, how many of H.plot_threats'
+-- `in_range_of` rows it has. An unrevealed plot is its coordinates and nothing else.
+local RING_FEATURES = { FOREST = true, JUNGLE = true, MARSH = true }
+
+function H.plot_ring(x, y, n, pid)
+  local team = Players[pid]:GetTeam()
+  if not Map.GetPlot(x, y) then return { ok = false, err = "no plot at (" .. tostring(x) .. "," .. tostring(y) .. ")" } end
+  local rows, done = {}, {}
+  for dx = -n, n do for dy = -n, n do
+    local q = Map.PlotXYWithRangeCheck(x, y, dx, dy, n)
+    local k = q and (q:GetX() .. "," .. q:GetY())
+    if q and not done[k] and math.floor(Map.PlotDistance(x, y, q:GetX(), q:GetY())) == n then
+      done[k] = true
+      local e = { x = q:GetX(), y = q:GetY() }
+      if not q:IsRevealed(team, false) then
+        e.unrevealed = true
+      else
+        local vis = q:IsVisible(team, false) and true or false
+        e.ground = (q:IsMountain() or q:IsImpassable()) and "mountain" or q:IsWater() and "water"
+                   or q:IsHills() and "hills" or "flat"
+        local f
+        if vis then
+          local fid = q:GetFeatureType()
+          f = fid >= 0 and short(info_type(GameInfo.Features, fid)) or nil
+        else
+          f = H.remembered_feature(q, team)
+          e.fogged = true
+        end
+        if f and RING_FEATURES[f] then e.feature = f end
+        if city_in_sight(q, team) then
+          e.city = true
+          if vis then
+            pcall(function()
+              local c = q:GetPlotCity()
+              e.city = c:GetName(); e.owner = H.owner_label(c:GetOwner(), pid)
+            end)
+          end
+        end
+        if vis then
+          for i = 0, q:GetNumUnits() - 1 do
+            local o = q:GetUnit(i)
+            if o and not o:IsInvisible(team, false) and not o:IsDelayedDeath() then
+              e.units = e.units or {}
+              local ue = { unit = short(info_type(GameInfo.Units, o:GetUnitType())), owner = H.owner_label(o:GetOwner(), pid) }
+              if o:GetOwner() == pid then ue.id = o:GetID() end
+              e.units[#e.units + 1] = ue
+            end
+          end
+        end
+        local now = strike_rows(q:GetX(), q:GetY(), pid, false)
+        if #now > 0 then e.struck_by = #now end
+      end
+      rows[#rows + 1] = e
+    end
+  end end
+  table.sort(rows, function(a, b)
+    if a.y ~= b.y then return a.y > b.y end
+    return a.x < b.x
+  end)
+  return { ok = true, x = x, y = y, distance = n, plots = rows, total = #rows,
+           note = "struck_by counts the enemy cities and ranged enemy units in my sight whose range covers the plot now: "
+                  .. "state(what='map', view='threats', x, y) names them" }
 end
 
 -- A plot's grid cell: ground letter then occupant letter (the legend is the reply reference, docs/TOOL_REPLIES.md state(what="unit", view="tactical"); GitLab #152).

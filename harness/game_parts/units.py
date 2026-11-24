@@ -455,6 +455,16 @@ class UnitsMixin:
         if not r.get("ok"):
             return r
         route = r.get("route") if isinstance(r.get("route"), dict) else None
+
+        def say_turns(cur: dict) -> None:
+            """v348: how many turns a move that did not arrive takes, as H.move_unit counted them over the map the
+            seat knows (the engine's own path cannot be read): at least one, since the unit is not there yet."""
+            if isinstance(r.get("turns"), int) and not isinstance(r.get("turns"), bool):
+                n = max(1, r["turns"])
+                cur["arrives_in_turns"] = n
+                if isinstance(r.get("turn"), int):
+                    cur["arrives_turn"] = r["turn"] + n
+
         deadline = time.monotonic() + settle_timeout
         cur = r
         while time.monotonic() < deadline:
@@ -483,6 +493,7 @@ class UnitsMixin:
                                             + ("; the unit has moves left" if (cur.get("moves") or 0) > 0 else ""))
                 if not cur["arrived"]:
                     cur["destination"] = {"x": x, "y": y}
+                    say_turns(cur)
                     if route:
                         cur["route"] = route
                     if cur.get("activity") == 6:
@@ -516,6 +527,7 @@ class UnitsMixin:
             cur["queued"] = True
             # #37: say where it is going; the next turn_status repeats it under todo.ongoing.
             cur["going_to"] = {"x": int(x), "y": int(y)}
+            say_turns(cur)
             cur["note"] = (cur.get("note") + "; " if cur.get("note") else "") + \
                 "standing move: resumes at the start of each of my turns until the unit arrives (todo.ongoing)"
             return cur

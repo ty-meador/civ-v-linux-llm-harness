@@ -123,7 +123,7 @@ def state(what: Annotated[str, _f("the object: " + ", ".join(V.VIEWS))],
             radius: Annotated[int | None, _f("map/window and map/grid: tiles around x, y; unit/tactical: tiles around the unit")] = None,
             mission: Annotated[str, _f("unit/targets: the mission whose legal targets to list")] = "",
             kind: Annotated[str, _f("options/beliefs: the belief kind; compare: what to compare")] = "",
-            detail: Annotated[str, _f("'summary' or 'full' where a view offers both")] = "",
+            detail: Annotated[str, _f("'summary' or 'full' where a view offers both; map/window: 'threats' (who can strike the plot x, y) or 'ring' (the plots at exactly `radius` from it)")] = "",
             since: Annotated[str | int | None, _f("notifications: only those after this turn number")] = "",
             limit: Annotated[int | None, _f("how many rows a list returns")] = None,
             item: Annotated[str, _f("city/production: price this one item")] = "",
@@ -144,7 +144,7 @@ state.__doc__ = (
     + "\n".join(f"  {what}: {', '.join(views)}" for what, views in V.VIEWS.items())
     + "\nSelectors, by view: x, y, radius for map/window and map/grid; radius alone for unit/tactical (centred on the "
     "unit); id for map/frontier (the explorer) and options/trade_routes (the caravan); mission for unit/targets; kind for "
-    "options/beliefs and compare; detail ('summary' / 'full') where a view has both; since and limit for lists; item "
+    "options/beliefs and compare; detail ('summary' / 'full'; map/window: 'threats', 'ring'); since and limit for lists; item "
     "and yield_type for city/production to price one item; `args` for the rest by the old call's name.\n"
     "Returns: the object as JSON (a list for units, cities, civs; one dict otherwise), with `actions` or `call` rows "
     "wherever something can be done: each row is a complete order() call to copy. A wrong `what` or `view` is refused "
