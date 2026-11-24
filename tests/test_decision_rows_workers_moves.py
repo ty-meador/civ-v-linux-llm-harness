@@ -92,7 +92,9 @@ class RemoteBuildTests(unittest.TestCase):
 
 
 class TacticalNeighbourCallsTests(unittest.TestCase):
-    def test_open_neighbours_and_an_attack_carry_the_move(self):
+    def test_an_attack_carries_its_move_and_the_open_neighbours_share_one(self):
+        """GitLab #135 gave every open neighbour its own copy of the move order; since 2026-11-23 the reply carries
+        it once (`move_call`, x and y to fill in) and only an attack keeps a call of its own."""
         g = Game.__new__(Game)
         g.seat = 0
         g._pid = lambda pid=None: 0
@@ -102,7 +104,9 @@ class TacticalNeighbourCallsTests(unittest.TestCase):
             {"dir": "SE", "x": 52, "y": 35, "move": "attack"}, {"dir": "W", "off_map": True, "move": "refused"}]}
         v = g.tactical_view(32770)
         calls = [(n["dir"], n.get("call", {}).get("args", {}).get("args")) for n in v["neighbors"]]
-        self.assertEqual(calls, [("NE", {"x": 52, "y": 37}), ("E", None), ("SE", {"x": 52, "y": 35}), ("W", None)])
+        self.assertEqual(calls, [("NE", None), ("E", None), ("SE", {"x": 52, "y": 35}), ("W", None)])
+        self.assertEqual(v["move_call"], {"tool": "order", "args": {"to": "unit", "action": "move", "id": 32770},
+                                          "choose": ["x", "y"]})
 
 
 class MoveTargetsRefusalLuaTests(unittest.TestCase):

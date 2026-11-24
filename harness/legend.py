@@ -3,8 +3,11 @@
 The legend of `state(what="unit", view="tactical")` is prose that never changes between reads, and a seat read it
 on every move check (about two thousand characters a time, four times in a Grok seat's opening turns). It lives in
 docs/TOOL_REPLIES.md as the view's reply reference, where `reference(book="playbook", section=...)` serves it. A
-server process attaches the whole text to its first tactical reply (`legend`) and a one-line `key` to every reply
-after that, with the section's name so a reader who lost the first reply can ask for it again.
+server process attaches the whole text to its first tactical reply (`legend`) and nothing after that. Until
+2026-11-23 every later reply carried a one-line `key` (300 characters, with the section's name): a Codex seat read
+the view 73 times in thirty turns and each key was sent again with every later request of its instance. The legend
+names its own section, the playbook's index lists it, and a seat loop's instance has a server of its own, so its
+first read brings the legend.
 """
 from __future__ import annotations
 
@@ -14,7 +17,7 @@ from . import guide
 TOPIC = 'state(what="unit", view="tactical")'
 
 #: The one-line key: enough to read the grid and the `move` column without the legend (a city is the cell's ground, GitLab
-#: #177; an open step's cost, GitLab #180).
+#: #177; an open step's cost, GitLab #180). It stands in for the legend where docs/ is not installed (`text`).
 KEY = ("cell = ground+occupant: M mountain ~ water H hills F forest . open C city _ unrevealed | @ this unit X hostile "
        "u yours o other ? fogged; move: attack / open (cost, left, zoc) / refused (why) / enemy; "
        "reach.plots: [x, y, left]; "
@@ -31,10 +34,8 @@ def text() -> str:
 
 
 def attach(reply: dict, seen: set[str]) -> dict:
-    """`legend` the first time a process answers a tactical read, `key` after; `seen` is the process's memory."""
-    if TOPIC in seen:
-        reply["key"] = KEY
-    else:
+    """`legend` the first time a process answers a tactical read, nothing after; `seen` is the process's memory."""
+    if TOPIC not in seen:
         seen.add(TOPIC)
         reply["legend"] = text()
     return reply

@@ -114,7 +114,8 @@ def tactical_view(unit_id: int, radius: int | None = None, detail: str = "summar
     need no hex arithmetic), each with terrain, river_crossing, owner, visible units and `move`: attack (a melee
     attack; its preview is in targets), open (move_unit would send the order), refused (move_unit would refuse it,
     `why` says why) or enemy (a visible enemy this unit cannot melee). An open step says its `cost` and the moves
-    `left` after it, and `zoc` when an enemy's zone of control ends the move there; no turns-to-reach. `targets` are the unit's melee and ranged targets with the combat previews
+    `left` after it, and `zoc` when an enemy's zone of control ends the move there; no turns-to-reach. `move_call` is
+    the move order with x and y left to fill in (any open neighbour or `reach` plot). `targets` are the unit's melee and ranged targets with the combat previews
     available_unit_actions gives. `occupants` (visible units, hostile first) and `cities` (a fogged one is
     last_seen) cover `radius` (1-5; by default as far as this unit itself sees or shoots, at least 2); `fog` counts
     visible, fogged and unrevealed plots there, and unseen_within_2 is how many plots within two cannot be seen:
@@ -122,8 +123,8 @@ def tactical_view(unit_id: int, radius: int | None = None, detail: str = "summar
     (range, on_hills, plots, reach: high ground adds a plot, hills and forest in between block); a ranged unit's
     `unit.fire_los` is the same test with its attack range, the one a ranged attack must pass (a Crossbowman on a
     hill reaches 3); occupant and city rows say in_sight / in_fire_los. `grid` is a lettered picture of the same
-    area; its `legend` comes once per server session, then a one-line `key` names the reference section that holds
-    it (how_to_play("tactical_view")); `players` names every owner id in the reply. detail="full" adds `plots` (every revealed
+    area; its `legend` comes once per server session (the reference section how_to_play("tactical_view") holds
+    it); `players` names every owner id in the reply. detail="full" adds `plots` (every revealed
     plot in radius, as map_window reads it) and the previews' modifier rows."""
     return J(core.game().tactical_view(unit_id, radius=radius, detail=detail))
 

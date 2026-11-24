@@ -266,7 +266,8 @@ How to read the tactical view's `grid`, `move`, `vis`, `sight` and `fog`:
   (last seen, may hide units; a fogged city is in `cities`), blank = seen, empty. `C@` is this unit in a city.
 - **move**: what `order(to="unit", action="move")` does with a one-step order there: `attack` = a melee attack
   (preview in `targets`); `open` = the order is sent; `refused` = the order refuses it, `why` says why; `enemy` =
-  a visible enemy you cannot melee. Every open or attack neighbour carries `call`, the move order ready to copy.
+  a visible enemy you cannot melee. An attack neighbour carries `call`, the order ready to copy; a move is the
+  reply's one `move_call` with the x and y of any open neighbour or `reach` plot filled in.
   An open step carries `cost` (moves it spends) and `left` (moves after it; with none left now, from next turn's
   full moves); `zoc` names the enemy unit or city whose zone of control ends the move there (leaving a plot next
   to an enemy for another plot next to it spends every move). A river crossed without a bridged road, embarking
@@ -289,8 +290,9 @@ How to read the tactical view's `grid`, `move`, `vis`, `sight` and `fog`:
   was sized to that reach.
 - **fog**: fogged and unrevealed plots can hold units that are not shown: a plot is never reported safe.
 
-This text rides on a server session's first tactical reply as `legend`; every reply after carries a one-line `key`
-that names this section (GitLab #152: a seat paid two thousand characters of legend on every move check).
+This text rides on a server session's first tactical reply as `legend` and on no reply after it (GitLab #152: a
+seat paid two thousand characters of legend on every move check); it is this section,
+`reference(book="playbook", section='state(what="unit", view="tactical")')`.
 
 ## state(what="compare")
 

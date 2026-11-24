@@ -153,12 +153,22 @@ class ReadsMixin:
         r = None if radius is None else int(radius)
         out = self.q(self.h('tactical_view', int(unit_id), r, detail, pid=pid))
         if isinstance(out, dict) and isinstance(out.get("neighbors"), list):
-            # GitLab #135: every open neighbour (and an attack) carries the order that steps there.
+            # GitLab #135 gave every open neighbour the order that steps there. Six copies that differ in x and y
+            # were half of each row (2026-11-23, a Codex seat: 1.2 KB of 2.8 KB a read, 73 reads in thirty turns),
+            # so the view carries the order once, to fill in (`move_call`: any open neighbour or `reach` plot), and
+            # only an attack keeps a call of its own.
             from .. import affordances as A
             from .. import legend
+            opens = False
             for n in out["neighbors"]:
-                if isinstance(n, dict) and n.get("move") in ("open", "attack") and n.get("x") is not None:
+                if not (isinstance(n, dict) and n.get("x") is not None):
+                    continue
+                if n.get("move") == "attack":
                     n["call"] = A.act("move_unit", unit_id=int(unit_id), x=n["x"], y=n["y"])
+                elif n.get("move") == "open":
+                    opens = True
+            if opens or (isinstance(out.get("reach"), dict) and out["reach"].get("plots")):
+                out["move_call"] = A.pick("move_unit", ["x", "y"], unit_id=int(unit_id))
             # A target row too: its `how` is prose, the order beside it is the call to copy (Maya t240, 2026-11-13:
             # the one list of the view without a `call`). A ranged row shoots, a melee or city row walks in.
             for t in out.get("targets") or []:
@@ -168,7 +178,7 @@ class ReadsMixin:
                                           x=t["x"], y=t["y"])
                     else:
                         t["call"] = A.act("move_unit", unit_id=int(unit_id), x=t["x"], y=t["y"])
-            # GitLab #152: the legend once per process, a one-line key after (harness/legend.py).
+            # GitLab #152: the legend once per process (harness/legend.py).
             if not hasattr(self, "_legends_said"):
                 self._legends_said: set[str] = set()
             legend.attach(out, self._legends_said)

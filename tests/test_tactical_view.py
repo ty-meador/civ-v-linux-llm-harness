@@ -527,24 +527,32 @@ class TacticalViewQueryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 g.tactical_view(12, **bad)
 
-    def test_the_legend_is_said_once_per_process_then_a_key(self):
+    def test_the_legend_is_said_once_per_process_and_the_move_order_once_per_reply(self):
         """GitLab #152: the legend rode on every tactical read (about 2 KB a time); it is the reply reference, sent
-        once, and a one-line `key` after that names the section that holds it."""
+        once. 2026-11-23 (a Codex seat, 73 reads in thirty turns at 2.8 KB): the one-line `key` of every later reply
+        and the six copies of the move order in the neighbour rows went too; the reply names the order once."""
         from harness import legend
         g = Game.__new__(Game)
         g.seat = 0
-        g.q = lambda code, timeout=None: {"ok": True, "neighbors": [{"dir": "E", "x": 3, "y": 2, "move": "open"}]}
+        g.q = lambda code, timeout=None: {"ok": True, "neighbors": [{"dir": "E", "x": 3, "y": 2, "move": "open"},
+                                                                    {"dir": "W", "x": 1, "y": 2, "move": "attack"},
+                                                                    {"dir": "NE", "x": 2, "y": 3, "move": "refused"}]}
         first = g.tactical_view(12)
         self.assertIn("odd rows sit half a cell to the right", first["legend"], "the first reply carries the whole legend")
         self.assertIn("never reported safe", first["legend"])
         self.assertNotIn("key", first)
         self.assertFalse(first["legend"].startswith("##"), "the heading is not part of the legend")
+        self.assertIn(legend.TOPIC, first["legend"], "the legend names its own section")
         second = g.tactical_view(12, radius=3)
         self.assertNotIn("legend", second)
-        self.assertEqual(second["key"], legend.KEY)
-        self.assertIn(legend.TOPIC, second["key"], "the key names the reference section")
-        self.assertLess(len(legend.KEY), 320)
-        self.assertEqual(second["neighbors"][0]["call"], {"tool": "order", "args": {"to": "unit", "action": "move", "id": 12, "args": {"x": 3, "y": 2}}})
+        self.assertNotIn("key", second, "nothing of it rides on a later reply")
+        self.assertEqual(second["move_call"], {"tool": "order", "args": {"to": "unit", "action": "move", "id": 12}, "choose": ["x", "y"]})
+        self.assertNotIn("call", second["neighbors"][0], "an open step is the reply's move_call with its x and y")
+        self.assertEqual(second["neighbors"][1]["call"], {"tool": "order", "args": {"to": "unit", "action": "move", "id": 12, "args": {"x": 1, "y": 2}}})
+        self.assertNotIn("call", second["neighbors"][2])
+        g.q = lambda code, timeout=None: {"ok": True, "neighbors": [{"dir": "E", "x": 3, "y": 2, "move": "refused"}], "reach": {"none": True}}
+        self.assertNotIn("move_call", g.tactical_view(12), "nowhere to go: no order to fill in")
+        g.q = lambda code, timeout=None: {"ok": True, "neighbors": [{"dir": "E", "x": 3, "y": 2, "move": "open"}]}
         other = Game.__new__(Game)
         other.seat = 1
         other.q = g.q

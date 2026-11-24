@@ -16,6 +16,19 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The tactical view says its move order once and its key not at all, and the server's instructions ask for the
+  look before an attack, not before every move (2026-11-23; no runtime change).** From the first thirty turns of
+  Codex `gpt-6-astra` at high effort on the duel (stopped by hand at turn 31, the subscription's limit met): 212
+  calls, of which 73 were `state(what='unit', view='tactical')` for 32 moves, a third of everything the game sent,
+  each reply carried again by every later request of its instance (1.7 to 2.3 million input tokens for ten turns
+  against 37 to 79 thousand tokens of replies). The server's instructions had said "Before moving or attacking:
+  state(what="unit", id, view="tactical")" and the seat did so for every step of a Scout in open land: they now
+  say "Attacking, or moving beside an enemy: ... first". In the reply, the one-line `key` of every read after a
+  process's first is gone (the legend still rides on the first, and names its section), and the six neighbour
+  rows no longer each carry the whole move order: the reply has one `move_call` with x and y to fill in (any open
+  neighbour or `reach` plot), and only an attack neighbour keeps a `call`. The 70 logged reads after an
+  instance's first: 2,673 bytes each then, 1,997 as they would read now. Two tests rewritten.
+
 - **A move that would embark a land unit is said before it is made, and four refusals say what is in the way
   (2026-11-23; runtime v347).** All from Opus 5.5's reports of the duel against the Huns (turns 188 to 218,
   `duel-king-rome-huns-a`), each seen again live on that game's save of turn 210.

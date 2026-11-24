@@ -75,6 +75,9 @@ def _may_change_seat() -> bool:
 def _gate(ts: dict | None, seat) -> dict | None:
     return compute_gate(ts, seat, may_change_seat=_may_change_seat())
 mcp = FastMCP("civ5", instructions=(
+    # The look before a move is asked for an attack and a move beside an enemy only: "Before moving or attacking"
+    # was followed to the letter by a Codex seat (2026-11-23: 73 tactical reads for 32 moves in thirty turns of
+    # open land, a third of everything the game sent it).
     # Under 2000 characters on purpose: Claude Code shows the model only that much of a server's instructions
     # (measured 2026-09-27; the old 5000-character text lost everything after `compare`). The vital loop first;
     # the rest is reference(book="playbook", section=<topic>), a tool, so it survives any client's cut.
@@ -88,8 +91,8 @@ mcp = FastMCP("civ5", instructions=(
     "state(what=\"units\", view=\"actions\"), state(what=\"city\", id, view=\"production\"), "
     "state(what=\"options\", view=\"research\") -- every reply listing what can be done hands back `actions` / "
     "`call` rows, complete order() calls to copy -> notebook(action=\"remember\") what future-you must know, "
-    "notebook(action=\"assign\") what a unit or city is for -> turn(action=\"finish\"). Before moving or "
-    "attacking: state(what=\"unit\", id, view=\"tactical\"). Many orders at once: batch(actions=[{tool, args}]); "
+    "notebook(action=\"assign\") what a unit or city is for -> turn(action=\"finish\"). Attacking, or moving "
+    "beside an enemy: state(what=\"unit\", id, view=\"tactical\") first. Many orders at once: batch(actions=[{tool, args}]); "
     "the orders that close a turn go in "
     "turn(action=\"finish\", actions=[...]). A retry with the same action_id replays. A refusal never crashes "
     "anything: err says why, the shape, an example. What things DO: "
