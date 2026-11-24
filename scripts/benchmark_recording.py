@@ -532,12 +532,14 @@ def check(path: Path, starts: Path = KEPT) -> tuple[dict, dict | None, dict[str,
 
 
 def check_in_game(g, manifest: dict, row: dict, game: bytes, saves: Path, leave=None,
-                  turns: bytes | None = None) -> list[tuple[str, str]]:
+                  turns: bytes | None = None, hand_back=None) -> list[tuple[str, str]]:
     """The saved game loaded and read the way the runner reads a game, set beside the row and, with the run's game
     file (`turns`), beside that file's last line. The game is left for the main menu and the copy of the save
-    removed, whatever was found."""
+    removed, whatever was found. A save the engine was playing when it was taken (the built-in AI's) is read at
+    once and left only when the engine has handed the seat back: left a moment earlier, the game process died
+    (benchmark_run.wait_for_the_seat)."""
     run = runner()
-    leave = leave or run.leave
+    leave, hand_back = leave or run.leave, hand_back or run.wait_for_the_seat
     of = manifest.get("saved_game") or {}
     name = f"recording-check-{sha256(game)[:12]}"
     file = saves / f"{name}.Civ5Save"
@@ -547,11 +549,17 @@ def check_in_game(g, manifest: dict, row: dict, game: bytes, saves: Path, leave=
         loaded = g.load_save(name)
         if not (isinstance(loaded, dict) and loaded.get("ok")):
             return [(DIFFERS, f"the saved game did not load: {(loaded or {}).get('err') if isinstance(loaded, dict) else loaded}")]
+        seen = None
         try:
             seen = g.q(run.READ)
             out = [(OK, f"the saved game loads: turn {seen['turn']}")]
             return out + beside_the_row(seen, manifest, row, of) + beside_the_game_file(seen, of, turns)
         finally:
+            if isinstance(seen, dict) and seen.get("auto"):
+                try:
+                    hand_back(g, row.get("seat") if isinstance(row.get("seat"), int) else 0)
+                except Exception:       # the exit is tried whatever the wait came to
+                    pass
             leave(g)
     finally:
         file.unlink(missing_ok=True)
@@ -661,6 +669,7 @@ def check_command(a) -> int:
     status, g = 0, None
     for path in a.files:
         print(path)
+        gone = None
         try:
             manifest, row, members, found = check(path, a.starts)
             if a.load and row is not None and members.get(GAME, b"").startswith(SAVE_MAGIC):
@@ -675,9 +684,20 @@ def check_command(a) -> int:
                     raise Refused("a game is loaded: leave it for the main menu first (session main_menu); the saved game was not loaded")
                 try:
                     found += check_in_game(g, manifest, row, members[GAME], a.saves or run.saves_dir(), turns=members.get(TURNS))
-                    run.wait_main_menu(g)
                 except run.Refused as e:
                     raise Refused(str(e)) from None
+                except Exception as e:      # the game or tunerd stopped answering under the check
+                    for state, what in found:
+                        print(f"  {state + ':':13}{what}")
+                    g = None
+                    raise Refused(f"the game stopped answering ({type(e).__name__}: {str(e)[:160]}); what is above was "
+                                  f"found before that, and the saved game's check is not finished") from None
+                try:
+                    run.wait_main_menu(g)
+                except Exception as e:      # the check is whole; the game is not where the next file needs it
+                    gone = (f"the game did not come back to the main menu after the saved game was read "
+                            f"({type(e).__name__}: {str(e)[:160]}): look at it before anything else is loaded")
+                    g = None
         except Refused as e:
             print(f"  refused: {e}", file=sys.stderr)
             status = 2
@@ -688,6 +708,9 @@ def check_command(a) -> int:
         print(f"  => {'nothing differs' if not differs else f'{differs} differ'}"
               + ("" if a.load else "; the saved game was not loaded (--load)"))
         status = max(status, 1 if differs else 0)
+        if gone:
+            print(f"  refused: {gone}", file=sys.stderr)
+            status = 2
     return status
 
 

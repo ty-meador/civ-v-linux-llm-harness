@@ -431,7 +431,8 @@ class InTheGame(Files):
         manifest = self.pack(row)[1]
         g = FakeGame(seen, loaded)
         g.saves = self.saves
-        found = rec.check_in_game(g, manifest, row, SAVE, self.saves, leave=lambda g: g.did.append("leave"), turns=turns)
+        found = rec.check_in_game(g, manifest, row, SAVE, self.saves, leave=lambda g: g.did.append("leave"), turns=turns,
+                                  hand_back=lambda g, seat: g.did.append(f"wait for seat {seat}"))
         return g, found
 
     def test_the_save_is_loaded_read_and_left_and_its_copy_removed(self):
@@ -442,6 +443,15 @@ class InTheGame(Files):
         self.assertFalse((self.saves / f"{name}.Civ5Save").exists())
         self.assertEqual([state for state, _ in found], [rec.OK, rec.OK, rec.OK])
         self.assertEqual(found[-1][1], "the game reads as the row says: turn 10, the seat's 10 indicators (score 150), 2 players' scores")
+
+    def test_a_save_the_engine_was_playing_is_left_only_when_the_seat_is_handed_back(self):
+        """Live 2026-11-23: a duel's saves taken under the engine, loaded, read and left at once, killed the game
+        process three times of three; left after the engine's one turn, never."""
+        seen = game_read()
+        seen["auto"] = 1
+        g, found = self.beside(seen)
+        self.assertEqual(g.did[1:], ["read", "wait for seat 0", "leave"])
+        self.assertEqual([state for state, _ in found], [rec.OK, rec.OK, rec.OK])
 
     def test_the_loaded_game_is_set_beside_the_game_files_last_line_every_player(self):
         turns = a_game_file(self.dir / "g.jsonl").read_bytes()

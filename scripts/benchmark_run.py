@@ -251,6 +251,29 @@ def leave(g, settle: float = 15.0, clock=time.monotonic, sleep=time.sleep) -> No
         pass
 
 
+def wait_for_the_seat(g, seat: int, wait: float = 180.0, poll: float = 0.5, settle: float = 2.0,
+                      sleep=time.sleep, clock=time.monotonic) -> dict | None:
+    """Wait until the engine has handed the seat back, for whoever loads a save only to read it and leave.
+
+    A save taken while the engine played the seat (a save on the way of the built-in AI's run, the save of its
+    game's end) loads with one turn of the engine's still to play: the observer is the active player, the count
+    reads 1, and about a turn later the seat is its player's again. A game left at that moment took the whole
+    game process with it: three times of three on a duel whose turn takes two seconds, where a load, a read and
+    the exit come to about that (live 2026-11-23, `benchmark_recording.py check --load`). The same saves loaded
+    and left alone until the count was 0, then left, three times of three: nothing. The runner's own exit while
+    the engine plays on a long count is another case and has never done this. Says the last look, or None when
+    the engine was not playing."""
+    look, deadline = None, clock() + wait
+    while clock() < deadline:
+        look = g.q(POLL % {"seat": seat})
+        if look.get("auto", 0) == 0 or look.get("winner", -1) >= 0 and look.get("active") == seat:
+            break
+        sleep(poll)
+    if look is not None:
+        sleep(settle)
+    return look
+
+
 class Refused(Exception):
     """The starting save cannot be run as asked; nothing was changed in the game."""
 

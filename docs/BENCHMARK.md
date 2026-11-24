@@ -155,7 +155,14 @@ rows. A game file that cannot begin or end costs the run nothing: the row says w
   every one the runner reads, and the same replay lines.
 - **It is cheap there.** A capture took 3 ms on those turns and 4 ms on a turn-140 save of the same map (73
   units, 12 cities); a line is 9 to 11 KB early and 23 KB on turn 140; the first line, with the map, 7.5 KB. No
-  name of the game's API the capture asks for was missing. **Not measured: a larger map.** The duel is 40 by 24.
+  name of the game's API the capture asks for was missing. Putting a 10 KB world into text inside the game
+  takes 0.6 ms more.
+- **A whole game on a Small map** (`small-king-poland-a`, 66 by 42, six civilizations, the built-in AI, seed 1,
+  a Cultural victory on turn 255): 258 lines, every turn, none missed, 18 MB; the largest line 108 KB (329
+  units, 41 cities); a capture 13 ms on average and 22 ms at most; the game took 7.1 s a turn against 6.7 s for
+  the same save's seed 0 without the handler, another game. Packed with its 25 saves on the way, 28.8 MB.
+- **A whole game on the duel** (the built-in AI, seed 0, lost to the Huns' Domination on turn 305): 308 lines,
+  7 MB, 25 MB packed with 30 saves on the way.
 - **The start and the end are the row's.** The seat's ten indicators on the `start` line and on the `end` line,
   and every player's score on the `end` line, are what the runner read.
 - **Packed and checked.** 763 KB with the one save; packed twice, the same bytes; `check` and `check --load`
@@ -165,8 +172,19 @@ rows. A game file that cannot begin or end costs the run nothing: the row says w
   `FileNotFoundError`: it loaded the runner from beside itself.)
 - **On the page.** `python -m harness.spectator --replay <the packed file>` draws it in a browser: the map, the
   cities and units turn by turn, the turns ticked on the scrubber, no error in the console.
-- **Not seen yet: a model's run with a game file**, and **a game loaded again inside a run** (the rule above is
-  held by tests, not by a game that died).
+- **A game loaded again under one recorder** (the page's `--games` way, on the duel): five turns played, the
+  game left, the same save loaded and three turns played. The file as written: the game, start 0, turns 1 to 5,
+  start 0, turns 1 to 3, the end; as it stands: the second play's turns; numbering and chain whole.
+- **Not seen yet: a model's run with a game file**, and a game that died inside a benchmark run.
+
+**A save taken under the engine has to be left with care** (found the same night by `check --load`). A save on
+the way of the built-in AI's run, or the save of its game's end, loads with one turn of the engine's still to
+play: the observer is active, the count reads 1, and about a turn later the seat is its player's again. A game
+left at that moment took the whole game process with it, three times of three on the duel, where a turn takes two
+seconds and a load, a read and the exit come to about that. The same saves left once the count read 0: nothing,
+three of three. `check --load` now reads at once and waits for the hand-back before it leaves
+(`benchmark_run.wait_for_the_seat`). A player's own saves are taken on the seat's turn and load with no engine
+turn to play.
 
 **Earlier the same day**, with the first build of `check`, on four runs of the duel (780 KB with the one save,
 3.3 MB with Opus's three saves on the way, 20 MB with Sonnet's twenty-four; all four are packed again in the

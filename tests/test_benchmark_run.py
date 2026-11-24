@@ -234,6 +234,32 @@ class Runs(unittest.TestCase):
         self.assertEqual(g.left, 1)
 
 
+class TheSeatHandedBack(unittest.TestCase):
+    """benchmark_run.wait_for_the_seat: a save taken under the engine loads with one engine turn to play."""
+
+    class Game:
+        def __init__(self, looks):
+            self.looks, self.asked = list(looks), 0
+
+        def q(self, _code):
+            self.asked += 1
+            return self.looks.pop(0) if len(self.looks) > 1 else self.looks[0]
+
+    def test_it_waits_until_the_count_is_0_and_a_moment_more(self):
+        slept = []
+        g = self.Game([{"auto": 1, "winner": -1, "active": 2}, {"auto": 1, "winner": -1, "active": 2}, {"auto": 0, "winner": -1, "active": 0}])
+        look = benchmark_run.wait_for_the_seat(g, 0, poll=0.5, settle=2.0, sleep=slept.append, clock=lambda: 0.0)
+        self.assertEqual((look["auto"], g.asked, slept), (0, 3, [0.5, 0.5, 2.0]))
+
+    def test_an_engine_that_never_hands_back_is_waited_for_no_longer_than_asked(self):
+        now = [0.0]
+        def sleep(s):
+            now[0] += s
+        g = self.Game([{"auto": 5, "winner": -1, "active": 2}])
+        look = benchmark_run.wait_for_the_seat(g, 0, wait=3.0, poll=1.0, settle=2.0, sleep=sleep, clock=lambda: now[0])
+        self.assertEqual((look["auto"], g.asked, now[0]), (5, 3, 5.0))
+
+
 class TheRunsOwnMaking(unittest.TestCase):
     """What a row says of how it was made, for its recording: read before the run, written into every row."""
 

@@ -42,7 +42,14 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   3 ms; the packed file checks here, in the game, and on a second machine with the one script; the page draws it
   in a browser. Earlier that day, three saved games read as their rows say and the save of a game won by taking
   a city that turn reads one figure differently after a load (happiness 23 in the row, 9 in the game), which the
-  check says. Not seen: a model's run with a game file, a larger map's capture. Sixty-one tests (2659).
+  check says. Then two whole games of the built-in AI: 255 turns on a Small map (258 lines, none missed, 18 MB,
+  13 ms a capture, 108 KB the largest line) and 305 on the duel, each line's figures of the seat equal to the
+  saved game's own per-turn tables. Not seen: a model's run with a game file.
+- **`check --load` no longer kills the game on a save taken under the engine.** A save on the way of the built-in
+  AI's run, or of its game's end, loads with one engine turn to play; the game left just as that turn ended took
+  the game process with it (three of three on the duel). The check now waits for the seat to be handed back
+  before it leaves (`benchmark_run.wait_for_the_seat`), and a game that stops answering under it is said with
+  what was found, not as a traceback. Sixty-four tests (2662).
 
 ## 2.19.0 -- The military situation on every status, and the tools of a siege (2026-11-23)
 
