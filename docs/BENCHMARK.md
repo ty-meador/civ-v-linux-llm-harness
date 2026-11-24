@@ -106,8 +106,10 @@ it took about once a second and appends a line a turn. So a turn the engine play
 looks, is in the file like any other; a reader that only polled would have passed it over. The game holds the last
 24 worlds for a reader that is behind; a line whose predecessors fell out says how many (`missed`). The handler
 only reads. The moment is the one the game calls the turn's start for its first player, the seat on every
-starting save so far: with the engine on the seat, the line of turn 1 already counts the seat's income of that
-turn (gold 0 on the `start` line, 3 on the first `turn` line).
+starting save so far: the seat's turn has begun, its income of the new turn counted, and no one else's has. It
+is the moment the game notes the seat's row of its own end-of-game graphs, so the seat's figures in the line of
+turn T are that row of turn T exactly; another civilization's row in the same line has its moves of turn T - 1
+and not yet what the start of its own turn T brings.
 
 **What a world line holds**, fog ignored (it is the operator's file; no seat reads it):
 
@@ -175,6 +177,14 @@ rows. A game file that cannot begin or end costs the run nothing: the row says w
 - **A game loaded again under one recorder** (the page's `--games` way, on the duel): five turns played, the
   game left, the same save loaded and three turns played. The file as written: the game, start 0, turns 1 to 5,
   start 0, turns 1 to 3, the end; as it stands: the second play's turns; numbering and chain whole.
+- **A player on the seat** (the scripted loop, `scripts/play_loop.py` as a run's command, the duel, seed 0): 98
+  lines for the 95 turns it played before it stopped on a blocker of its own, every turn, the seat a person's on
+  every line, a capture 4 ms at most. Set beside the nine saves the run kept on the way, the seat's figures are
+  the saved game's own tables on every turn, all thirteen tables. The same held with the engine on the seat over
+  the two whole games above (ten tables on every turn of 305, the other three on all but one or two).
+- **A run that does not finish has no recording**, by the rule above, and so its game file is packed nowhere:
+  that run's file and its nine saves lie beside its row. Whether such a run should pack, and with which save, is
+  not decided.
 - **Not seen yet: a model's run with a game file**, and a game that died inside a benchmark run.
 
 **A save taken under the engine has to be left with care** (found the same night by `check --load`). A save on
