@@ -503,7 +503,12 @@ def check_game_file(manifest: dict, row: dict, members: dict[str, bytes]) -> lis
                                  f"(the game went on between the two reads): the two are not set beside each other"))
         else:
             me = seat_of(last["world"], seat) or {}
-            differs = [f"the seat's {k}: row {end['values'].get(k)}, game file {v}" for k, v in figures(me).items() if end["values"].get(k) != v]
+            # A destroyed seat's line in the game file is its seat, `alive` and its score, and no figures, and the
+            # row still has what the game counts for it (technologies, policies, gold, happiness): the two are set
+            # beside each other by `alive` and the score, below, as every player is (live 2026-11-24, the built-in
+            # AI on small-king-venice-a, destroyed on turn 133: nine "differs" of a recording that was whole).
+            differs = [] if me.get("alive") is False else [
+                f"the seat's {k}: row {end['values'].get(k)}, game file {v}" for k, v in figures(me).items() if end["values"].get(k) != v]
             for p in row.get("players") or []:
                 q = seat_of(last["world"], p.get("id")) or {}
                 if (p.get("alive"), p.get("score")) != (q.get("alive"), q.get("score")):

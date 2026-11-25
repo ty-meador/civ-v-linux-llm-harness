@@ -16,6 +16,16 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **`check` of a recording whose seat was destroyed** (`scripts/benchmark_recording.py`). A dead civilization's
+  line in the game file holds `alive` and its score and no figures, and the row keeps what the game still counts
+  for the seat, so the file's check said nine figures differ of a recording that was whole (live 2026-11-24, the
+  built-in AI on `small-king-venice-a`, destroyed on turn 133). A destroyed seat is now set beside its last line
+  by `alive` and the score, as `check --load` already did for any dead civilization. One test. Still open: the
+  saved game of such a run is of an earlier moment of the same turn than its row (`check --load`: Morocco's gold
+  489 in the save, 528 in the row's read): the engine plays on between the save and the read.
+- **The save of a run that does not finish, seen live** (2026-11-24): the scripted loop under `--timeout 120`
+  stopped after 16 turns, was saved where it stopped, packed, and `check --load` found nothing that differs.
+
 - **A run that does not finish packs** (`scripts/benchmark_run.py`, `scripts/benchmark_recording.py`, decided
   2026-11-24). Its row and its game file were written like any other run's, but the runner saved the game only
   when all the turns were played, and a recording needs a saved game, so `pack` refused it. With `--keep-end` a

@@ -341,6 +341,19 @@ class Check(Files):
         self.assertEqual(self.differs(self.with_game_file([("start", 0, world(0, score=5)), *turns, ("end", 10, world(10))])[0]),
                          ["game.jsonl: the seat at the run's start, score: row 4, game file 5"])
 
+    def test_a_destroyed_seat_is_set_beside_its_last_line_by_alive_and_score(self):
+        # the game file's line of a dead civilization has no figures; the row keeps what the game still counts for it
+        dead = game_read(alive=False, score=0, cities=0)
+        row = {"end_reason": "seat_dead", "end": run.seat_view(dead, 0),
+               "players": [{k: p[k] for k in ("id", "civ", "alive", "score")} for p in dead["players"]]}
+        end = world(10)
+        end["players"][0] = {"id": 0, "alive": False, "human": True, "team": 0, "score": 0}
+        worlds = [("start", 0, world(0, score=4)), *(("turn", t, world(t)) for t in range(1, 11))]
+        self.assertEqual(self.differs(self.with_game_file([*worlds, ("end", 10, end)], **row)[0]), [])
+        end["players"][0]["score"] = 7
+        self.assertEqual(self.differs(self.with_game_file([*worlds, ("end", 10, end)], **row)[0]),
+                         ["game.jsonl: at the run's end, player 0: row alive False score 0, game file alive False score 7"])
+
     def test_a_turn_with_no_line_and_a_file_that_does_not_end_where_the_run_did_are_said(self):
         start, end = ("start", 0, world(0, score=4)), ("end", 10, world(10))
         turns = [("turn", t, world(t)) for t in range(1, 11)]
