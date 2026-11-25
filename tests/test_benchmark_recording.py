@@ -216,6 +216,16 @@ class Pack(Files):
         with self.assertRaisesRegex(rec.Refused, "save on the way 'start-a--codex-x-seed0-t010' is not in"):
             self.pack(checkpoints=kept)
 
+    def test_a_run_that_did_not_finish_packs_with_the_save_of_where_it_stopped(self):
+        """The user, 2026-11-24: its row and its game file are written like any other run's."""
+        for reason in ("turns_not_played", "timeout"):
+            row = a_row(end_reason=reason, turns_played=4, result="did_not_finish")
+            path, manifest = self.pack(row)
+            self.assertEqual(manifest["saved_game"], {"name": "start-a--codex-x-seed0-end", "of": rec.STOPPED, "turn": 10})
+            said = self.check(path)
+            self.assertEqual([what for state, what in said if state == rec.DIFFERS], [])
+            self.assertTrue(any(f"{reason} after 4 turns" in what for _state, what in said))
+
     def test_a_run_with_no_saved_game_has_no_recording(self):
         row = a_row(end_reason="turns_not_played")
         del row["end_save"]

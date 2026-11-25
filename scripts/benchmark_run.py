@@ -582,8 +582,10 @@ def tokens_of(command: list[str]) -> dict | None:
 
 
 def keep_end(g, row: dict, name: str | None, save_game, sleep, clock) -> None:
-    """The position the played turns ended on, saved for the AI finishes (rule 1)."""
-    if not name or row.get("end_reason") != "all_turns_played":
+    """The position the played turns ended on, saved for the AI finishes (rule 1) and for the run's recording. A run
+    that did not finish (its turns not all played, or its time up) is saved where it stopped: its row and its game
+    file are written like any other run's, and with a saved game it packs."""
+    if not name or row.get("end_reason") not in ("all_turns_played", *NOT_FINISHED):
         return
     try:
         row["end_save"] = save_game(g, name, sleep=sleep, clock=clock)
@@ -1434,7 +1436,8 @@ def main(argv: list[str] | None = None) -> int:
             if a.ai_finishes:
                 row["ai_finishes"] = []
                 partial = a.out.with_name(a.out.name + ".partial")
-                for m in range(a.first_ai_finish, a.first_ai_finish + a.ai_finishes) if row.get("end_save") else ():
+                finished = row.get("end_save") and row.get("end_reason") not in NOT_FINISHED   # none from where a run stopped
+                for m in range(a.first_ai_finish, a.first_ai_finish + a.ai_finishes) if finished else ():
                     wait_main_menu(g)
                     c = ai_finish(g, row["end_save"], m, seat=a.seat, stall=a.stall, say=say, row=a.row or "own",
                                   time_victory=a.time or "on", stop_turn=a.last_turn, path_every=a.path)

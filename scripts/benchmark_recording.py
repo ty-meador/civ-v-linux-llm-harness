@@ -115,6 +115,8 @@ KEPT = ROOT / "saves" / "benchmark"
 SAVE_MAGIC = b"CIV5"                # the first bytes of every save this build writes
 MEMBER_LIMIT = 1 << 30              # no file of a recording is read past this size: a zip names its own sizes
 END, GAME_OVER = "the end of the turns", "the game's end"
+STOPPED = "where the run stopped"   # a run that did not finish: its turns were not all played, or its time was up
+NOT_FINISHED = ("turns_not_played", "timeout")
 OK, DIFFERS, UNKNOWN = "ok", "differs", "not checked"
 
 
@@ -176,7 +178,9 @@ def saved_game_of(row: dict, saves: Path) -> tuple[bytes, dict]:
         file = saves / f"{name}.Civ5Save"
         if not file.is_file():
             raise Refused(f"the row's saved game {name!r} is not in {saves}")
-        info = {"name": name, "of": of, "turn": (row.get("end") or {}).get("turn") if of == END else row.get("game_over_save_turn")}
+        if of == END and row.get("end_reason") in NOT_FINISHED:
+            of = STOPPED
+        info = {"name": name, "of": of, "turn": (row.get("end") or {}).get("turn") if of != GAME_OVER else row.get("game_over_save_turn")}
         if row.get("game_over_save_from"):
             info["from"] = row["game_over_save_from"]
         return file.read_bytes(), info

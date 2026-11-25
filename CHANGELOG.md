@@ -16,6 +16,12 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A run that does not finish packs** (`scripts/benchmark_run.py`, `scripts/benchmark_recording.py`, decided
+  2026-11-24). Its row and its game file were written like any other run's, but the runner saved the game only
+  when all the turns were played, and a recording needs a saved game, so `pack` refused it. With `--keep-end` a
+  run that ends as `turns_not_played` or `timeout` is now saved where it stopped; the file says its saved game is
+  of "where the run stopped". No AI finish is played from such a save. A run with no saved game (the game no
+  longer answered) still has no recording. Three tests. Not seen live.
 - **Every run of a starting save starts on the same random numbers** (`scripts/benchmark_run.py`, decided
   2026-11-24). `--skip none` is the default: each run of a save is given the same game, so what differs between
   a model's runs comes of the model's own play. `--skip seed`, the default until now, still makes a player's nth

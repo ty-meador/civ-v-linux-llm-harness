@@ -791,6 +791,20 @@ class EndSave(unittest.TestCase):
             self.assertIn(why, row["end_save_error"])
             self.assertEqual(g.left, 1)
 
+    def test_a_run_that_did_not_finish_is_saved_where_it_stopped(self):
+        """The user, 2026-11-24: such a run packs. A recording needs a saved game, so the runner takes one."""
+        clock = Clock()
+        for reason in benchmark_run.NOT_FINISHED:
+            g, row = self.game(), {"end_reason": reason}
+            benchmark_run.keep_end(g, row, "kept", benchmark_run.save_as, clock.sleep, clock)
+            self.assertEqual(row["end_save"], "kept")
+            self.assertTrue((self.dir / "kept.Civ5Save").read_text().startswith("save "))
+        for reason in ("seat_dead", "game_won", "stalled", "not_handed_over"):
+            g, row = self.game(), {"end_reason": reason}
+            benchmark_run.keep_end(g, row, "kept", benchmark_run.save_as, clock.sleep, clock)
+            self.assertNotIn("end_save", row)
+            self.assertNotIn("quick_save", g.sent)
+
     def test_turns_that_were_not_all_played_are_not_saved(self):
         g = FakeGame([read(), read(turn=246, winner=1, players=[player(0, human=True, alive=False), player(1)])],
                      polls=[poll(246, 6, winner=1, alive=False)])
@@ -900,12 +914,12 @@ class NewGamesOfOneSave(unittest.TestCase):
 class KeepEnd(unittest.TestCase):
     """A run with no AI finish asked can still keep the position its turns ended on."""
 
-    def asked(self, *more):
+    def asked(self, *more, reason="all_turns_played"):
         seen = {}
 
         def fake(_g, save, turns, **kw):
             seen.update(end_save=kw.get("end_save"))
-            return {"player": "built-in-ai", "save": save, "end_reason": "all_turns_played", "turns_played": turns,
+            return {"player": "built-in-ai", "save": save, "end_reason": reason, "turns_played": turns,
                     "seconds": 1.0, "end_save": kw.get("end_save")}
 
         game = mock.Mock()
@@ -927,6 +941,12 @@ class KeepEnd(unittest.TestCase):
 
     def test_without_it_a_run_with_no_ai_finish_saves_nothing(self):
         self.assertIsNone(self.asked()[0])
+
+    def test_no_ai_finish_is_played_from_where_a_run_stopped(self):
+        """The save of a run that did not finish is for its recording: the run has no value to be finished for."""
+        for reason in benchmark_run.NOT_FINISHED:
+            name, row = self.asked("--ai-finishes", "2", reason=reason)
+            self.assertEqual((name, row["ai_finishes"]), ("a--built-in-ai-seed0-end", []))
 
 
 class RunsOfOneSave(unittest.TestCase):

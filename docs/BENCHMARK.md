@@ -68,12 +68,15 @@ thought.
 | `recording.json` | the player, the seed, the starting save's id and sha256, the harness, the Lua runtime and the game build the run was played on, how the calls were chosen, what the saved game is of, whether the game file is in, and the size and sha256 of every other file |
 | `row.json` | the run's row, whole |
 | `calls.jsonl` | the seat's rows of the call ledger between the command's start and its end, as written |
-| `game.Civ5Save` | the saved game: the end of the turns (`--keep-end`), or where the game ended inside them |
+| `game.Civ5Save` | the saved game: the end of the turns (`--keep-end`), where the game ended inside them, or where a run that did not finish stopped |
 | `game.jsonl` | the run's game file: the whole world at the start of every turn, one JSON line a turn (below) |
 | `on-the-way/t<turn>.Civ5Save` | the run's saves on the way, one for each the row lists (`--checkpoint N`) |
 
-The same run packs to the same bytes every time, so a file's own hash names it. A run that kept no saved game (it
-did not play its turns) has no recording and `pack` says so. The row is packed whole, the player's command line
+The same run packs to the same bytes every time, so a file's own hash names it. A run that did not finish (its
+turns were not all played, or its time was up) packs like any other: with `--keep-end` the runner saves the game
+where the run stopped, the file says the saved game is of "where the run stopped", and the row says how the run
+ended. A run that kept no saved game (played without `--keep-end`, or the game no longer answered) has no
+recording and `pack` says so. The row is packed whole, the player's command line
 included: read it before a file goes to someone else. Nothing in a file says what of it is scored.
 
 A row keeps what a pack needs: `began` and `ended` (the command's start and end, so the run's calls are the
@@ -195,9 +198,9 @@ rows. A game file that cannot begin or end costs the run nothing: the row says w
   every line, a capture 4 ms at most. Set beside the nine saves the run kept on the way, the seat's figures are
   the saved game's own tables on every turn, all thirteen tables. The same held with the engine on the seat over
   the two whole games above (ten tables on every turn of 305, the other three on all but one or two).
-- **A run that does not finish has no recording**, by the rule above, and so its game file is packed nowhere:
-  that run's file and its nine saves lie beside its row. Whether such a run should pack, and with which save, is
-  not decided.
+- **That run did not finish and has no recording**: the runner saved a game only at the end of all its turns
+  then, so that run's file and its nine saves lie beside its row. Since 2026-11-24 a run that does not finish is
+  saved where it stopped and packs (the rule above); not yet seen live.
 - **Not seen yet: a model's run with a game file**, and a game that died inside a benchmark run.
 
 **A save taken under the engine has to be left with care** (found the same night by `check --load`). A save on
