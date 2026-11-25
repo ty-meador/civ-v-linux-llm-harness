@@ -202,6 +202,7 @@ return {ok = true}
 """
 CHECKPOINT_OFF = "if BenchmarkCheckpoint then BenchmarkCheckpoint.every = 0 end\nreturn {ok = true}\n"
 SAVE_NOW = "UI.QuickSave()\nreturn {ok = true, turn = Game.GetGameTurn()}\n"
+SAVE_WITH = "pcall(UI.QuickSave)\n"     # before a read in the same call: the save and the read are of one moment
 
 BUILT_IN_AI = "built-in-ai"
 THE_SAVE = "save"               # the player name of a --finish-only row: the save itself, finished by the engine's AI
@@ -792,17 +793,52 @@ def begin_game_file(record, seat: int):
         return None, f"{type(e).__name__}: {e}"
 
 
-def read_the_end(g, recording) -> dict:
+HOLD = "if not Game.IsPaused() then Game.SetPausePlayer(Game.GetActivePlayer()) end\nreturn {paused = Game.IsPaused(), turn = Game.GetGameTurn()}\n"
+HELD = "return {paused = Game.IsPaused(), turn = Game.GetGameTurn()}\n"
+RELEASE = "if Game.IsPaused() then Game.SetPausePlayer(-1) end\nreturn {paused = Game.IsPaused()}\n"
+
+
+def hold(g, tries: int = 10, settle: float = 1.0, sleep=time.sleep) -> dict:
+    """Pause the game and wait until it says it is paused, then a moment more: the engine stands still while a
+    game that goes on by itself is saved and read (RELEASE lets it go on). What the game answered, or the error;
+    the save and the read are made either way.
+
+    Live 2026-11-24, the built-in AI destroyed on turn 133 of small-king-venice-a, three times: the save file
+    read byte by byte (the private scorer's reader, no game) had every living civilization's gold, population
+    and military might as the read of the same call. Without the pause, the game's own save of the end set
+    beside a read one poll later: three civilizations had moved between the two."""
+    seen = {}
+    try:
+        seen = g.q(HOLD) or {}
+        for _ in range(tries):
+            if seen.get("paused"):
+                break
+            sleep(0.3)
+            seen = g.q(HELD) or {}
+        sleep(settle)
+    except Exception as e:
+        seen = {"error": f"{type(e).__name__}: {e}"}
+    return seen
+
+
+def read_the_end(g, recording, save: bool = False) -> dict:
     """The run's last read. With a game file being written, the file's `end` line is taken inside the game by the
-    same call (game_file.END_WITH), so the row and the line are of one moment.
+    same call (game_file.END_WITH), so the row and the line are of one moment. With `save` the game is asked for
+    a quick save in that call too (SAVE_WITH), before the read: the saved game is then of the same moment.
 
     Live 2026-11-24, the built-in AI on small-king-poland-a-t200: Poland won on turn 292, the engine went on with
     the other civilizations' moves of that turn, the row was read, and the `end` line taken a moment later had two
-    of them four points of score further; the recording's check said the two differ."""
-    if not recording:
-        return g.q(READ)
-    from harness.spectator import game_file
-    return g.q(game_file.END_WITH + READ)
+    of them four points of score further; the recording's check said the two differ. The same night on
+    small-king-venice-a: the seat was destroyed on turn 133, the game's own handler saved (CHECKPOINT), the engine
+    went on, and the read up to one poll later had Morocco's move of that turn (gold 489 in the save, 528 in the
+    row): `check --load` said the saved game differs from its own row. The caller pauses the game first (`hold`):
+    whether a quick save asked for in a call is written as of that call is not known, and a game that stands
+    still gives the same save either way."""
+    lua = (SAVE_WITH if save else "")
+    if recording:
+        from harness.spectator import game_file
+        lua += game_file.END_WITH
+    return g.q(lua + READ)
 
 
 def end_game_file(row: dict, end, error: str | None) -> None:
@@ -887,11 +923,29 @@ def run_once(g, save: str, turns: int, seat: int | None = None, skip: int = 0, p
                 row["end_reason"] = "stalled"
             if row["end_reason"]:
                 break
-        if (checkpoint or end_save) and row["end_reason"] in ("game_won", "seat_dead"):
+        # A game that ended inside the run goes on under the engine (a win does not stop it, a dead seat leaves it
+        # playing by itself), so it is paused, and its save is asked for in the call of the last read: the saved
+        # game, the row and the game file's `end` line are then of one moment. The save the game's own handler
+        # took when it saw the end (`over`) is of an earlier moment of that turn and is kept only when this one
+        # writes no file.
+        over = bool(checkpoint or end_save) and row["end_reason"] in ("game_won", "seat_dead")
+        if over:
+            held = hold(g, sleep=sleep)
+            say(f"  the game held for its save: {held}")
+        was = quick_mtime()
+        after = read_the_end(g, record_end, save=over)
+        if over:
             name = (end_save.removesuffix("-end") if end_save else checkpoint_name) + "-game-over"
-            keep_game_over(g, row, name, quick_was, seen=now.get("over", -1), sleep=sleep, clock=clock)
+            keep_game_over(g, row, name, was, seen=after["turn"], sleep=sleep, clock=clock)
+            try:
+                g.q(RELEASE)
+            except Exception:
+                pass
+            if row["game_over_save"] is None and now.get("over", -1) >= 0:
+                keep_game_over(g, row, name, quick_was, seen=now["over"], sleep=sleep, clock=clock)
+                if row["game_over_save"]:
+                    row["game_over_save_from"] = "the game's own save when it saw the end: an earlier moment of the turn than the row"
             say(f"  saved at the game's end, turn {row['game_over_save_turn']}: {row['game_over_save'] or 'no file'}")
-        after = read_the_end(g, record_end)
         row.update(seconds=round(clock() - t0, 1), end=seat_view(after, seat), winner=after["winner"],
                    victory=after["victory"], turns_played=after["turn"] - before["turn"],
                    players=[{k: p[k] for k in ("id", "civ", "alive", "score")} for p in after["players"]],

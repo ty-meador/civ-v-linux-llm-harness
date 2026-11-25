@@ -63,7 +63,11 @@ class FakeGame:
         self.sent.append(code)
         if "SetAIAutoPlay" in code:
             return self.handed
+        if code in (benchmark_run.HOLD, benchmark_run.HELD, benchmark_run.RELEASE):
+            return {"paused": code != benchmark_run.RELEASE, "turn": 0}
         if "players = {}" in code:
+            if code.startswith(benchmark_run.SAVE_WITH) and self.save_with_writes and getattr(self, "quick_file", None) is not None:
+                self.write_quick("saved with the last read")
             return self.reads.pop(0) if len(self.reads) > 1 else self.reads[0]   # the last read stands for any later one
         if "return {skip" in code:
             return {"skip": 0}
@@ -91,6 +95,7 @@ class FakeGame:
 
     writes = 0
     save_now_writes = True   # False: the game answers the save asked at the game's end and writes no file
+    save_with_writes = True  # False: the save asked for in the call of the last read writes no file
 
     played_reply = None   # what the game answers the read of rule 7's figures; None stands for a read that failed
 
@@ -349,8 +354,16 @@ class SavesWhileTheEnginePlays(unittest.TestCase):
                                               {"turn": 260, "save": "save--built-in-ai-seed0-t260"}])
         self.assertEqual((row["end_reason"], row["game_over_save"], row["game_over_save_turn"]),
                          ("game_won", "save--built-in-ai-seed0-game-over", 263))
+        # the engine plays on after a win: the save kept is the one taken in the call of the last read, not the
+        # handler's of an earlier moment of the turn
         self.assertEqual(files, {"save--built-in-ai-seed0-t250": "turn 250", "save--built-in-ai-seed0-t260": "turn 260",
-                                 "save--built-in-ai-seed0-game-over": "won on turn 263"})
+                                 "save--built-in-ai-seed0-game-over": "saved with the last read"})
+        self.assertNotIn("game_over_save_from", row)
+        last_read = next(s for s in reversed(g.sent) if "players = {}" in s)
+        self.assertTrue(last_read.startswith(benchmark_run.SAVE_WITH), "the save was not asked for in the call of the last read")
+        at = g.sent.index
+        self.assertLess(at(benchmark_run.HOLD), at(last_read), "the game was not paused before its save and its last read")
+        self.assertLess(at(last_read), at(benchmark_run.RELEASE), "the game was let go before its save was asked for")
         handler = next(s for s in g.sent if "c.hooked" in s)
         self.assertIn("c.every, c.seat, c.after, c.saved, c.over, c.error = 10, 0, 242, -1, -1", handler)
         self.assertLess(g.sent.index(handler), next(i for i, s in enumerate(g.sent) if "SetAIAutoPlay(10, 0)" in s),
@@ -358,11 +371,26 @@ class SavesWhileTheEnginePlays(unittest.TestCase):
         self.assertEqual(g.sent[-1], benchmark_run.CHECKPOINT_OFF, "the handler was left saving in the game")
         json.dumps(row)
 
-    def test_a_win_the_handler_has_not_seen_is_saved_by_the_runners_own_call(self):
+    def test_a_win_the_handler_has_not_seen_is_saved_in_the_call_of_the_last_read(self):
         g, row, files = self.checked([poll(247, 995), poll(248, 994, winner=1)], read(turn=248, winner=1))
-        self.assertIn(benchmark_run.SAVE_NOW, g.sent)
+        self.assertNotIn(benchmark_run.SAVE_NOW, g.sent)
         self.assertEqual((row["checkpoints"], row["game_over_save_turn"]), ([], 248))
-        self.assertEqual(files, {"save--built-in-ai-seed0-game-over": "asked at the end"})
+        self.assertEqual(files, {"save--built-in-ai-seed0-game-over": "saved with the last read"})
+
+    def test_when_the_save_with_the_read_writes_no_file_the_handlers_save_is_kept_and_the_row_says_so(self):
+        polls = [poll(132, 868), dict(poll(133, 867), alive=False, over=133, wrote="the seat seen dead on turn 133")]
+        with mock.patch.object(FakeGame, "save_with_writes", False):
+            _g, row, files = self.checked(polls, read(turn=133))
+        self.assertEqual((row["end_reason"], row["game_over_save"], row["game_over_save_turn"]),
+                         ("seat_dead", "save--built-in-ai-seed0-game-over", 133))
+        self.assertEqual(files, {"save--built-in-ai-seed0-game-over": "the seat seen dead on turn 133"})
+        self.assertIn("an earlier moment of the turn", row["game_over_save_from"])
+
+    def test_a_run_that_played_its_turns_asks_for_no_save_in_the_call_of_its_last_read(self):
+        g, row, _files = self.checked([poll(251, 1), poll(252, 0)], read(turn=252))
+        self.assertEqual(row["end_reason"], "all_turns_played")
+        self.assertFalse(any(s.startswith(benchmark_run.SAVE_WITH) for s in g.sent))
+        self.assertNotIn(benchmark_run.HOLD, g.sent, "a game that waits for its seat was paused")
 
     def test_a_save_that_did_not_come_is_said_and_the_run_goes_on(self):
         polls = [dict(poll(250, 992), saved=250), poll(251, 0)]      # the game says saved, the quick slot holds no file

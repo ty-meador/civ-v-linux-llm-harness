@@ -491,6 +491,31 @@ class InTheGame(Files):
         self.assertEqual(found[-1], (rec.UNKNOWN, "the saved game (turn 8) is not of the moment game.jsonl ends on (turn 10): "
                                                   "the two are not set beside each other"))
 
+    def test_a_save_taken_under_the_engine_that_reads_otherwise_once_loaded_is_not_said_to_differ(self):
+        """Live 2026-11-24, small-king-venice-a, the seat destroyed on turn 133: the save file had the row's
+        figures, and the loaded game, which goes on with its turn before it can be read, had Morocco a move on."""
+        turns = a_game_file(self.dir / "g.jsonl").read_bytes()
+        seen = game_read()
+        seen["auto"] = 1
+        seen["players"][1]["gold"], seen["players"][1]["score"] = 77, 315
+        _g, found = self.beside(seen, turns=turns)
+        self.assertEqual([what for state, what in found if state == rec.DIFFERS], [])
+        cannot_say = [what for state, what in found if state == rec.UNKNOWN]
+        self.assertEqual(len(cannot_say), 1)
+        self.assertIn("taken while the engine played the seat (autoplay count 1 once loaded)", cannot_say[0])
+        self.assertIn("player 1: row civ1 alive True score 310, game civ1 alive True score 315", cannot_say[0])
+        self.assertIn("player 1 (civ1), gold: game 77, game.jsonl 10", cannot_say[0])
+        # the same figures in a game that stands still (the seat's own save) do differ
+        seen["auto"] = 0
+        _g, found = self.beside(seen, turns=turns)
+        self.assertEqual(len([what for state, what in found if state == rec.DIFFERS]), 3)
+        # and another game build differs whoever holds the seat
+        other = game_read(build="1.0.3.144")
+        other["auto"] = 1
+        _g, found = self.beside(other, turns=turns)
+        self.assertEqual([what for state, what in found if state == rec.DIFFERS],
+                         ["game build: the run was played on 1.0.3.279(130961), this game is 1.0.3.144"])
+
     def test_a_dead_civilization_is_set_beside_its_line_by_what_the_line_holds(self):
         """Live 2026-11-24 (America, dead in the game Poland wins from `small-king-poland-a-t200`): the game file
         writes a dead civilization without figures, the game still counts its technologies and its gold, and

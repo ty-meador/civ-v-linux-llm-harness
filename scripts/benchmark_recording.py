@@ -562,7 +562,7 @@ def check_in_game(g, manifest: dict, row: dict, game: bytes, saves: Path, leave=
         try:
             seen = g.q(run.READ)
             out = [(OK, f"the saved game loads: turn {seen['turn']}")]
-            return out + beside_the_row(seen, manifest, row, of) + beside_the_game_file(seen, of, turns)
+            return out + under_the_engine(beside_the_row(seen, manifest, row, of) + beside_the_game_file(seen, of, turns), seen)
         finally:
             if isinstance(seen, dict) and seen.get("auto"):
                 try:
@@ -572,6 +572,28 @@ def check_in_game(g, manifest: dict, row: dict, game: bytes, saves: Path, leave=
             leave(g)
     finally:
         file.unlink(missing_ok=True)
+
+
+def under_the_engine(found: list[tuple[str, str]], seen: dict) -> list[tuple[str, str]]:
+    """What the loaded game says beside the row and the game file, when the save was taken while the engine held
+    the seat (the loaded game's autoplay count is not 0: a game the built-in AI won or lost, saved where it ended).
+    Such a save is a game in the middle of a turn. Loaded, the engine goes on with that turn at once, before the
+    game can be read, so a figure that differs may be the engine's move since the save and not the file's fault:
+    it is something the check cannot say here, not something that differs. The game build is not such a figure.
+
+    Live 2026-11-24, the built-in AI destroyed on turn 133 of small-king-venice-a: the save file itself, read
+    with no game, had every figure of the row; the loaded game, first read 18 seconds after the load, had Morocco
+    one move on (gold 528 for 489), another time a turn's income on, and stood on the next turn 12 seconds
+    later."""
+    if not seen.get("auto"):
+        return found
+    moved = [what for state, what in found if state == DIFFERS and not what.startswith("game build")]
+    if not moved:
+        return found
+    return [(state, what) for state, what in found if not (state == DIFFERS and what in moved)] + [
+        (UNKNOWN, f"the saved game was taken while the engine played the seat (autoplay count {seen['auto']} once loaded) "
+                  f"and goes on with its turn as soon as it is loaded, before it can be read: what it reads otherwise "
+                  f"than the run may be the engine's moves since the save ({'; '.join(moved)})")]
 
 
 def beside_the_row(seen: dict, manifest: dict, row: dict, of: dict) -> list[tuple[str, str]]:

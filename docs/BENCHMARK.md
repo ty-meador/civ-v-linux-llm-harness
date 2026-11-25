@@ -223,6 +223,18 @@ format above, the three models' runs without a game file, which they did not wri
   occupied and in resistance, and the game works happiness out again on a load. So **a save of a game's end can
   read a figure differently from the row**, with nobody's doing, and the check says which figure. It is left as a
   difference (exit status 1), not passed over: what to make of it belongs to whoever reads the check.
+- **A game that ended under the engine is paused for its save** (2026-11-24). The built-in AI on
+  `small-king-venice-a` was destroyed on turn 133 and the engine played on by itself: the game's own save of the
+  end and the runner's read one poll later were of two moments of that turn, and three civilizations had moved
+  between them (the save file read byte by byte, with no game). The runner now pauses the game, asks for the
+  save in the call of its last read and lets the game go on: three runs of that end, and each save file had
+  every living civilization's gold, population and military might as the row's read.
+- **A save taken under the engine does not stand still once loaded.** It is a game in the middle of a turn, and
+  the engine goes on with that turn before the loaded game can be read (first read 18 seconds after the load:
+  Morocco a move on; 12 seconds later the next turn). So for such a save (the loaded game's autoplay count is
+  not 0) `check --load` says what the loaded game reads otherwise than the run as something it cannot say
+  here, with the figures, and not as a difference. A save of the seat's own turn stands still and is checked
+  as before.
 - With the network cut off (`unshare -rn`): the file check and the check in the game, both as above.
 
 ### The spectator page's own recording is another thing

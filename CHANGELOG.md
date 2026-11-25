@@ -16,13 +16,21 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A game that ended under the engine: its save, its row and its game file's last line are of one moment**
+  (`scripts/benchmark_run.py`, `scripts/benchmark_recording.py`). A game the built-in AI wins or loses goes on by
+  itself, and the save the game took when it saw the end was up to one poll older than the runner's read: on
+  `small-king-venice-a` (the seat destroyed on turn 133) three civilizations had moved between the two. The
+  runner now pauses the game (`hold`), asks for the save in the call of its last read (`SAVE_WITH`) and lets
+  the game go on; the game's own save is kept only when that one writes no file, and the row then says so
+  (`game_over_save_from`). Live, three runs of that end: each save file, read with no game, has the row's
+  figures. `check --load` of such a save: the loaded game goes on with its turn before it can be read, so what
+  it reads otherwise than the run is said as something the check cannot say here, with the figures, and not as
+  a difference (`under_the_engine`); a save of the seat's own turn is checked as before. Three tests.
 - **`check` of a recording whose seat was destroyed** (`scripts/benchmark_recording.py`). A dead civilization's
   line in the game file holds `alive` and its score and no figures, and the row keeps what the game still counts
   for the seat, so the file's check said nine figures differ of a recording that was whole (live 2026-11-24, the
   built-in AI on `small-king-venice-a`, destroyed on turn 133). A destroyed seat is now set beside its last line
-  by `alive` and the score, as `check --load` already did for any dead civilization. One test. Still open: the
-  saved game of such a run is of an earlier moment of the same turn than its row (`check --load`: Morocco's gold
-  489 in the save, 528 in the row's read): the engine plays on between the save and the read.
+  by `alive` and the score, as `check --load` already did for any dead civilization. One test.
 - **The save of a run that does not finish, seen live** (2026-11-24): the scripted loop under `--timeout 120`
   stopped after 16 turns, was saved where it stopped, packed, and `check --load` found nothing that differs.
 
