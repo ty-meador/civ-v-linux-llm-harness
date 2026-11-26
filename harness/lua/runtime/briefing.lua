@@ -215,6 +215,8 @@ function H.briefing_board(pid, since_seq)
     -- a capital's plot only when revealed), with the distance from my own capital to each one I know the plot of.
     if #v == 1 and v[1] == "DOMINATION" then out.domination = H.domination_capitals(pid) end
   end)
+  -- v349: where every civilization stands toward each of them (victory.lua); the briefing shows it with the rules.
+  pcall(function() out.victory_progress = H.victory_progress(pid) end)
   -- v346: what the game's own advisors say this turn (the Advisor Counsel screen), military and foreign.
   pcall(function()
     local counsel = H.advisor_counsel(pid)

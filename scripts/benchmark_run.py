@@ -315,43 +315,55 @@ def seat_view(read: dict, seat: int) -> dict:
 
 
 def saves_dir() -> Path:
-    """Where the game keeps single-player saves; a save is loaded by its bare name from here."""
+    """Where the game keeps the single-player saves of a stock game; a save is loaded by its bare name from here."""
     return Path(os.environ.get("CIV5_SAVES_DIR")
                 or Path.home() / ".local/share/Aspyr/Sid Meier's Civilization 5/Saves/single")
+
+
+def modded_saves_dir() -> Path:
+    """Where the game keeps the single-player saves of a game with a mod active, which every scenario is: the same
+    tree beside the stock one (`ModdedSaves/single` beside `Saves/single`). Seen live 2026-11-25: the Civil War's
+    quick save was written there and nowhere else, and the load menu lists both trees."""
+    stock = saves_dir()
+    return stock.parent.parent / "ModdedSaves" / stock.name
+
+
+def quick_save_file() -> Path:
+    """The quick save the game wrote last. A game writes it into the tree of its own kind, so the newer of the two
+    trees' files is the loaded game's."""
+    files = [tree / "quick" / "QuickSave.Civ5Save" for tree in (saves_dir(), modded_saves_dir())]
+    return max(files, key=lambda file: file.stat().st_mtime_ns if file.exists() else 0)
+
+
+def save_file(name: str) -> Path:
+    """The file of the save `name` in whichever tree holds it; the stock tree's path when neither does."""
+    files = [tree / f"{name}.Civ5Save" for tree in (saves_dir(), modded_saves_dir())]
+    return next((file for file in files if file.is_file()), files[0])
 
 
 def save_as(g, name: str, sleep=time.sleep, clock=time.monotonic, wait: float = 30.0) -> str:
     """Save the loaded game under `name`: the game's own quick save, then a copy of its file. The quick slot is
     the only save the engine writes on request."""
-    quick = saves_dir() / "quick" / "QuickSave.Civ5Save"
-    was = quick.stat().st_mtime_ns if quick.exists() else 0
+    was = quick_mtime()
     reply = g.quick_save()
     if not (isinstance(reply, dict) and reply.get("ok")):
         raise Refused(f"the quick save was refused: {reply}")
-    t0, size = clock(), -1
-    while True:
-        now = quick.stat() if quick.exists() else None
-        if now and now.st_mtime_ns != was and now.st_size == size:
-            break                                   # written, and the same size at two looks
-        size = now.st_size if now and now.st_mtime_ns != was else -1
-        if clock() - t0 > wait:
-            raise Refused("the quick save was not written")
-        sleep(0.5)
-    shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
+    if copy_quick(name, was, sleep=sleep, clock=clock, wait=wait) is None:
+        raise Refused("the quick save was not written")
     return name
 
 
 def quick_mtime() -> int:
-    quick = saves_dir() / "quick" / "QuickSave.Civ5Save"
+    quick = quick_save_file()
     return quick.stat().st_mtime_ns if quick.exists() else 0
 
 
 def copy_quick(name: str, was: int, sleep=time.sleep, clock=time.monotonic, wait: float = 30.0) -> str | None:
     """A copy of the quick save's file under `name`, once it is another file than the one of `was` (its time then) and
-    has the same size at two looks. None if no such file came."""
-    quick = saves_dir() / "quick" / "QuickSave.Civ5Save"
+    has the same size at two looks. The copy goes into the tree the quick save is in. None if no such file came."""
     t0, size = clock(), -1
     while True:
+        quick = quick_save_file()
         now = quick.stat() if quick.exists() else None
         if now and now.st_mtime_ns != was and now.st_size == size:
             break
@@ -359,7 +371,7 @@ def copy_quick(name: str, was: int, sleep=time.sleep, clock=time.monotonic, wait
         if clock() - t0 > wait:
             return None
         sleep(0.5)
-    shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
+    shutil.copyfile(quick, quick.parent.parent / f"{name}.Civ5Save")
     return name
 
 
@@ -612,9 +624,9 @@ def keep_game_over(g, row: dict, name: str, was: int, seen: int = -1, since: flo
             turn = -1
     row["game_over_save"] = copy_quick(name, was, sleep=sleep, clock=clock)
     row["game_over_save_turn"] = turn if row["game_over_save"] and turn >= 0 else None
-    quick = saves_dir() / "quick" / "QuickSave.Civ5Save"
+    quick = quick_save_file()
     if row["game_over_save"] is None and since is not None and quick.exists() and quick.stat().st_mtime > since:
-        shutil.copyfile(quick, saves_dir() / f"{name}.Civ5Save")
+        shutil.copyfile(quick, quick.parent.parent / f"{name}.Civ5Save")
         row["game_over_save"], row["game_over_save_from"] = name, "the last quick save of the run, from before the end"
 
 
@@ -737,7 +749,7 @@ def made_with(save: str) -> dict:
     the Lua runtime the run is played on and the hash of the starting save's file as it is loaded. The game's build
     comes from the run's first read (`game_build`)."""
     from harness.game_parts.support import RUNTIME_VERSION
-    file = saves_dir() / f"{save}.Civ5Save"
+    file = save_file(save)
     return {"harness": harness_version(), "runtime": RUNTIME_VERSION,
             "save_sha256": hashlib.sha256(file.read_bytes()).hexdigest() if file.is_file() else None}
 

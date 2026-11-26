@@ -17,6 +17,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+import benchmark_map
 import benchmark_run
 import benchmark_save
 
@@ -36,12 +37,20 @@ SETTINGS = {"world_size": "WORLDSIZE_DUEL", "map_script": "Assets\\Maps\\pangaea
             "start_era": "ERA_ANCIENT", "city_states": 4, "build": "1.0.3.279(130961)"}
 
 
+# The game's answer to benchmark_map.READ for a map of one plot of grass, the Celts starting on it.
+MAP_ANSWER = ["size\t1\t1\tfalse", "row\t0\t2,0,-1,-1,0,0,-1,-1,-1,-1,1", "terrain\t0\tTERRAIN_GRASS",
+              "terrain\t1\tTERRAIN_PLAINS", "start\t0\tCIVILIZATION_CELTS\t0\t0", "turn\t0"]
+
+
 class FakeGame:
-    def __init__(self, reads=None, loaded=None):
+    def __init__(self, reads=None, loaded=None, settings=None, map_answer=None):
         self.reads = reads or read()
         self.loaded = loaded or {"ok": True}
+        self.settings = settings or SETTINGS
         self.sent: list[str] = []
         self.left = 0
+        self.c = mock.Mock()
+        self.c.exec.return_value = map_answer or MAP_ANSWER
 
     def load_save(self, name):
         self.sent.append(f"load {name}")
@@ -56,7 +65,7 @@ class FakeGame:
         if "players = {}" in code:
             return self.reads
         if "world_size" in code:
-            return dict(SETTINGS)
+            return dict(self.settings)
         return {"seat_row": "HANDICAP_AI_DEFAULT", "time_victory": False, "max_turns": 0}
 
     def leave_to_main_menu(self):
@@ -76,8 +85,8 @@ class Folders(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.game_saves, self.kept = Path(self.tmp.name) / "single", Path(self.tmp.name) / "kept"
-        self.game_saves.mkdir()
+        self.game_saves, self.kept = Path(self.tmp.name) / "Saves" / "single", Path(self.tmp.name) / "kept"
+        self.game_saves.mkdir(parents=True)
         patch = mock.patch.dict(os.environ, {"CIV5_SAVES_DIR": str(self.game_saves)})
         patch.start()
         self.addCleanup(patch.stop)
@@ -189,6 +198,74 @@ class Host(Folders):
             benchmark_save.main(["--host", "board-e"])
 
 
+class HostOnAMapKeptAsData(Folders):
+    def setUp(self):
+        super().setUp()
+        self.map_file = Path(self.tmp.name) / "one-plot.json"
+        self.map_file.write_text(json.dumps(benchmark_map.read_map(MAP_ANSWER)))
+
+    def host_on_the_map(self, g):
+        """The command with the hosting itself left out: the save appears, and what host() was asked is kept."""
+        def hosted(_g, name, *args, **_kw):
+            self.asked_map_script = args[2]
+            self.a_save(name, "hosted")
+            return {"how": "hosted"}
+        with mock.patch.object(benchmark_save, "host", side_effect=hosted):
+            return self.main(g, "--host", "poland-b", "--civ", "CIVILIZATION_CELTS", "--map", str(self.map_file))
+
+    def test_the_maps_script_is_written_and_the_game_is_hosted_on_it(self):
+        code, _out, err = self.host_on_the_map(FakeGame())
+        self.assertEqual(code, 0, err)
+        self.assertEqual(self.asked_map_script, "omt_map")
+        script = (Path(self.tmp.name) / "Maps" / "omt_map.lua").read_text()
+        self.assertEqual(script, benchmark_map.script_of(benchmark_map.read_map(MAP_ANSWER)))
+
+    def test_the_map_the_save_holds_is_kept_beside_it_and_the_manifest_names_it(self):
+        code, out, err = self.host_on_the_map(FakeGame())
+        self.assertEqual(code, 0, err)
+        kept_map = self.kept / "poland-b.map.json"
+        self.assertEqual(json.loads(kept_map.read_text()), benchmark_map.read_map(MAP_ANSWER))
+        self.assertEqual(json.loads(out)["map"], {"file": "poland-b.map.json", "sha256": benchmark_save.sha256(kept_map)})
+        self.assertEqual(json.loads((self.kept / "poland-b.json").read_text())["map"]["file"], "poland-b.map.json")
+
+    def test_a_save_that_holds_another_map_is_refused_and_nothing_is_kept(self):
+        plains = [line.replace("row\t0\t2,0", "row\t0\t2,1") for line in MAP_ANSWER]
+        code, _out, err = self.host_on_the_map(FakeGame(map_answer=plains))
+        self.assertEqual(code, 2)
+        self.assertIn("the save's map is not the file's, 1 differences, the first: (0,0) terrain: TERRAIN_GRASS against "
+                      "TERRAIN_PLAINS", err)
+        self.assertFalse((self.kept / "poland-b.json").exists())
+
+    def test_a_save_made_without_a_map_file_has_no_map_in_its_manifest_and_the_map_is_not_read(self):
+        self.a_save("board-x")
+        g = FakeGame()
+        code, out, err = self.main(g, "--describe", "board-x")
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("map", json.loads(out))
+        g.c.exec.assert_not_called()
+
+    def test_a_map_file_goes_with_host_and_not_with_a_map_script(self):
+        for argv in (["--describe", "board-x", "--map", str(self.map_file)],
+                     ["--host", "b", "--civ", "CIVILIZATION_CELTS", "--map", str(self.map_file), "--map-script", "pangaea"]):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                benchmark_save.main(argv)
+
+    def test_a_script_from_the_users_folder_is_named_by_its_file_alone(self):
+        users = "\\home\\someone\\.local\\share\\Aspyr\\Sid Meier's Civilization 5\\Maps\\omt_map.lua"
+        self.a_save("board-x")
+        code, out, err = self.main(FakeGame(settings={**SETTINGS, "map_script": users}), "--describe", "board-x")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(out)["settings"]["map_script"], "omt_map.lua")
+        self.assertEqual(benchmark_save.script_as_published("Assets\\Maps\\pangaea.lua"), "Assets\\Maps\\pangaea.lua")
+
+    def test_the_setup_screens_script_is_named_the_same_way_in_the_origin(self):
+        g = FakeGame()
+        g.start_single_player = lambda **kw: {"world_size": kw["world_size"], "map_script": "/home/someone/Maps/omt_map.lua"}
+        origin = benchmark_save.host(g, "poland-b", "CIVILIZATION_CELTS", "WORLDSIZE_DUEL", "omt_map", "GAMESPEED_QUICK",
+                                     "HANDICAP_PRINCE", save_game=lambda _g, name: name)
+        self.assertEqual(origin["setup_screen"]["map_script"], "omt_map.lua")
+
+
 class Cut(Folders):
     def test_the_built_in_ai_plays_the_turns_on_the_seed_and_the_origin_says_so(self):
         asked = {}
@@ -235,6 +312,15 @@ class Install(Folders):
         self.assertEqual(lines[1], "board-b: there already")
         self.assertIn("left alone", lines[2])
         self.assertEqual((self.game_saves / "board-c.Civ5Save").read_text(), "someone else's file")
+
+    def test_a_scenarios_save_goes_into_the_tree_of_games_with_a_mod(self):
+        self.kept_save("scenario-a")
+        manifest = self.kept / "scenario-a.json"
+        manifest.write_text(json.dumps({**json.loads(manifest.read_text()), "settings": {"mods": ["American Civil War"]}}))
+        self.assertEqual(benchmark_save.install(self.kept), ["scenario-a: installed"])
+        modded = Path(self.tmp.name) / "ModdedSaves" / "single"
+        self.assertEqual((modded / "scenario-a.Civ5Save").read_text(), "kept")
+        self.assertFalse((self.game_saves / "scenario-a.Civ5Save").exists())
 
     def test_a_kept_save_that_is_not_its_manifests_is_not_installed(self):
         self.kept_save("board-a")

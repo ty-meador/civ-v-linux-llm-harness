@@ -1,0 +1,38 @@
+{
+ "id": "scenario-civilwar-union-king",
+ "save": "scenario-civilwar-union-king.Civ5Save",
+ "sha256": "c23bb7db3f00339ae81ba97d0b958d4f7489bffb9d807905e832a4b1b14a66e4",
+ "kind": "opening",
+ "turn": 0,
+ "seat": 0,
+ "civilization": "Union",
+ "opponents": [
+  "Confederacy"
+ ],
+ "turns": 50,
+ "seeds": 1,
+ "settings": {
+  "handicap": "HANDICAP_KING",
+  "speed": "GAMESPEED_STANDARD",
+  "max_turns": 50,
+  "time_victory": false,
+  "mods": [
+   "American Civil War"
+  ],
+  "map_script": "Assets\\dlc\\expansion2\\Scenarios\\civilwarscenario\\civilwareasterntheater.civ5map",
+  "start_era": "ERA_INDUSTRIAL",
+  "city_states": 0,
+  "world_size": "WORLDSIZE_STANDARD",
+  "seat_row": "HANDICAP_KING",
+  "victories": [
+   "VICTORY_DOMINATION"
+  ]
+ },
+ "origin": {
+  "how": "described",
+  "note": "the save was made before this command; see docs/BENCHMARK.md",
+  "at": "2026-11-25"
+ },
+ "game_build": "1.0.3.279(130961)",
+ "baseline": null
+}

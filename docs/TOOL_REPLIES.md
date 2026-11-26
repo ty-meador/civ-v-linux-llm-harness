@@ -149,7 +149,10 @@ attention (ongoing units beside a camp or hostile), damaged}. `threats`: visible
 briefing listed is marked `seen` and, unless it moved (`moved_from`), carries only its position, hp and
 `d` (plots to my nearest unit or city); detail="full" gives every field of every row. Plus revealed
 barbarian `camps` within 4 plots of a city. `civ_rules`: my leader's trait text (Venice cannot found
-cities; ...), included when there is no comparable baseline or since="turn".
+cities; ...), included when there is no comparable baseline or since="turn". With it, `victories_allowed` and
+`victory_progress` {civs, needs, note}: every civilization's row toward each allowed victory (`own_capital`,
+`original_capitals_held`, `apollo`, `spaceship_parts`, `influential_on`, `influential_needed`, `delegates`;
+`destroyed`), me first (`you`), an unmet one as `an unmet civilization` with no `player` (PLAYBOOK, "The briefing").
 `notes`: my notebook entries written since my last briefing or finish (notes="new"), with
 `notes_unshown` {count, more} for the rest -- notebook(action="recall") has every note; notes="all" is the latest `limit`
 of them; the default "auto" is "all" with since="turn" and "new" otherwise. A note marked `adopted` (`notes_adopted` says

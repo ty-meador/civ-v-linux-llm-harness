@@ -307,3 +307,121 @@ function H.only_victory(pid)
   pcall(function() if Players[pid]:IsHasLostCapital() then out.my_capital_lost = true end end)
   return out
 end
+
+-- v349: where every civilization stands toward every victory this game can be won by, for the briefing that opens
+-- an instance (the user's decision of 2026-11-26: a seat that is handed a new context every ten turns is told how
+-- close its opponents are, as a player who opens the Victory Progress screen is). Only what the game's own screens
+-- show, and a civilization this seat has not met is a row without a name, as it is there:
+--   domination  the Victory Progress screen's capitals: who still holds their own, how many original capitals each
+--               holds (an unmet player's too: "an unmet player controls their capital")
+--   science     its space race list: Apollo and the parts in the ship, every civilization, an unmet one unnamed
+--   culture     the Culture Overview's victory tab: influential on how many of how many; met civilizations only
+--   diplomatic  the World Congress's member column (delegates, an unmet member unnamed) and the Victory Progress
+--               screen's delegates needed and turns until the World Leader vote
+-- A victory the game's options do not allow has no column. `H.victory_watch` stays the alarm; this is the table.
+local UNMET_CIVILIZATION = "an unmet civilization"
+
+function H.victory_progress(pid)
+  local me = Players[pid]
+  if not me then return nil end
+  local myTeam = Teams[me:GetTeam()]
+  local allowed = H.victory_allowed
+  local rows, by_player = {}, {}
+  local function add(i, known)
+    local q = Players[i]
+    local row = { civ = known and q:GetCivilizationShortDescription() or UNMET_CIVILIZATION }
+    if known then row.player = i end
+    if i == pid then row.you = true end
+    if not q:IsAlive() then row.destroyed = true end
+    rows[#rows + 1], by_player[i] = row, row
+  end
+  local function major(i)
+    local q = Players[i]
+    return q and q:IsEverAlive() and not q:IsMinorCiv()
+  end
+  local function known(i) return i == pid or myTeam:IsHasMet(Players[i]:GetTeam()) end
+  -- This seat first, the civilizations it has met in the game's order, the unmet ones last.
+  add(pid, true)
+  for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do if i ~= pid and major(i) and known(i) then add(i, true) end end
+  for i = 0, GameDefines.MAX_MAJOR_CIVS - 1 do if major(i) and not known(i) then add(i, false) end end
+  local out = { civs = rows, needs = {} }
+
+  if allowed("VICTORY_DOMINATION") then
+    pcall(function()
+      for i, row in pairs(by_player) do
+        local q = Players[i]
+        if q:IsAlive() then
+          local held = 0
+          for city in q:Cities() do if city:IsOriginalMajorCapital() then held = held + 1 end end
+          row.own_capital = q:IsHasLostCapital() and "lost" or "held"
+          row.original_capitals_held = held
+        end
+      end
+      out.needs.domination = "to be the last player holding their own original capital"
+    end)
+  end
+
+  if allowed("VICTORY_SPACE_RACE") then
+    pcall(function()
+      local apollo = GameInfoTypes.PROJECT_APOLLO_PROGRAM
+      if not apollo then return end
+      local parts, total = {}, 0
+      for v in GameInfo.Project_VictoryThresholds() do
+        local proj = GameInfoTypes[v.ProjectType]
+        if proj and proj ~= apollo and (v.Threshold or 0) > 0 then
+          parts[#parts + 1] = { proj = proj, needed = v.Threshold }
+          total = total + v.Threshold
+        end
+      end
+      if total <= 0 then return end
+      for i, row in pairs(by_player) do
+        local q = Players[i]
+        if q:IsAlive() then
+          local team = Teams[q:GetTeam()]
+          row.apollo = team:GetProjectCount(apollo) >= 1
+          local have = 0
+          for _, part in ipairs(parts) do have = have + math.min(team:GetProjectCount(part.proj), part.needed) end
+          row.spaceship_parts = have
+        end
+      end
+      out.needs.science = "the Apollo Program and all " .. total .. " spaceship parts in the ship"
+      out.needs.spaceship_parts = total
+    end)
+  end
+
+  if allowed("VICTORY_CULTURAL") then
+    pcall(function()
+      local cv = H.culture_overview(pid)
+      for _, c in ipairs(cv.civs or {}) do
+        local row = by_player[c.player]
+        if row and row.player then row.influential_on, row.influential_needed = c.influential_on, c.needed end
+      end
+      out.needs.culture = "to be influential on every other civilization still alive (influential_needed)"
+    end)
+  end
+
+  if allowed("VICTORY_DIPLOMATIC") then
+    pcall(function()
+      local needed = Game.GetVotesNeededForDiploVictory()
+      local world_congress = Game.GetNumActiveLeagues and Game.GetNumActiveLeagues() > 0
+      local league = world_congress and Game.GetActiveLeague() or nil
+      local united_nations = league ~= nil and Game.IsUnitedNationsActive and Game.IsUnitedNationsActive() or false
+      if league then
+        for i, row in pairs(by_player) do
+          if Players[i]:IsAlive() and league:IsMember(i) then row.delegates = league:CalculateStartingVotesForMember(i) end
+        end
+      end
+      out.needs.delegates = needed
+      if united_nations then
+        local turns = league:GetTurnsUntilVictorySession()
+        if turns and turns < 999 then out.needs.turns_until_world_leader_vote = turns end
+        out.needs.diplomatic = needed .. " delegates in a World Leader vote"
+      elseif league then
+        out.needs.diplomatic = needed .. " delegates in a World Leader vote; there is none before the United Nations"
+      else
+        out.needs.diplomatic = needed .. " delegates in a World Leader vote; there is no World Congress yet"
+      end
+    end)
+  end
+  return out
+end

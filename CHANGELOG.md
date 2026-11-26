@@ -14,8 +14,69 @@ Two counters, on purpose (GitLab #26):
 
 Dates are the day the change was committed; "live tNNN" is the game turn it was checked on.
 
-## Unreleased
+## 2.20.0 -- Where every civilization stands toward every victory, a map kept as data, a run's recording (2026-11-26)
 
+Runtime v349 (v348 in 2.19.0), 9 tools, 2769 tests. A seat that is handed a new context every ten turns is told,
+in the briefing that opens each one, where every civilization stands toward each victory the game can be won by
+(`victory_progress`), with what the game's own screens show and no more: a civilization it has not met has a row
+and no name. For the benchmark: a map can be read out of the game, kept as a file and hosted again plot for plot
+with any civilizations; a scenario runs through the benchmark runner and a run can be given a briefing that is
+shown once; a run's recording is one file with the game turn by turn in it, which can be checked, replayed on the
+spectator page and reported once scored. And a finding: the engine playing a seat it took over is weaker than
+one of the game's own AIs with the same civilization.
+
+- **Where every civilization stands toward every victory, once an instance** (runtime v349, GitLab #210; the
+  user's decision of 2026-11-26). The briefing that opens an instance (`turn(action="briefing", since="turn")`,
+  the one with `civ_rules` and `victories_allowed`) now carries `victory_progress`: a row for the seat and one for
+  every other civilization, a column for each victory the game allows (`own_capital` and
+  `original_capitals_held`, `apollo` and `spaceship_parts`, `influential_on` of `influential_needed`,
+  `delegates`), and `needs`, what each victory takes. A seat is handed a new context every ten turns and never
+  opens the Victory Progress screen as a player does; the built-in AI's games on the Poland map end between
+  turn 260 and 290 by somebody's victory, and a seat should see that coming. Only what the game's own screens
+  show: a civilization the seat has not met is `an unmet civilization` with no player id, with the columns the
+  Victory Progress screen and the World Congress give an unmet player and without the Culture Overview's, which
+  lists met civilizations only. The warnings of a rival close to a victory (`victory_threat`,
+  `culture_victory_threat`) stay as they are. Read live 2026-11-26 on three saves of one game, each row against
+  the game's own word: turn 0 (five unmet rows), turn 100 (two met, three unmet: no name, no id, no Culture
+  columns) and turn 200 (all met, delegates, a lost capital); about 1,900 characters in a briefing of 21,500,
+  and the next briefing of the instance does not repeat it.
+- **A taken-over seat is not one of the game's AIs** (`docs/BENCHMARK.md`, live 2026-11-26). Four whole games
+  with Poland an AI from turn 0 at King against eight in which the engine took Poland's seat on turn 0: never
+  destroyed against three times, 11 to 21 cities at the end against 10 at most. A game with an observer and
+  no human civilization is at Chieftain whatever the slots say; the way to King with every civilization an AI
+  from turn 0 is in the same section.
+- **A map kept as data** (GitLab #210). `scripts/benchmark_map.py` reads the map of the game on screen plot for
+  plot (`--read`: plot type, terrain, feature, resource and quantity, rivers and their flow, ancient ruins,
+  continent art, every slot's starting plot) and writes a map script that lays it out again (`--script`, the
+  file `omt_map.lua` in the game's own `Maps` folder); `--report` gives what a file gives each civilization and
+  `--same` says where two files differ. Seen live 2026-11-26: a stock Small Pangaea read, hosted again through
+  the script and read again, 0 differences over 2772 plots and 18 starting plots. This build has no call that
+  reads or sets a map's random seed; a map as data stands in for it, and can be drawn, measured, changed by hand
+  and hosted with any civilizations.
+  - `scripts/benchmark_save.py --host NAME --map FILE` writes the script, hosts on it, refuses a save whose map
+    is not the file's, and keeps the map as the save holds it beside the save (`NAME.map.json`, named with its
+    sha256 in the manifest's `map`).
+  - A manifest names a map script from the user's `Maps` folder by its file alone (`omt_map.lua`): the game
+    gives its whole path, which holds the user's home.
+  - Two things the game does: it lists a script from that folder only when it found the file at its own start,
+    and reads the file's content anew at every game start; and it rolls which city-states take part at every
+    game start, so a map file fixes where they start and not who they are (a save keeps both).
+- **A scenario through the benchmark runner, and what a run is told** (GitLab #200, #210). Seen live 2026-11-25
+  on the American Civil War (King, both sides): the scenario starts from its own menu, the tools read and order
+  its units and its research tree, its saves load again from the main menu, and a run plays on it.
+  - A game with a mod active, which every scenario is, keeps its saves in a tree of its own (`ModdedSaves/single`
+    beside `Saves/single`). `scripts/benchmark_run.py` takes the quick save that was written last, of the two
+    trees, and keeps its copies in that tree (`quick_save_file`, `save_file`, `modded_saves_dir`); before this a
+    save on a scenario was refused with "the quick save was not written". A manifest says which mods a save was
+    made with (`settings.mods`), and `benchmark_save.py --install` puts such a save back into the modded tree.
+  - `scripts/llm_seat_loop.py --briefing FILE`: a benchmark's briefing opens the prompt of the run's first instance
+    and of no other, with the line that it will not be shown again. `--no-report`: the instances write no report
+    (a benchmark run; the report's "State for next instance" hands the plan on, which is the player's own to do).
+    "Play to win." is gone from the instance prompt: what a run is asked is the briefing's to say, once.
+  - Starting saves `scenario-civilwar-union-king` and `scenario-civilwar-confederacy-king`, with the scenario's
+    description, victory conditions and special rules as the game gives them (`saves/benchmark/scenario-civilwar.md`,
+    taken from the game's text files). Not yet in the harness: starting a scenario by one command (the two saves
+    were made by a scratch script that does what the scenario's own menu does).
 - **The report of scored recordings, and the scores file it reads** (`scripts/benchmark_report.py`, GitLab #202).
   The scorer is on a machine with no network, so what the report has of the scoring is one file carried back
   from it: for each recording its name, the sha256 of the file that was scored, and its score or the reason it

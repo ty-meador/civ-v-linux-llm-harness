@@ -107,6 +107,34 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(text.count("turn T0+10 or turn 262 is yours, whichever comes first"), 2)
         self.assertIn("with T0 at 262 or later there is nothing to play", text)
 
+    def test_what_to_achieve_is_not_said_by_the_instance_prompt(self):
+        self.assertNotIn("Play to win", loop.prompt_for(5, "c1-x"))
+
+    def test_a_benchmark_run_asks_for_no_report(self):
+        text = loop.prompt_for(5, "c1-x", report=False)
+        self.assertNotIn("reports/", text)
+        self.assertNotIn("State for next instance", text)
+        self.assertIn("4. Then reply with one line and finish.", text)
+
+    def test_a_briefing_opens_the_prompt_and_says_it_is_shown_once(self):
+        text = loop.prompt_for(5, "c1-x", briefing="Win a Science victory.\n")
+        self.assertTrue(text.startswith("Win a Science victory.\n\nThis briefing will not be shown again."))
+        self.assertIn("Read AGENTS.md", text)
+        self.assertNotIn("will not be shown again", loop.prompt_for(5, "c1-x"))
+
+    def test_only_the_first_instance_of_a_run_is_given_the_briefing(self):
+        self.assertEqual(loop.briefing_of(1, "the goal"), "the goal")
+        self.assertIsNone(loop.briefing_of(2, "the goal"))
+        self.assertIsNone(loop.briefing_of(1, None))
+
+    def test_a_cycles_log_line_names_its_report_or_says_there_is_none(self):
+        with tempfile.TemporaryDirectory() as d:
+            seat = Path(d)
+            self.assertEqual(loop.report_words(seat, 3), " NO REPORT")
+            (seat / "reports").mkdir()
+            (seat / "reports" / "c3-x.md").write_text("r")
+            self.assertEqual(loop.report_words(seat, 3), " report c3-x.md")
+
 
 class RunCycleTests(unittest.TestCase):
     def test_a_grok_cycle_is_framed_stamped_and_read_back_from_the_log_directory(self):

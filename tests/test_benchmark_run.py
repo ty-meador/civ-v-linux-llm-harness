@@ -265,6 +265,48 @@ class TheSeatHandedBack(unittest.TestCase):
         self.assertEqual((look["auto"], g.asked, now[0]), (5, 3, 5.0))
 
 
+class TheTwoTreesOfSaves(unittest.TestCase):
+    """A game with a mod active (a scenario) keeps its saves in a tree of its own, beside the stock one."""
+
+    def setUp(self):
+        self.dir = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.stock, self.modded = self.dir / "Saves" / "single", self.dir / "ModdedSaves" / "single"
+        for tree in (self.stock, self.modded):
+            (tree / "quick").mkdir(parents=True)
+        self.enterContext(mock.patch.dict(os.environ, {"CIV5_SAVES_DIR": str(self.stock)}))
+
+    @staticmethod
+    def write_quick(tree: Path, data: bytes, written_ns: int) -> Path:
+        file = tree / "quick" / "QuickSave.Civ5Save"
+        file.write_bytes(data)
+        os.utime(file, ns=(written_ns, written_ns))
+        return file
+
+    def test_the_modded_tree_is_beside_the_stock_one(self):
+        self.assertEqual(benchmark_run.modded_saves_dir(), self.modded)
+
+    def test_the_quick_save_is_the_one_written_last_and_its_copy_stays_in_its_tree(self):
+        self.write_quick(self.stock, b"a stock game", 1_000_000_000)
+        scenario = self.write_quick(self.modded, b"a scenario", 2_000_000_000)
+        self.assertEqual(benchmark_run.quick_save_file(), scenario)
+        self.assertEqual(benchmark_run.copy_quick("kept", 1_000_000_000, sleep=lambda _seconds: None), "kept")
+        self.assertEqual((self.modded / "kept.Civ5Save").read_bytes(), b"a scenario")
+        self.assertFalse((self.stock / "kept.Civ5Save").exists())
+
+    def test_no_copy_is_made_of_a_quick_save_that_is_not_new(self):
+        self.write_quick(self.modded, b"a scenario", 2_000_000_000)
+        ticks = iter(range(0, 1000, 20))
+        self.assertIsNone(benchmark_run.copy_quick("kept", 2_000_000_000, sleep=lambda _seconds: None,
+                                                   clock=lambda: next(ticks)))
+        self.assertFalse((self.modded / "kept.Civ5Save").exists())
+
+    def test_a_save_is_found_in_either_tree(self):
+        (self.modded / "scenario.Civ5Save").write_bytes(b"s")
+        self.assertEqual(benchmark_run.save_file("scenario"), self.modded / "scenario.Civ5Save")
+        self.assertEqual(benchmark_run.save_file("gone"), self.stock / "gone.Civ5Save")
+        self.assertEqual(benchmark_run.made_with("scenario")["save_sha256"], hashlib.sha256(b"s").hexdigest())
+
+
 class TheRunsOwnMaking(unittest.TestCase):
     """What a row says of how it was made, for its recording: read before the run, written into every row."""
 

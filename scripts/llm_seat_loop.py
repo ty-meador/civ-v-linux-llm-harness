@@ -3,7 +3,8 @@
 
 Each cycle starts a new CLI process (a fresh context window) with the same prompt: read AGENTS.md
 in the seat directory, play N game turns through the civ5 MCP tools, write a report into
-reports/, stop. When the process exits the loop starts the next cycle. A file named STOP in the
+reports/ (unless `--no-report`), stop. A benchmark's briefing (`--briefing FILE`) is put before
+the prompt of the first cycle only: what a run is asked is said once. When the process exits the loop starts the next cycle. A file named STOP in the
 seat directory ends the loop after the current cycle; STOP_NOW kills the current cycle too.
 
 A benchmark run's last turn (`--until-turn N`, docs/BENCHMARK.md rule 5): every instance is told that turn, the loop
@@ -54,9 +55,10 @@ import uuid
 from pathlib import Path
 
 AGENTS = ("codex", "grok", "claude")
+FIRST_CYCLE = 1     # the run's first instance; a loop taken up again (`--start-cycle N`) starts later
 CYCLE, CYCLE_END = "seat_loop.cycle", "seat_loop.cycle_end"
 
-PROMPT = """Read AGENTS.md in this directory first: it says who you are and how the civ5 tools work.
+PLAY = """Read AGENTS.md in this directory first: it says who you are and how the civ5 tools work.
 
 This is one instance of a long game; your context will be reset after this instance. Play your
 seat until {stop_at}, then stop:
@@ -72,18 +74,51 @@ seat until {stop_at}, then stop:
    on the same turn (a `gate`, a leader on screen, something still to answer) has not ended it, so
    answer what is asked and finish again. If the game ends, or a tool reports the game or the
    bridge is down, stop at once instead.
-4. Then write `reports/{stamp}.md` in this directory (a plain file, nothing else on disk) with these
+"""
+
+# The instance's report is for finding the harness's faults (`--report`, the default). A benchmark run is played
+# without it (`--no-report`): its "State for next instance" hands the plan on, which is the player's own to do.
+REPORT = """4. Then write `reports/{stamp}.md` in this directory (a plain file, nothing else on disk) with these
    headings: **Turns** (T0 to the last turn you ended, and what you did in one line per turn),
    **Stumbles** (every tool refusal, error, retry, confusing answer, or moment you did not know what
    to call: quote the tool, the arguments and the answer verbatim), **Wishes** (what a tool should
    have told you or done to make this easier), **State for next instance** (your plan, in the words
    you also left in the notebook). Then reply with one line and finish.
+"""
+NO_REPORT = """4. Then reply with one line and finish.
+"""
 
+# What the player is to achieve is not said here: a benchmark says it once, in its briefing (`--briefing`).
+RULES = """
 Rules: only the civ5 MCP tools touch the game; never run scripts or shell commands against it,
 never use `session` to change the seat, load a save or leave the game, never write outside this
 directory. Any other human seat is another LLM; you see nothing of its turn, and you do not try to.
-Play to win.
 """
+
+SHOWN_ONCE = ("This briefing will not be shown again. Your context will be reset many times before the game ends; "
+              "staying on track is up to you.")
+
+
+def prompt_for(turns: int, stamp: str, until: int | None = None, report: bool = True,
+               briefing: str | None = None) -> str:
+    """An instance's prompt. `briefing` is a benchmark's own text (how a run is ranked, what is asked): it goes
+    before everything else, with the line that it is shown once, and the caller gives it to the first instance
+    of a run only."""
+    play = PLAY.format(stop_at=stop_words(turns, until))
+    last_step = REPORT.format(stamp=stamp) if report else NO_REPORT
+    once = f"{briefing.strip()}\n\n{SHOWN_ONCE}\n\n" if briefing else ""
+    return once + play + last_step + RULES
+
+
+def briefing_of(cycle: int, briefing: str | None) -> str | None:
+    """A run's briefing for its first instance, and nothing for any later one."""
+    return briefing if cycle == FIRST_CYCLE else None
+
+
+def report_words(seat_dir: Path, cycle: int) -> str:
+    """The end of a cycle's log line: the report the instance left, or that it left none."""
+    reports = sorted((seat_dir / "reports").glob(f"c{cycle}-*.md"))
+    return f" report {reports[-1].name}" if reports else " NO REPORT"
 
 
 def stop_words(turns: int, until: int | None = None) -> str:
@@ -94,10 +129,6 @@ def stop_words(turns: int, until: int | None = None) -> str:
         return f"turn T0+{turns} is yours"
     return (f"turn T0+{turns} or turn {until} is yours, whichever comes first (with T0 at {until} or later there "
             "is nothing to play)")
-
-
-def prompt_for(turns: int, stamp: str, until: int | None = None) -> str:
-    return PROMPT.format(stop_at=stop_words(turns, until), stamp=stamp)
 
 
 TURN_READ = "return {turn = Game.GetGameTurn(), winner = Game.GetWinner(), alive = Players[%d]:IsAlive()}"
@@ -312,6 +343,12 @@ def main() -> int:
                     help="a benchmark run's last turn: every instance is also told to stop when game turn N is the seat's, and the "
                          "loop ends when the game is there (or the game is decided, or the seat dead)")
     ap.add_argument("--cycles", type=int, default=0, help="0 = until STOP")
+    ap.add_argument("--report", action=argparse.BooleanOptionalAction, default=True,
+                    help="every instance writes reports/<stamp>.md (turns, stumbles, wishes, its plan); "
+                         "--no-report for a benchmark run")
+    ap.add_argument("--briefing", type=Path, default=None, metavar="FILE",
+                    help="a benchmark's briefing: its text opens the prompt of the run's first instance (cycle 1) "
+                         "and of no other, with the line that it will not be shown again")
     ap.add_argument("--cycle-timeout", type=int, default=4 * 3600, help="seconds before a cycle is killed")
     ap.add_argument("--log-dir", default=str(Path(__file__).resolve().parent.parent / "logs" / "night"))
     ap.add_argument("--start-cycle", type=int, default=1)
@@ -322,8 +359,10 @@ def main() -> int:
     if args.agent == "claude" and not (seat_dir / ".mcp.json").is_file():
         raise SystemExit(f"--agent claude needs {seat_dir / '.mcp.json'}: the civ5 server with the seat pinned "
                          "(it is the only server the seat is given)")
+    briefing = args.briefing.read_text() if args.briefing else None
     log_dir.mkdir(parents=True, exist_ok=True)
-    (seat_dir / "reports").mkdir(parents=True, exist_ok=True)
+    if args.report:
+        (seat_dir / "reports").mkdir(parents=True, exist_ok=True)
     loop_log = log_dir / f"{args.agent}-loop.log"
 
     def log(msg: str) -> None:
@@ -348,7 +387,8 @@ def main() -> int:
                 log(f"{over}, loop ends")
                 return 0
         stamp_ = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-        prompt = prompt_for(args.turns, f"c{cycle}-{stamp_}", args.until_turn)
+        prompt = prompt_for(args.turns, f"c{cycle}-{stamp_}", args.until_turn, report=args.report,
+                            briefing=briefing_of(cycle, briefing))
         last_msg = log_dir / f"{args.agent}-c{cycle}.last.md"
         session = str(uuid.uuid4()) if args.agent == "claude" else None
         cmd = build_cmd(args.agent, args.model, args.effort, prompt, seat_dir, last_msg, session)
@@ -380,10 +420,9 @@ def main() -> int:
         rc, killed = run_cycle(cmd, cwd=seat_dir, env=env, stream=log_dir / f"{args.agent}-c{cycle}.jsonl",
                                err_path=log_dir / f"{args.agent}-c{cycle}.err", header=header,
                                timeout=args.cycle_timeout, stop_now=(seat_dir / "STOP_NOW").exists)
-        reports = sorted(p for p in (seat_dir / "reports").glob(f"c{cycle}-*.md"))
         log(f"cycle {cycle} end rc {rc} after {int(time.time() - t0)} s"
             + (f" ({killed})" if killed else "")
-            + (f" report {reports[-1].name}" if reports else " NO REPORT"))
+            + (report_words(seat_dir, cycle) if args.report else ""))
         cycle += 1
         if killed == "STOP_NOW":
             return 0

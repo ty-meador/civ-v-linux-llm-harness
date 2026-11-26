@@ -313,6 +313,18 @@ in your hands (`city`, `civ`, `held_by`, `x` and `y` when you know the plot, `di
 briefing lists each of them whose plot you know as an `opportunities` row, `capital_to_take`: where it stands,
 whether you are at war with its holder, and in a game of two both Soldiers figures of the Demographics screen.
 
+The same briefing, the one that opens an instance, carries `victory_progress`: where every civilization stands
+toward each victory this game can be won by, as the game's own screens show it this turn. `civs` has a row for
+you (first, `you`) and one for every other civilization, with a column only for a victory that is allowed:
+`own_capital` (`held` or `lost`) and `original_capitals_held` (Domination), `apollo` and `spaceship_parts`
+(Science), `influential_on` and `influential_needed` (Culture), `delegates` once there is a World Congress
+(Diplomatic); a civilization that is gone has `destroyed` and nothing else. `needs` says what each victory takes:
+`spaceship_parts`, `delegates`, `turns_until_world_leader_vote` once the United Nations sits, and a sentence a
+victory. A civilization you have not met is listed as `an unmet civilization`, with no `player` and without the
+Culture columns: the Victory Progress screen and the World Congress list it unnamed, the Culture Overview not at
+all. A rival that is close to winning is also a warning on every turn (`victory_threat`,
+`culture_victory_threat`); the table is where everybody stands when nobody is close.
+
 ## Many orders, one call
 
 `batch(actions=[{"tool": "order", "args": {"to": "unit", "id": 7, "action": "mission", "args": {"mission":

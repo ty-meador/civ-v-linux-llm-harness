@@ -32,7 +32,10 @@ the seeds it is measured on (100 and 20 unless given). Whether a save can be use
 keeps a starting save only if the baseline wins between 0.2 and 0.8 of its games, and that is a batch of
 `benchmark_run.py`. A manifest says `baseline: null` until one is written into it.
 
-Not in a manifest: the map's random seed. This build's setup screen has no call that reads or sets one.
+Not in a manifest: the map's random seed. This build's setup screen has no call that reads or sets one. A map
+kept as data (`benchmark_map.py`) stands in for it: `--host NAME --map FILE` writes the file's map script, hosts
+on it, checks that the saved game holds the file's map plot for plot, and keeps the file beside the save as
+`NAME.map.json`. The game lists that script only when it found it at its own start (see `benchmark_map.py`).
 """
 from __future__ import annotations
 
@@ -46,6 +49,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import benchmark_map
 import benchmark_run as run
 
 KINDS = ("opening", "middle", "late")
@@ -60,16 +64,25 @@ for m = GameDefines.MAX_MAJOR_CIVS, GameDefines.MAX_CIV_PLAYERS - 1 do
   local c = Players[m]
   if c and c:IsAlive() and c:IsMinorCiv() then minors = minors + 1 end
 end
+local mods = {}
+for _, m in ipairs(Modding.GetActivatedMods()) do mods[#mods + 1] = Modding.GetModProperty(m.ID, m.Version, "Name") end
 return {world_size = GameInfo.Worlds[Map.GetWorldSize()].Type, map_script = PreGame.GetMapScript(), victories = v,
   seat_row = GameInfo.HandicapInfos[Players[%(seat)d]:GetHandicapType()].Type,
-  start_era = GameInfo.Eras[Game.GetStartEra()].Type, city_states = minors,
+  start_era = GameInfo.Eras[Game.GetStartEra()].Type, city_states = minors, mods = mods,
   build = UI.GetVersionInfo and UI.GetVersionInfo() or ""}
 """
 
 
-def describe(g, name: str, seat: int | None = None) -> dict:
+def script_as_published(script: str) -> str:
+    """A map script as a manifest names it. One of the game's own keeps its path under the game's folder; one from
+    the user's Maps folder is named by its file alone, since that path holds the user's home and a manifest is
+    published."""
+    return script if script.lower().startswith("assets") else script.replace("/", "\\").rsplit("\\", 1)[-1]
+
+
+def describe(g, name: str, seat: int | None = None, map_data: dict | None = None) -> dict:
     """Load `name`, read what it holds, leave. Refuses a save a player could not be given: no single human seat, no
-    observer slot, or a seat that is dead."""
+    observer slot, or a seat that is dead; and, with `map_data`, a save whose map is not that map."""
     loaded = g.load_save(name)
     if not loaded.get("ok"):
         raise run.Refused(f"the save did not load: {loaded.get('err') or loaded}")
@@ -83,13 +96,25 @@ def describe(g, name: str, seat: int | None = None) -> dict:
         if read.get("winner", -1) >= 0:
             raise run.Refused(f"the game of this save is already won (turn {read['turn']})")
         settings = dict(g.q(SETTINGS % {"seat": seat}))
-        return {"turn": read["turn"], "seat": seat, "civilization": me["civ"],
+        settings["map_script"] = script_as_published(settings["map_script"])
+        held = {"map": held_map(g, map_data)} if map_data is not None else {}
+        return {**held, "turn": read["turn"], "seat": seat, "civilization": me["civ"],
                 "opponents": [p["civ"] for p in read["players"] if p["id"] != seat and p["alive"]],
                 "seat_turn_active": bool(me.get("turn_active")), "build": settings.pop("build", ""),
                 "settings": {"handicap": read["handicap"], "speed": read["speed"], "max_turns": read["max_turns"],
                              "time_victory": "VICTORY_TIME" in settings["victories"], **settings}}
     finally:
         run.leave(g)
+
+
+def held_map(g, wanted: dict) -> dict:
+    """The map of the loaded game, read plot for plot. Refuses one that is not `wanted`. What is kept is the map as
+    read, since it also says who holds each slot in this save, city-states included."""
+    held = benchmark_map.read_game(g)
+    found = benchmark_map.differences(wanted, held)
+    if found:
+        raise run.Refused(f"the save's map is not the file's, {len(found)} differences, the first: {found[0]}")
+    return held
 
 
 def host(g, name: str, civilization: str, world_size: str, map_script: str | None, speed: str, handicap: str,
@@ -107,6 +132,8 @@ def host(g, name: str, civilization: str, world_size: str, map_script: str | Non
         terms = (run.ROW_AI % {"seat": seat} if row == "ai" else "") + (run.TIME_OFF if time_victory == "off" else "")
         g.q(run.TERMS % {"terms": terms, "seat": seat})
         save_game(g, name)
+        if screen.get("map_script"):
+            screen = {**screen, "map_script": script_as_published(screen["map_script"])}
         return {"how": "hosted", "setup_screen": screen}
     finally:
         run.leave(g)
@@ -129,15 +156,20 @@ def sha256(path: Path) -> str:
 
 def keep(name: str, seen: dict, origin: dict, kind: str, run_turns: int, seeds: int, kept: Path = KEPT,
          today: str | None = None) -> dict:
-    """Copy the save beside its manifest under `kept` and write the manifest. Says the manifest."""
+    """Copy the save beside its manifest under `kept` and write the manifest; a map that `seen` holds is kept there
+    too as data, and the manifest names it. Says the manifest."""
     kept.mkdir(parents=True, exist_ok=True)
     file = kept / f"{name}.Civ5Save"
-    shutil.copyfile(run.saves_dir() / file.name, file)
+    shutil.copyfile(run.save_file(name), file)
     manifest = {"id": name, "save": file.name, "sha256": sha256(file), "kind": kind, "turn": seen["turn"],
                 "seat": seen["seat"], "civilization": seen["civilization"], "opponents": seen["opponents"],
                 "turns": run_turns, "seeds": seeds, "settings": seen["settings"],
                 "origin": {**origin, "at": today or time.strftime("%Y-%m-%d")}, "game_build": seen["build"],
                 "baseline": None}
+    if "map" in seen:
+        kept_map = kept / f"{name}.map.json"
+        kept_map.write_text(json.dumps(seen["map"]) + "\n")
+        manifest["map"] = {"file": kept_map.name, "sha256": sha256(kept_map)}
     (kept / f"{name}.json").write_text(json.dumps(manifest, indent=1) + "\n")
     return manifest
 
@@ -148,7 +180,9 @@ def install(kept: Path = KEPT) -> list[str]:
     lines = []
     for path in sorted(kept.glob("*.json")):
         manifest = json.loads(path.read_text())
-        src, dst = kept / manifest["save"], run.saves_dir() / manifest["save"]
+        # A game with a mod active (a scenario) keeps its saves in a tree of its own, and is put back there.
+        tree = run.modded_saves_dir() if manifest.get("settings", {}).get("mods") else run.saves_dir()
+        src, dst = kept / manifest["save"], tree / manifest["save"]
         if not src.exists() or sha256(src) != manifest["sha256"]:
             lines.append(f"{manifest['id']}: the kept save is not the one its manifest names; not installed")
         elif dst.exists() and sha256(dst) != manifest["sha256"]:
@@ -172,6 +206,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--civ", help="with --host: the seat's civilization, a CIVILIZATION_* type")
     ap.add_argument("--world-size", default="WORLDSIZE_DUEL", help="with --host (default WORLDSIZE_DUEL)")
     ap.add_argument("--map-script", help="with --host: a script's file name, e.g. pangaea (default: as the screen has it)")
+    ap.add_argument("--map", type=Path, metavar="FILE",
+                    help="with --host, in place of --map-script: a map kept as data (benchmark_map.py --read). The game is "
+                         "hosted on it, the save is checked to hold it, and the file is kept with the save")
     ap.add_argument("--speed", default="GAMESPEED_QUICK", help="with --host (default GAMESPEED_QUICK)")
     ap.add_argument("--handicap", default="HANDICAP_PRINCE", help="with --host (default HANDICAP_PRINCE)")
     ap.add_argument("--opponent", action="append", metavar="CIVILIZATION",
@@ -195,6 +232,9 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("--host needs --civ")
     if a.cut and not (a.save and a.turns and a.turns > 0):
         ap.error("--cut needs --save and --turns")
+    if a.map and (not a.host or a.map_script):
+        ap.error("--map goes with --host, in place of --map-script")
+    map_data = json.loads(a.map.read_text()) if a.map else None
     name = a.host or a.cut or a.describe
     from harness.game import Game
     g = Game()
@@ -203,14 +243,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     try:
         if a.host:
-            origin = host(g, name, a.civ, a.world_size, a.map_script, a.speed, a.handicap, opponents=a.opponent,
+            map_script = benchmark_map.write_script(map_data).stem if map_data else a.map_script
+            origin = host(g, name, a.civ, a.world_size, map_script, a.speed, a.handicap, opponents=a.opponent,
                           victories=a.victories.split(",") if a.victories else None)
         elif a.cut:
             origin = cut(g, a.save, name, a.turns, a.seed, say=lambda line: print(line, flush=True))
         else:
             origin = {"how": "described", "note": "the save was made before this command; see docs/BENCHMARK.md"}
         run.wait_main_menu(g)
-        seen = describe(g, name)
+        seen = describe(g, name, map_data=map_data)
         kind = a.kind or ("opening" if seen["turn"] == 0 else None)
         if kind is None:
             raise run.Refused(f"the save is on turn {seen['turn']}: say --kind middle or --kind late")

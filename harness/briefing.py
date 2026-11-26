@@ -683,6 +683,13 @@ def war_warnings(ts: dict) -> list[dict]:
     return out
 
 
+VICTORY_PROGRESS_NOTE = (
+    "where every civilization stands toward each victory this game can be won by, as the Victory Progress screen, the "
+    "Culture Overview and the World Congress show it this turn; `needs` says what each victory takes. A civilization "
+    "you have not met is listed without its name, and without the columns those screens keep for civilizations you "
+    "have met. Shown with the briefing that opens an instance.")
+
+
 def only_domination(capitals: list) -> dict:
     """The briefing's `only_victory` in a game hosted with Domination alone: the Victory Progress screen's capitals
     (met civilizations; a plot only when revealed) and a sentence that says what the screen shows. A fact of the
@@ -828,4 +835,8 @@ def build(ts: dict, summary: dict, cities: list, units: list, board: dict, basel
         out["victories_allowed"] = board["victories"]
         if board["victories"] == ["DOMINATION"] and isinstance(board.get("domination"), list):
             out["only_victory"] = only_domination(board["domination"])
+    progress = board.get("victory_progress")
+    if include_rules and isinstance(progress, dict) and isinstance(progress.get("civs"), list):
+        # v349: with the rules, so once an instance: where every civilization stands toward every victory.
+        out["victory_progress"] = {**progress, "note": VICTORY_PROGRESS_NOTE}
     return out, snap

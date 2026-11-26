@@ -282,6 +282,99 @@ and 3 given none (packed before a run kept a game file), every score beside its 
 player with one run. Five earlier packings of four of the same names are kept beside them: the report lists
 them as recordings with no score, and the scorer given them too wrote no file and named the four names.
 
+### The classes of benchmark, and what a run is told (2026-11-25)
+
+The user set out four classes. A class says what the player is asked, how a run is ranked, and what it is told.
+
+| class | the game | what is asked | how a run is ranked |
+|---|---|---|---|
+| open ended | a fixed map and fixed random numbers; everything else is the player's, the leader included (how a player picks its leader is put off: the map would be saved and the chosen leader put into it, the player choosing before it is given the game) | nothing beyond the game | the score of this section |
+| survival | a seat in a near impossible place (`small-king-venice-a`) | to last; a win ranks above everything | the score of this section |
+| one victory type | one map, a leader that leans to no victory type (Poland), one run for each of Domination, Science, Culture and Diplomatic; no victory type is switched off | to win by that type | pass or fail: 0 for a destroyed seat, for a win by another type, for no win. Of two passes the one in fewer turns ranks higher, and the score of this section breaks a tie that is left |
+| scenario | one of the game's own scenarios, as the game ships it | the scenario's own victory conditions | as the scenario decides: pass or fail where it has a goal (fewer turns higher, then the score), its points where it is won on points |
+
+There is no Time victory benchmark. One open-ended benchmark is also played on the victory-type map, so that the
+two can be set side by side. Only the first two classes are scored by anything that is built.
+
+**What a run is told.** What a benchmark asks, and how its runs are ranked, is said once: in a briefing that opens
+the prompt of the run's first instance (`llm_seat_loop.py --briefing FILE`), followed by "This briefing will not
+be shown again. Your context will be reset many times before the game ends; staying on track is up to you." No
+later instance is given it, and the instance prompt itself asks for nothing ("Play to win." is gone from it). The
+prompt still names the notebook as the memory that survives a reset; it never says to keep the goal there. A
+scenario is the exception: its texts are the game's own, a human player can read them at any time, and so can the
+player (`SCENARIO.md` in its seat folder). A benchmark run's instances write no report (`--no-report`): the
+report's last heading hands the plan to the next instance, and that is the player's own to do. A client's own
+memory between instances is allowed; what is measured is a model with its client.
+
+**A scenario through the runner (live 2026-11-25, the American Civil War).** The scenario was started from its own
+menu at King on each side, by the calls its menu makes (the mod activated, the scenario's map set, the side moved
+to slot 0, the game started). The tools read it as any game: the briefing with no gate, 22 units with their orders,
+the scenario's research tree. Its save loads again from the main menu with the mod active. Three things differ
+from a stock game:
+
+- The saves are in a tree of their own (`ModdedSaves/single`); the runner looks in both (the changelog has it).
+- The benchmark's terms are not put into it. A scenario is played as shipped: the seat on the handicap chosen,
+  the scenario's speed (Standard) and its turn limit (50) left as they are.
+- A capital taken is the game's Domination victory, the only victory type the scenario leaves on. When time runs
+  out the scenario's own code ends the game (`Game.SetGameState(GAMESTATE_OVER)` in its `turnsremaining.lua`), and
+  the game then names a winner all the same: Opus's Confederacy reached turn 50 with no capital taken, behind on
+  score (1087 against 1265) and four cities down, and the row reads `game_won`, winner 0, `VICTORY_TIME`. That is
+  not the scenario's victory condition. So a run passes when the seat wins by Domination, and a row that says
+  `game_won` with `VICTORY_TIME` has failed.
+- **`winner` is a team, not a seat, and in this scenario the two differ.** The scenario keeps the Union on team 0
+  and the Confederacy on team 1 whichever side is played, while the played side is always player 0. The winner 0
+  of the Confederacy's row is the Union, the opponent. Who is named follows from the game core's `testVictory`
+  (read in the community-kept copy of its source, `CvGame.cpp`; the shipped library is not compared with it): when
+  the turn limit is reached and nobody has won, it takes the victory type that is marked as decided by score
+  (Time) without asking whether that type is switched on, and names the team with the highest score. The run
+  agrees: the Union led 1265 to 1087. The runner and the scorer of recordings compare the winner with the seat's
+  team, so both rows are read rightly; the scorer's reading of a bare save takes team and seat as one number,
+  which is wrong for this save.
+
+**The first two runs (2026-11-25): Claude Opus 5.5 at medium, King, ten-turn instances, no report.** Both were told
+"the run passes if you meet the scenario's victory condition and fails otherwise", and not that fewer turns rank
+higher (decided while they played).
+
+| side | how it ended | turns | seconds | calls | refused |
+|---|---|---|---|---|---|
+| the Union | Domination on turn 45: a pass | 45 | 2463 | 399 | 83 |
+| the Confederacy | time ran out on turn 50, no capital taken: a fail | 50 | 2307 | 380 | 64 |
+
+Each has its recording, packed and checked (`logs/boards/scenario-civilwar-*-king/recordings/`), with saves of
+turns 10 to 40 and the end.
+
+Not looked at yet: the built-in AI playing a scenario's seat (the autoplay of "Autoplay, checked live" needs an
+observer slot), and any scenario but this one.
+
+### A map kept as data (2026-11-26)
+
+A starting save used to be whatever map the game rolled: this build has no call that reads or sets a map's random
+seed, so a map that was nearly right could not be had again with one thing changed. `scripts/benchmark_map.py`
+makes the map a file.
+
+- **Read.** `--read FILE` takes every plot out of the game on screen: plot type, terrain, feature (natural wonders
+  are features), resource and quantity, the rivers on three of its edges with their flow, ancient ruins,
+  continent art; and the starting plot of every slot, city-states included. Types are kept by name.
+- **Laid out again.** `--script FILE` writes a map script (`omt_map.lua`, in the game's own `Maps` folder beside
+  its saves) that sets every plot from the file in the game's own order and rolls nothing. A slot starts on its
+  plot whichever civilization holds it, so the cast is chosen apart from the land. The game stays unmodded.
+- **Checked live (2026-11-26).** Stock Pangaea, Small (66 by 42), Poland and five rivals: read, hosted again
+  through the script, read again: 0 differences over 2772 plots and all 18 starting plots.
+- **What the game does with such a script.** It lists a script from the user's `Maps` folder only when it found
+  the file at its own start (one restart, the first time), and reads the file's content anew at every game
+  start. Which city-states take part it rolls at every game start: all 12 differed on the rebuild. A file fixes
+  where they start, not who they are; a save keeps both. No call of the setup screen sets them (`PreGame` holds
+  only their number), which the leader-pick class will have to get round.
+- **Measured.** `--report FILE` gives, for every civilization's start: the nearest rival and how far, how many
+  capitals are walked to without embarking, the city-states within 10 plots, and within 5 plots the land plots,
+  hills, river plots, strategic resources and kinds of luxury. `--same A B` says where two files differ.
+- **Not built.** Changing a file by hand has no tool and no check of its own yet (the game's setters take a
+  feature on any terrain); only a map read from the game has been laid out again.
+- **A starting save on such a map.** `benchmark_save.py --host NAME --map FILE` writes the script, hosts,
+  loads the save again and refuses it unless it holds the file's map plot for plot. The map as the save holds
+  it is kept beside the save as `NAME.map.json`, and the manifest names it (`map.file`, `map.sha256`).
+  Run against the game 2026-11-26 (Poland on pangaea-b, a scratch save): hosted, loaded, found the same, kept.
+
 ### The spectator page's own recording is another thing
 
 The page (docs/VISUALIZATION.md) records what a watcher saw: `--record` writes its stream to a file, a snapshot
@@ -915,6 +1008,47 @@ What follows for the baseline:
 - **One save, one baseline.** The bonus is the save's game difficulty. Lua has `Game.GetHandicapType` and no
   setter; `PreGame.SetHandicap` exists and was not tried in a running game. The ladder of point 3 would need the
   same map started once per difficulty, and then the opponents change with it.
+
+### A taken-over seat is not one of the game's AIs (2026-11-26)
+
+Asked: does the built-in AI play a seat it takes over as it plays a civilization that was its own from turn 0?
+Run against the game on the Poland map (`pangaea-b`, King, Quick, Small; Egypt, Korea, the Inca, Rome, Greece).
+
+- **An observer and no human: the game is at Chieftain.** The stock staging room has an Observer slot type and
+  the host may take it (`stagingroom.lua`); `PreGame.SetSlotStatus(0, SlotStatus.SS_OBSERVER)` does the same on
+  the single-player setup screen. Six AIs then start on the map's plots and the game plays by itself. But with
+  no human civilization the game's difficulty is `STANDARD_HANDICAP` (Chieftain), whatever the observer's own row
+  or the AI slots' rows say (both set to King in the staging room: the slots read AI_DEFAULT in the game, the game
+  Chieftain). The AIs' bonuses are the game's row: Poland's Warrior 33 production, where King's AI pays 22.
+- **King with six AIs from turn 0** (`logs/boards/scratch/map_build/all_ai_games.py`, scratch): a single-player
+  King game with a human in slot 0, the six civilizations as AIs in slots 1 to 6 (the map's starting plots written
+  one slot up) and every other slot closed. `Game.SetAIAutoPlay` on turn 0 finds no observer slot and destroys the
+  human's seat ("The game needs an observer slot, or the seat is destroyed"), and the game plays on by itself at
+  about 3 seconds a turn. Read on turn 1: King, Poland on AI_DEFAULT, Warrior 22, two technologies (King's free
+  Pottery), the human dead.
+- **Four such games against the eight in which the engine took Poland's seat on turn 0** (the benchmark's terms:
+  the seat on AI_DEFAULT, four with Greece and four with Siam in the sixth slot):
+
+  | | Poland an AI from turn 0 (4) | Poland's seat taken over (8) |
+  |---|---|---|
+  | Poland destroyed | 0 | 3, and down to one city in a fourth |
+  | Poland's cities at the end | 11, 21, 21, 14 | 10 at most |
+  | Poland first on score at turn 100 | 4 | 5 |
+  | Poland first on score at the end | 3 | 4 of the 5 it lived through |
+  | Poland wins | 1 (Culture, turn 290) | 1 (Diplomatic, turn 312) |
+
+  Greece held 8 to 12 of the 12 city-states at its best in all four, as in the four taken-over games it was in.
+  Different city-states and different dice in every game, and a seventh civilization that is gone on turn 0; four
+  games. The size of the difference in cities is not chance of that kind.
+- **Why, as far as it is known.** A taken-over seat never had King's AI start (the free technology). And in the
+  community-kept source (`CvFlavorManager::Init`,
+  `CvDiplomacyAI::DoInitializePersonality`; not compared with the shipped library, whose symbols are stripped) a
+  player that is human when the game starts gets every flavor at 5 and no leader's personality. Whether this
+  build sets them again when the seat is taken is not known, and Lua has no call that reads a flavor. Not tried:
+  `AILog = 1` in the game's `config.ini`, which should write them.
+- **What follows.** The built-in AI's rows on a starting save (the engine on the benchmark's seat) say what the
+  engine does with a seat it is handed, not what one of the game's AIs does with that civilization; on this map
+  the second is a good deal stronger. And Poland's start is a rich one: an AI on it from turn 0 led in every game.
 
 ### Another victory, and a seat that dies
 
