@@ -139,6 +139,12 @@ def missing_of(benchmarks: dict[str, dict], kept: Path = KEPT) -> list[str]:
     return missing
 
 
+def is_on_points(benchmark: dict) -> bool:
+    """Whether a run of the benchmark is scored in a scenario's own points and not on the scale of 0 to 1 that
+    every other benchmark's score is on."""
+    return benchmark["class"] == "scenario" and benchmark["won_by"] == "points"
+
+
 def line_of(benchmark: dict) -> str:
     asked = {"victory": benchmark.get("victory", ""), "scenario": f"won by {benchmark.get('won_by')}"}.get(benchmark["class"], "")
     return f"{benchmark['id']}: {benchmark['class']}{', ' + asked if asked else ''}, on {benchmark['save']}"

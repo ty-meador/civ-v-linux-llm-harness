@@ -6,7 +6,9 @@ scores file: for each recording its name, the sha256 of the file that was scored
 the scores beside the recordings they are of and writes the report: for each benchmark (a run that names none is
 of its starting save) and number of turns asked, each player's score, its error over its own runs where it has more than one, how many of its runs played
 their turns, and the seconds and tokens a turn. The built-in AI's run is in the same table, named as the
-reference. The report gives scores and says nothing of how they are made.
+reference. A scenario that is won on points is scored in those points (saves/benchmark/benchmarks.json says which
+benchmarks are): its table says so and has nothing under "runs for an error of", which is worked out for scores
+between 0 and 1. The report gives scores and says nothing of how they are made.
 
     scripts/benchmark_report.py scores.json --recordings logs/boards
     scripts/benchmark_report.py week-47.json week-48.json --recordings logs/boards --json report.json
@@ -33,7 +35,7 @@ player, a run's `by_turn` where the scores file had one, and what was given no s
 in it. Nothing in either form is of the moment of writing.
 
 Exit status 0 when every score has its recording, 1 when one has none here or a file under the folders is no
-recording, 2 when a scores file cannot be read. No game and no network are needed.
+recording, 2 when a scores file or the list of benchmarks cannot be read. No game and no network are needed.
 """
 from __future__ import annotations
 
@@ -71,6 +73,21 @@ def recording():
         _recording = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(_recording)
     return _recording
+
+
+def benchmarks_on_points(path: Path | None = None) -> frozenset[str]:
+    """The benchmarks whose score is a scenario's points, from the list of benchmarks (scripts/benchmark_set.py;
+    `path`: another list than the one kept under saves/benchmark)."""
+    spec = importlib.util.spec_from_file_location("benchmark_set", Path(__file__).resolve().parent / "benchmark_set.py")
+    if spec is None or spec.loader is None or not Path(spec.origin or "").is_file():
+        raise Refused("scripts/benchmark_set.py is not beside this script")
+    listed = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(listed)
+    try:
+        benchmarks = listed.read() if path is None else listed.read(path)
+        return frozenset(name for name, benchmark in benchmarks.items() if listed.is_on_points(benchmark))
+    except listed.Refused as e:
+        raise Refused(str(e)) from None
 
 
 # ------------------------------------------------------------------ the scores file
@@ -202,29 +219,33 @@ def a_turn(runs: list[dict], key: str) -> float | None:
     return sum(r[key] for r in have) / sum(r["turns_played"] for r in have) if have else None
 
 
-def player_line(player: str, runs: list[dict]) -> dict:
+def player_line(player: str, runs: list[dict], points: bool = False) -> dict:
+    """A player's line of a benchmark's table. `points`: the scores are a scenario's points, and the runs that
+    would bring the error to TARGET_ERROR are not worked out: that error is of a score between 0 and 1."""
     scores = [r["score"] for r in runs]
     sd = spread(scores)
     return {"player": player, "reference": player == recording().BUILT_IN_AI, "runs": len(runs), "score": mean(scores),
             "error": None if sd is None else sd / math.sqrt(len(runs)), "spread": sd,
-            "runs_for_target_error": None if sd is None else max(1, math.ceil((sd / TARGET_ERROR) ** 2)),
+            "runs_for_target_error": None if sd is None or points else max(1, math.ceil((sd / TARGET_ERROR) ** 2)),
             "finished": sum(1 for r in runs if r["result"] == FINISHED),
             "seconds_a_turn": a_turn(runs, "seconds"), "tokens_read_a_turn": a_turn(runs, "tokens_read"),
             "tokens_written_a_turn": a_turn(runs, "tokens_written"),
             "recordings": sorted(runs, key=lambda r: (r["seed"], r["sha256"]))}
 
 
-def benchmarks_of(scored: list[dict]) -> list[dict]:
+def benchmarks_of(scored: list[dict], on_points: frozenset[str] = frozenset()) -> list[dict]:
     """The scored runs by what they are runs of: a benchmark and the turns asked of it. A run that names no
     benchmark is of its starting save, as every run was before one save carried several benchmarks. A player's
-    mean is taken over runs of one such pair only; inside it the players stand by score, the best first."""
+    mean is taken over runs of one such pair only; inside it the players stand by score, the best first.
+    `on_points`: the benchmarks whose scores are a scenario's points."""
     groups: dict[tuple, dict[str, list[dict]]] = {}
     for run in scored:
         groups.setdefault((run["benchmark"], run["starting_save"], run["turns_asked"]), {}).setdefault(run["player"], []).append(run)
     benchmarks = []
     for (benchmark, save, turns), players in sorted(groups.items(), key=lambda g: (g[0][0], g[0][1], g[0][2] or 0)):
-        lines = sorted((player_line(name, runs) for name, runs in players.items()), key=lambda p: (-p["score"], p["player"]))
-        benchmarks.append({"benchmark": benchmark, "starting_save": save, "turns_asked": turns, "players": lines})
+        points = benchmark in on_points
+        lines = sorted((player_line(name, runs, points) for name, runs in players.items()), key=lambda p: (-p["score"], p["player"]))
+        benchmarks.append({"benchmark": benchmark, "starting_save": save, "turns_asked": turns, "points": points, "players": lines})
     return benchmarks
 
 
@@ -232,9 +253,11 @@ def by_recording(rows: list[dict]) -> list[dict]:
     return sorted(rows, key=lambda r: (r["recording"], r["sha256"]))
 
 
-def report_of(scores: dict[str, dict], recordings: dict[str, dict], not_read: list[str]) -> dict:
+def report_of(scores: dict[str, dict], recordings: dict[str, dict], not_read: list[str],
+              on_points: frozenset[str] = frozenset()) -> dict:
     """The whole report as data: what the tables hold, and every score or recording that has no place in them.
-    `scores` is by recording name (latest_scores), `recordings` by the sha256 of the file (recordings_under)."""
+    `scores` is by recording name (latest_scores), `recordings` by the sha256 of the file (recordings_under),
+    `on_points` the benchmarks whose scores are a scenario's points (benchmarks_on_points)."""
     scored, not_scored, no_recording = [], [], []
     for name, row in scores.items():
         sha256 = row["sha256"]
@@ -248,7 +271,7 @@ def report_of(scores: dict[str, dict], recordings: dict[str, dict], not_read: li
             scored.append({**run, "score": row["score"], **({"by_turn": row["by_turn"]} if "by_turn" in row else {})})
     scored_files = {row["sha256"] for row in scores.values()}
     no_score = sorted(f"{run['recording']} ({sha256[:12]})" for sha256, run in recordings.items() if sha256 not in scored_files)
-    return {"format": REPORT_FORMAT, "target_error": TARGET_ERROR, "benchmarks": benchmarks_of(scored),
+    return {"format": REPORT_FORMAT, "target_error": TARGET_ERROR, "benchmarks": benchmarks_of(scored, on_points),
             "not_scored": by_recording(not_scored), "no_recording": by_recording(no_recording), "no_score": no_score,
             "not_read": not_read}
 
@@ -265,14 +288,16 @@ def fmt(x: float | None, places: int = 3) -> str:
 
 def table_of(benchmark: dict) -> list[str]:
     turns = benchmark["turns_asked"]
-    lines = [f"## {benchmark['benchmark']}, {turns if turns is not None else 'no number of'} turns asked", "",
+    # a scenario's points are whole numbers in the hundreds or thousands; a score of the other classes is 0 to 1
+    places, scale = (1, ", scored in the scenario's points") if benchmark["points"] else (3, "")
+    lines = [f"## {benchmark['benchmark']}, {turns if turns is not None else 'no number of'} turns asked{scale}", "",
              f"| player | runs | score | error | spread | runs for an error of {TARGET_ERROR} | played their turns | "
              "seconds a turn | tokens read a turn | tokens written a turn |",
              "|---|---|---|---|---|---|---|---|---|---|"]
     for p in benchmark["players"]:
         name = f"{p['player']} (the reference)" if p["reference"] else p["player"]
         needed = "-" if p["runs_for_target_error"] is None else str(p["runs_for_target_error"])
-        lines.append(f"| {name} | {p['runs']} | {fmt(p['score'])} | {fmt(p['error'])} | {fmt(p['spread'])} | {needed} | "
+        lines.append(f"| {name} | {p['runs']} | {fmt(p['score'], places)} | {fmt(p['error'], places)} | {fmt(p['spread'], places)} | {needed} | "
                      f"{p['finished']} of {p['runs']} | {fmt(p['seconds_a_turn'], 1)} | {fmt(p['tokens_read_a_turn'], 0)} | "
                      f"{fmt(p['tokens_written_a_turn'], 0)} |")
     return lines + [""]
@@ -304,11 +329,12 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     try:
         scores = latest_scores([read_scores(path) for path in a.scores])
+        on_points = benchmarks_on_points()
     except Refused as e:
         print(e, file=sys.stderr)
         return 2
     recordings, not_read = recordings_under(a.recordings)
-    report = report_of(scores, recordings, not_read)
+    report = report_of(scores, recordings, not_read, on_points)
     print(markdown_of(report))
     if a.json:
         a.json.write_text(json.dumps(for_the_site(report), indent=1) + "\n")

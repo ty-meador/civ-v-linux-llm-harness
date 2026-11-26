@@ -352,7 +352,9 @@ the benchmark it names. One victory type: a fail is 0; a pass is above every fai
 the state of the civilization between wins of one turn. A scenario with a goal: the same order (the user,
 2026-11-26: "the default win, turn count, scorer cascade"), a win's turn set against the scenario's turn limit,
 or against the game speed's own number of turns where the scenario has none, so that no length has to be chosen
-for such a run. A scenario won on points: the seat's points, 0 for a destroyed seat. No built-in AI run stands
+for such a run. A scenario won on points: the seat's points as they are, 0 for a destroyed seat (the user,
+2026-11-26: "keep raw points, blank the column"). Such a score is not on the scale of 0 to 1: the report says so
+over its table and leaves "runs for an error of 0.05" empty there. No built-in AI run stands
 beside a victory-type benchmark as a reference (the user, 2026-11-26): a run passes or fails by itself.
 
 **Seen live (2026-11-26).** `benchmark_run.py --benchmark small-king-poland-b-science --turns 3 --keep-end

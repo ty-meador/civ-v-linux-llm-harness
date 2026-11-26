@@ -56,9 +56,9 @@ class Files(unittest.TestCase):
         path.write_text(json.dumps({"format": report.SCORES_FORMAT, "scores": rows, **kw}))
         return path
 
-    def report(self, *rows) -> dict:
+    def report(self, *rows, on_points=frozenset()) -> dict:
         found, not_read = report.recordings_under([self.recordings])
-        return report.report_of(report.latest_scores([report.read_scores(self.scores(list(rows)))]), found, not_read)
+        return report.report_of(report.latest_scores([report.read_scores(self.scores(list(rows)))]), found, not_read, on_points)
 
     def run_main(self, *argv) -> tuple[int, str, str]:
         out, err = io.StringIO(), io.StringIO()
@@ -160,6 +160,35 @@ class Report(Files):
                 {**self.packed(save="start-b"), "score": 0.3}]
         self.assertEqual([(b["starting_save"], b["turns_asked"]) for b in self.report(*rows)["benchmarks"]],
                          [("start-a", 100), ("start-a", 250), ("start-b", 100)])
+
+    def test_a_scenario_scored_in_its_points_says_so_and_has_no_runs_for_an_error(self):
+        """The user, 2026-11-26: "keep raw points, blank the column". An error of 0.05 is of a score from 0 to 1."""
+        rows = [{**self.packed(save="scenario-x"), "score": 1087}, {**self.packed(save="scenario-x", run=1), "score": 1265},
+                {**self.packed(), "score": 0.4}, {**self.packed(run=1), "score": 0.6}]
+        made = self.report(*rows, on_points=frozenset({"scenario-x"}))
+        points, plain = made["benchmarks"]
+        self.assertEqual((points["benchmark"], points["points"], plain["points"]), ("scenario-x", True, False))
+        [line] = points["players"]
+        self.assertEqual((line["score"], line["runs_for_target_error"]), (1176.0, None))
+        self.assertIsNotNone(line["error"])
+        self.assertIsNotNone(plain["players"][0]["runs_for_target_error"])
+        printed = report.markdown_of(made)
+        self.assertIn("## scenario-x, 100 turns asked, scored in the scenario's points", printed)
+        self.assertIn("| codex/x | 2 | 1176.0 | 89.0 | 125.9 | - |", printed)
+        self.assertIn("| codex/x | 2 | 0.500 |", printed)
+
+    def test_the_benchmarks_scored_in_points_come_from_the_list_of_benchmarks(self):
+        scenario = {"class": "scenario", "texts": "x.md"}
+        listed = self.dir / "benchmarks.json"
+        listed.write_text(json.dumps({"format": 1, "benchmarks": [
+            {"id": "scenario-points", "save": "scenario-points", "won_by": "points", **scenario},
+            {"id": "scenario-goal", "save": "scenario-goal", "won_by": "goal", "victories": ["VICTORY_DOMINATION"], **scenario},
+            {"id": "start-a-open", "save": "start-a", "class": "open", "briefing": "open.md"}]}))
+        self.assertEqual(report.benchmarks_on_points(listed), frozenset({"scenario-points"}))
+        listed.write_text("{}")
+        with self.assertRaises(report.Refused):
+            report.benchmarks_on_points(listed)
+        self.assertIsInstance(report.benchmarks_on_points(), frozenset)      # the list kept under saves/benchmark reads
 
     def test_two_benchmarks_of_one_starting_save_are_two_tables(self):
         """A run that names no benchmark is of its starting save, as every run was before a save carried several."""

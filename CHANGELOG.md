@@ -39,7 +39,9 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   **Later the same day, on the user's answers:** Venice is played to the end of the game (its manifest's turns
   100 to 330, its briefing says so); a scenario with no turn limit of its own names none in its entry
   (`turn_limit` left out) and needs no run length chosen for it; Korea is scored on points and the first New
-  World by the turn count (`docs/BENCHMARK.md`). 2793 tests.
+  World by the turn count (`docs/BENCHMARK.md`). A scenario won on points keeps its points as its score: the
+  report (`benchmark_report.py`) says so over the table of such a benchmark, prints its figures to one place and
+  leaves "runs for an error of 0.05" empty there, in the JSON too (`points` on a benchmark). 2795 tests.
 - **The Poland save of the victory benchmarks** (`saves/benchmark/small-king-poland-b`, GitLab #210; the
   user's choices of 2026-11-26). Poland against Egypt, Korea, the Inca, Rome and Greece at King on a Small
   Pangaea kept as data (`small-king-poland-b.map.json`, the map as the save holds it), Quick, 12 city-states,
