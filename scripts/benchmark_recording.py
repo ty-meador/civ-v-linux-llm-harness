@@ -14,7 +14,8 @@ of the repository is needed for it.
 
 What a packed file holds:
 
-    recording.json   what this is: the player, the seed, the starting save's id and sha256, the harness, the Lua
+    recording.json   what this is: the player, the seed, the benchmark when the run names one (one starting save
+                     may carry several: scripts/benchmark_set.py), the starting save's id and sha256, the harness, the Lua
                      runtime and the game build of the run, how the calls were chosen, what the saved game is of,
                      and the size and sha256 of every other file
     row.json         the run's row, whole, as scripts/benchmark_run.py wrote it
@@ -129,7 +130,9 @@ def plain(name: str) -> str:
 
 
 def name_of(row: dict) -> str:
-    return f"{row['save']}--{plain(player_of(row))}-seed{row.get('run', 0)}"
+    """A recording's name: the benchmark the run is of, or its starting save for a run that names none (one save
+    may carry several benchmarks), then the player and the run's number."""
+    return f"{row.get('benchmark') or row['save']}--{plain(player_of(row))}-seed{row.get('run', 0)}"
 
 
 # ------------------------------------------------------------------ pack
@@ -247,7 +250,9 @@ def members_of(row: dict, ledger: Path, saves: Path, rows_file: Path | None = No
     turns, said = game_file_of(row, rows_file)
     if turns is not None:
         files[TURNS] = turns
+    # the benchmark only for a run that names one: a run from before that packs to the bytes it always did
     manifest = {"format": FORMAT, "name": name_of(row), "player": player_of(row), "seed": row.get("run", 0),
+                **({"benchmark": row["benchmark"]} if row.get("benchmark") else {}),
                 "starting_save": starting_save_of(row, saves), "made_with": made_with_of(row),
                 "packed_with": {"harness": runner().harness_version()}, "calls": how, "saved_game": of,
                 "saves_on_the_way": listed, "game_file": said,
@@ -331,6 +336,8 @@ def check_row(manifest: dict, members: dict[str, bytes]) -> tuple[dict | None, l
     is_ = (name_of(row), player_of(row), row.get("run", 0), row.get("save")) if row.get("save") else None
     if said != is_:
         return row, [(DIFFERS, f"the row is {is_}, the file says {said}")]
+    if manifest.get("benchmark") != row.get("benchmark"):
+        return row, [(DIFFERS, f"the row is of the benchmark {row.get('benchmark')!r}, the file says {manifest.get('benchmark')!r}")]
     return row, [(OK, f"the row is the run the file names: {row.get('save')}, {player_of(row)}, seed {row.get('run', 0)}, "
                       f"{row.get('end_reason')} after {row.get('turns_played')} turns")]
 
@@ -471,6 +478,8 @@ def check_game_file(manifest: dict, row: dict, members: dict[str, bytes]) -> lis
         is_ = (of.get("save"), of.get("player"), of.get("seed"))
         if is_ != (row.get("save"), player_of(row), row.get("run", 0)):
             out.append((DIFFERS, f"{TURNS}: it is of {is_}, the row is {(row.get('save'), player_of(row), row.get('run', 0))}"))
+        if of.get("benchmark") != row.get("benchmark"):
+            out.append((DIFFERS, f"{TURNS}: it is of the benchmark {of.get('benchmark')!r}, the row is of {row.get('benchmark')!r}"))
         if of.get("save_sha256") and start_hash and of["save_sha256"] != start_hash:
             out.append((DIFFERS, f"{TURNS}: the starting save it names is not the one {MANIFEST} names"))
     seat, start, end = row.get("seat"), row.get("start") or {}, row.get("end") or {}

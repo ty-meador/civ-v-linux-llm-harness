@@ -1019,6 +1019,61 @@ class KeepEnd(unittest.TestCase):
             self.assertEqual((name, row["ai_finishes"]), ("a--built-in-ai-seed0-end", []))
 
 
+class RunsOfABenchmark(unittest.TestCase):
+    """A benchmark is a starting save and what is asked on it; one save carries several (scripts/benchmark_set.py)."""
+
+    SCIENCE = "small-king-poland-b-science"
+
+    def played(self, *argv):
+        seen = {}
+
+        def fake(_g, save, turns, **kw):
+            seen.update(save=save, end_save=kw.get("end_save"), checkpoint_name=kw.get("checkpoint_name"))
+            return {"player": "built-in-ai", "save": save, "end_reason": "all_turns_played", "turns_played": turns,
+                    "seconds": 1.0}
+
+        game = mock.Mock()
+        game.has_state.return_value = False
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(benchmark_run, "run_once", fake), \
+                mock.patch.object(benchmark_run, "wait_main_menu"), mock.patch.object(benchmark_run, "summarise", return_value=[]), \
+                mock.patch("harness.game.Game", return_value=game), contextlib.redirect_stdout(io.StringIO()):
+            benchmark_run.main([*argv, "--turns", "330", "--keep-end", "--checkpoint", "10", "--out", str(Path(d) / "rows.jsonl")])
+            [row] = benchmark_run.read_rows(Path(d) / "rows.jsonl")
+        return seen, row
+
+    def refused(self, *argv) -> str:
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+            benchmark_run.main([*argv, "--out", "rows.jsonl"])
+        return err.getvalue()
+
+    def test_its_starting_save_is_played_and_the_row_and_the_runs_saves_are_named_by_the_benchmark(self):
+        seen, row = self.played("--benchmark", self.SCIENCE)
+        self.assertEqual(seen, {"save": "small-king-poland-b", "end_save": f"{self.SCIENCE}--built-in-ai-seed0-end",
+                                "checkpoint_name": f"{self.SCIENCE}--built-in-ai-seed0"})
+        self.assertEqual((row["benchmark"], row["save"]), (self.SCIENCE, "small-king-poland-b"))
+
+    def test_a_run_of_a_save_alone_names_no_benchmark_and_its_saves_are_named_by_the_save(self):
+        seen, row = self.played("--save", "a")
+        self.assertEqual((seen["end_save"], seen["checkpoint_name"]), ("a--built-in-ai-seed0-end", "a--built-in-ai-seed0"))
+        self.assertNotIn("benchmark", row)
+
+    def test_what_the_command_is_told_is_the_benchmarks_own_file(self):
+        asked, command = benchmark_run.of_the_benchmark(self.SCIENCE, None, ["loop", "--briefing", "{briefing}", "--turns", "10"])
+        self.assertEqual(asked["victory"], "VICTORY_SPACE_RACE")
+        self.assertEqual(command, ["loop", "--briefing", str(ROOT / "saves" / "benchmark" / "briefings" / "victory-science.md"),
+                                   "--turns", "10"])
+
+    def test_a_file_the_benchmark_does_not_have_is_refused(self):
+        with self.assertRaises(benchmark_run.Refused) as caught:
+            benchmark_run.of_the_benchmark(self.SCIENCE, None, ["loop", "{texts}"])
+        self.assertIn("has no texts", str(caught.exception))
+
+    def test_a_benchmark_the_list_does_not_have_and_another_save_than_its_own_are_refused(self):
+        self.assertIn("no benchmark 'not-one'", self.refused("--benchmark", "not-one"))
+        self.assertIn("is played on 'small-king-poland-b', not on 'other'", self.refused("--benchmark", self.SCIENCE, "--save", "other"))
+
+
 class RunsOfOneSave(unittest.TestCase):
     """Every run of a starting save starts on the save's own random numbers unless separate games are asked for."""
 

@@ -23,6 +23,16 @@ them in place of the engine. The command plays the seat (a seat loop, `scripts/p
 `{seed}`, `{turns}` and `{until}` in the command are the seed's number, the turns, and the game turn that is the
 seat's when its turns are over (the save's turn plus the turns asked): the player is told that turn.
 
+A benchmark is a starting save and what is asked on it (`scripts/benchmark_set.py`), and one save can carry
+several. `--benchmark ID` in place of `--save` plays the benchmark's save; the row and the game file then name
+the benchmark, and the run's saves and its recording are named by it, so that two benchmarks of one save do not
+take each other's files. `{briefing}` and `{texts}` in the command are the benchmark's own files.
+
+    scripts/benchmark_run.py --benchmark small-king-poland-b-science --turns 330 --player claude/opus-5.5-medium \
+        --notebook none --keep-end --checkpoint 10 --out logs/boards/small-king-poland-b-science/rows.jsonl \
+        -- scripts/llm_seat_loop.py --agent claude --seat 0 --dir ../bench-seats/science-{seed} --model claude-opus-5-5 \
+           --turns 10 --until-turn {until} --no-report --briefing {briefing} --log-dir logs/boards/science-{seed}
+
 Seeds: a player's nth run on a starting save is numbered n (the `seed<n>` of its files' names). Every run starts
 on the save's own random numbers (`--skip none`, the default since 2026-11-24): every run is given the same
 game, and what differs between a player's runs comes of the player's own play. With `--skip seed`, 16,000,048 n random numbers
@@ -1320,6 +1330,38 @@ def summarise(rows: list[dict]) -> list[str]:
     return lines + how
 
 
+TOLD = ("briefing", "texts")    # a benchmark's files that a command may name as {briefing} and {texts}
+
+
+def benchmark_set():
+    """scripts/benchmark_set.py, beside this file: the list of benchmarks."""
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import benchmark_set
+    return benchmark_set
+
+
+def of_the_benchmark(name: str, save: str | None, command: list[str]) -> tuple[dict, list[str]]:
+    """The benchmark `name` of the list, and the command with `{briefing}` and `{texts}` in it made the benchmark's
+    own files: what a run is told comes from the list of benchmarks and not from whoever starts the run. Refused
+    when the list has no such benchmark, when `save` names another save than the benchmark's, and when the command
+    names a file the benchmark does not have."""
+    listed = benchmark_set()
+    try:
+        asked = listed.named(name)
+        if save and save != asked["save"]:
+            raise Refused(f"the benchmark {name!r} is played on {asked['save']!r}, not on {save!r}")
+        for key in TOLD:
+            mark = "{%s}" % key
+            if any(mark in part for part in command):
+                file = str(listed.file_of(asked, key))
+                command = [part.replace(mark, file) for part in command]
+    except listed.Refused as e:
+        raise Refused(str(e)) from None
+    return asked, command
+
+
 def wait_main_menu(g, seconds: float = 120.0) -> None:
     """A load is answered only from the main menu, and leaving a game takes a moment. A game that is still up
     after that is said: every run after it would load into a game the engine is playing."""
@@ -1361,6 +1403,10 @@ def read_rows(path: Path) -> list[dict]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--save", help="the save's bare name, no path and no .Civ5Save")
+    ap.add_argument("--benchmark", metavar="ID",
+                    help="a benchmark of saves/benchmark/benchmarks.json (scripts/benchmark_set.py), in place of --save: "
+                         "its starting save is played, the row and the game file name the benchmark, and the run's "
+                         "saves and recording are named by it; {briefing} and {texts} in the command are its files")
     ap.add_argument("--turns", type=int, default=10,
                     help="turns to play (default 10): the turns the engine plays the seat, and the turns a command's run must "
                          "have moved the game on to count as played")
@@ -1452,8 +1498,15 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(json.dumps(made))
         return 0
+    if a.benchmark:
+        try:
+            asked, command = of_the_benchmark(a.benchmark, a.save, command)
+        except Refused as e:
+            ap.error(str(e))
+        a.save = asked["save"]
     if not a.save or not a.out:
-        ap.error("--save and --out are needed for a run")
+        ap.error("--save or --benchmark, and --out, are needed for a run")
+    stem = a.benchmark or a.save        # what the run's saves are named by: one save may carry several benchmarks
     if command and not a.label or a.label == BUILT_IN_AI:
         ap.error("a command needs --player, the player's name (not built-in-ai)")
     if a.label and not command:
@@ -1478,10 +1531,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"seed {n} is past the end of the random sequence ({SEQUENCE // NUMBERS_A_SEED} seeds fit); "
                   f"nothing more was done", file=sys.stderr)
             return 2
-        end_save = f"{a.save}--{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-end" if a.ai_finishes or a.keep_end else None
+        end_save = f"{stem}--{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-end" if a.ai_finishes or a.keep_end else None
         making = made_with(a.save)
+        of_benchmark = {"benchmark": a.benchmark} if a.benchmark else {}
         game_file = a.out.with_name(f"{a.out.stem}-{''.join(c if c.isalnum() else '-' for c in name)}-seed{n}-game.jsonl")
-        about = {"save": a.save, "player": name, "seed": n, "skip": skip, "turns_asked": a.turns, "save_sha256": making["save_sha256"]}
+        about = {"save": a.save, "player": name, "seed": n, "skip": skip, "turns_asked": a.turns, "save_sha256": making["save_sha256"],
+                 **of_benchmark}
         record = ((lambda seat, file=game_file, about=about: record_game(file, seat, about))
                   if a.game_file and not a.finish_only else None)
         try:
@@ -1494,11 +1549,11 @@ def main(argv: list[str] | None = None) -> int:
                 words = [part.replace("{seed}", str(n)).replace("{turns}", str(a.turns)) for part in command]
                 row = run_player(g, a.save, words, name, a.turns, seat=a.seat, skip=skip, notebook=a.notebook,
                                  keep_notebook=keep, claim_wait=a.claim_wait, timeout=a.timeout, end_save=end_save,
-                                 checkpoint=a.checkpoint, checkpoint_name=f"{a.save}--{plain}-seed{n}", record=record)
+                                 checkpoint=a.checkpoint, checkpoint_name=f"{stem}--{plain}-seed{n}", record=record)
             else:
                 row = run_once(g, a.save, a.turns, seat=a.seat, skip=skip, stall=a.stall, end_save=end_save, say=say,
                                row=a.row or "own", time_victory=a.time or "on", checkpoint=a.checkpoint,
-                               checkpoint_name=f"{a.save}--{BUILT_IN_AI}-seed{n}", record=record)
+                               checkpoint_name=f"{stem}--{BUILT_IN_AI}-seed{n}", record=record)
             if a.ai_finishes:
                 row["ai_finishes"] = []
                 partial = a.out.with_name(a.out.name + ".partial")
@@ -1517,7 +1572,7 @@ def main(argv: list[str] | None = None) -> int:
         except Refused as e:
             print(f"refused: {e}", file=sys.stderr)
             return 2
-        row.update(run=n, at=time.strftime("%Y-%m-%dT%H:%M:%S"), **making)
+        row.update(run=n, at=time.strftime("%Y-%m-%dT%H:%M:%S"), **making, **of_benchmark)
         with a.out.open("a") as f:
             f.write(json.dumps(row) + "\n")
         a.out.with_name(a.out.name + ".partial").unlink(missing_ok=True)

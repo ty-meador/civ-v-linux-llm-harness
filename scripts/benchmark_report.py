@@ -3,8 +3,8 @@
 
 A recording is scored on another machine, by a method that is not in this repository. What comes back is a
 scores file: for each recording its name, the sha256 of the file that was scored, and its score. This script sets
-the scores beside the recordings they are of and writes the report: for each starting save and number of turns
-asked, each player's score, its error over its own runs where it has more than one, how many of its runs played
+the scores beside the recordings they are of and writes the report: for each benchmark (a run that names none is
+of its starting save) and number of turns asked, each player's score, its error over its own runs where it has more than one, how many of its runs played
 their turns, and the seconds and tokens a turn. The built-in AI's run is in the same table, named as the
 reference. The report gives scores and says nothing of how they are made.
 
@@ -147,7 +147,8 @@ def tokens_of(row: dict, kinds: tuple[str, ...]) -> int | None:
 def run_of(manifest: dict, row: dict, sha256: str) -> dict:
     """What the report says of one recording. Only the fields named here leave the row: it also holds the command
     line the player was started by."""
-    return {"recording": manifest["name"], "sha256": sha256, "starting_save": row["save"],
+    return {"recording": manifest["name"], "sha256": sha256, "benchmark": row.get("benchmark") or row["save"],
+            "starting_save": row["save"],
             "turns_asked": row.get("turns_asked"), "player": recording().player_of(row), "seed": row.get("run", 0),
             "result": row.get("result"), "end_reason": row.get("end_reason"), "turns_played": row.get("turns_played"),
             "seconds": row.get("seconds"), "tokens_read": tokens_of(row, TOKENS_READ),
@@ -214,15 +215,16 @@ def player_line(player: str, runs: list[dict]) -> dict:
 
 
 def benchmarks_of(scored: list[dict]) -> list[dict]:
-    """The scored runs by what they are runs of: a starting save and the turns asked of it. A player's mean is
-    taken over runs of one such pair only; inside it the players stand by score, the best first."""
+    """The scored runs by what they are runs of: a benchmark and the turns asked of it. A run that names no
+    benchmark is of its starting save, as every run was before one save carried several benchmarks. A player's
+    mean is taken over runs of one such pair only; inside it the players stand by score, the best first."""
     groups: dict[tuple, dict[str, list[dict]]] = {}
     for run in scored:
-        groups.setdefault((run["starting_save"], run["turns_asked"]), {}).setdefault(run["player"], []).append(run)
+        groups.setdefault((run["benchmark"], run["starting_save"], run["turns_asked"]), {}).setdefault(run["player"], []).append(run)
     benchmarks = []
-    for (save, turns), players in sorted(groups.items(), key=lambda g: (g[0][0], g[0][1] or 0)):
+    for (benchmark, save, turns), players in sorted(groups.items(), key=lambda g: (g[0][0], g[0][1], g[0][2] or 0)):
         lines = sorted((player_line(name, runs) for name, runs in players.items()), key=lambda p: (-p["score"], p["player"]))
-        benchmarks.append({"starting_save": save, "turns_asked": turns, "players": lines})
+        benchmarks.append({"benchmark": benchmark, "starting_save": save, "turns_asked": turns, "players": lines})
     return benchmarks
 
 
@@ -263,7 +265,7 @@ def fmt(x: float | None, places: int = 3) -> str:
 
 def table_of(benchmark: dict) -> list[str]:
     turns = benchmark["turns_asked"]
-    lines = [f"## {benchmark['starting_save']}, {turns if turns is not None else 'no number of'} turns asked", "",
+    lines = [f"## {benchmark['benchmark']}, {turns if turns is not None else 'no number of'} turns asked", "",
              f"| player | runs | score | error | spread | runs for an error of {TARGET_ERROR} | played their turns | "
              "seconds a turn | tokens read a turn | tokens written a turn |",
              "|---|---|---|---|---|---|---|---|---|---|"]
@@ -279,7 +281,7 @@ def table_of(benchmark: dict) -> list[str]:
 def markdown_of(report: dict) -> str:
     scored = sum(p["runs"] for b in report["benchmarks"] for p in b["players"])
     lines = ["# OMTbench: the scores", "",
-             f"{scored} scored recordings. A player's score is the mean of its runs of one starting save and number of "
+             f"{scored} scored recordings. A player's score is the mean of its runs of one benchmark and number of "
              "turns asked. The error is the standard error over those runs and the spread their standard deviation; "
              "one run has neither. Tokens and seconds are over the turns the runs played.", ""]
     for benchmark in report["benchmarks"]:

@@ -293,8 +293,98 @@ The user set out four classes. A class says what the player is asked, how a run 
 | one victory type | one map, a leader that leans to no victory type (Poland), one run for each of Domination, Science, Culture and Diplomatic; no victory type is switched off | to win by that type | pass or fail: 0 for a destroyed seat, for a win by another type, for no win. Of two passes the one in fewer turns ranks higher, and the score of this section breaks a tie that is left |
 | scenario | one of the game's own scenarios, as the game ships it | the scenario's own victory conditions | as the scenario decides: pass or fail where it has a goal (fewer turns higher, then the score), its points where it is won on points |
 
-There is no Time victory benchmark. One open-ended benchmark is also played on the victory-type map, so that the
-two can be set side by side. Only the first two classes are scored by anything that is built.
+There is no Time victory benchmark. The open game is played on the victory-type map (`small-king-poland-b`, the
+user, 2026-11-26: "open game moves to poland map"), so that the two can be set side by side; the Germany save is
+not in the set. Every scenario the game ships is in the set, on every side a player can take, at King (the user,
+the same day); the two sides of the American Civil War are the ones with a starting save so far.
+
+**The list of benchmarks (2026-11-26).** A starting save is a game; a benchmark is a starting save and what is
+asked on it, and one save carries several: the four victory types and the open game are five benchmarks of
+`small-king-poland-b`. The list is `saves/benchmark/benchmarks.json`, read and checked by
+`scripts/benchmark_set.py` (`--check`: every save, briefing and scenario text it names is checked in). An entry
+names the benchmark, its class, its starting save, the file its player is told, and what the class needs: the
+victory type asked; for a scenario whether it is won by a goal or on points, and for a goal the victory types
+the game names the seat's win by and the scenario's turn limit.
+
+| benchmark | class | what is asked | told by |
+|---|---|---|---|
+| `small-king-poland-b-domination` | victory | a Domination victory | `briefings/victory-domination.md` |
+| `small-king-poland-b-science` | victory | a Science victory | `briefings/victory-science.md` |
+| `small-king-poland-b-culture` | victory | a Cultural victory | `briefings/victory-culture.md` |
+| `small-king-poland-b-diplomatic` | victory | a Diplomatic victory | `briefings/victory-diplomatic.md` |
+| `small-king-poland-b-open` | open | nothing beyond the game | `briefings/open.md` |
+| `small-king-venice-a` | survival | to last | `briefings/survival-venice.md` |
+| `scenario-civilwar-union-king` | scenario, a goal | the enemy capital inside 50 turns | `scenario-civilwar.md` |
+| `scenario-civilwar-confederacy-king` | scenario, a goal | the same | `scenario-civilwar.md` |
+
+A benchmark's id is its starting save's id, with what is asked after it where the save carries more than one.
+`scripts/benchmark_run.py --benchmark ID` plays one: the benchmark's save is loaded, the run's row and the first
+line of its game file name the benchmark, and the run's saves and its recording are named by it
+(`small-king-poland-b-science--<player>-seed0`), so that two benchmarks of one save do not take each other's
+files. `{briefing}` and `{texts}` in the player's command are the benchmark's own files: what a run is told comes
+from the list and not from whoever starts the run. A run started with `--save` names no benchmark and is of its
+starting save, as every run before 2026-11-26 is; the report (`benchmark_report.py`) has a table for each
+benchmark and puts such a run under its save.
+
+**The briefings (2026-11-26), `saves/benchmark/briefings/`.** Each says how a run is ranked and then what is
+asked, in the order of runs the user set and with no number of the scoring in it.
+
+- A victory type: the run passes or fails; it passes only by the seat's win by the type asked; every fail ranks
+  the same, the seat's win by another type among them ("a total failure, not a lesser pass"), and every other
+  civilization can still win by any of the four; of two passes the one in fewer turns ranks higher, and two wins
+  of one turn are ranked by the state of the whole civilization ("every part of it counts, and no one part of it
+  decides": the words chosen so that it is not read as military strength). The four files are the same words but
+  for the type named (a test holds them to that).
+- The open game: a win by any type above every run without one (fewer turns higher), then the seat alive at the
+  end, then the seat destroyed (the longer it lasted the higher); runs still level by the state of the whole
+  civilization.
+- Venice: the open game's order, "to last" as what is asked, and the warning in the user's words: Venice cannot
+  build Settlers, its neighbours are militarily aggressive and will attack.
+
+The Poland briefings say the run is 330 turns long, the turns of the save's manifest (a test holds the two
+together). Venice's says no length: whether it is played for the 100 turns of its manifest or to the end of the
+game is not decided. A scenario has no briefing: its player is given the game's own texts.
+
+**Every class has its scorer (2026-11-26).** The scoring is the project's and is not in this repository; what is
+said here is the order of runs, which the briefings tell every player. A recording is scored under the class of
+the benchmark it names. One victory type: a fail is 0; a pass is above every fail, the win in fewer turns higher,
+the state of the civilization between wins of one turn. A scenario with a goal: a fail is 0, a pass by its turns
+alone. A scenario won on points: the seat's points, 0 for a destroyed seat. No built-in AI run stands beside a
+victory-type benchmark as a reference (the user, 2026-11-26): a run passes or fails by itself.
+
+**Seen live (2026-11-26).** `benchmark_run.py --benchmark small-king-poland-b-science --turns 3 --keep-end
+--checkpoint 2`, the built-in AI on the seat: the row reads `benchmark` `small-king-poland-b-science` and `save`
+`small-king-poland-b`, the saves are `small-king-poland-b-science--built-in-ai-seed0-end` and `-t002`, the
+recording packs under that name and `check` finds nothing that differs (the starting save is the one kept here,
+the game file is of this run). No model has played a victory-type benchmark yet.
+
+**The twelve scenarios, read from the game's files (2026-11-26; no scenario but the Civil War has been
+started).** Each is a mod with its own setup screen; every one offers the difficulty, King included. A scenario's
+own Lua names the winner (`Game.SetWinner`), each under a victory type of its choosing, so the type a row reads
+is a label of that scenario and says little by itself: three scenarios name a win on points "Domination", and
+Empires of the Smoky Skies names its goal "Time". Where a scenario is won on points, the points are the game's
+own score (`Player:GetScore()`, fed by the scenario), which a game file has for every player on every turn.
+
+| scenario | sides a player can take | turn limit | how it is won | the win is named |
+|---|---|---|---|---|
+| Rise of the Mongols | 1 | 100 | a goal: 5 of the 9 civilizations destroyed (at King) | Domination |
+| Conquest of the New World | 6 | 100 | points: the first to 1000; the game is ended at turn 100 | Domination |
+| Paradise Found | 4 | none | a goal: the first to 18 social policies, or the last one alive | Cultural, or Domination |
+| 1066: Year of Viking Destiny | 4 | 70 | a goal: London held with the Domesday Book in it | Domination |
+| Samurai Invasion of Korea | 4 | 100 | a goal for each side; if nobody reaches one, the most points at turn 100 | Domination |
+| Wonders of the Ancient World | 5 | none | points, at the moment the ninth Wonder is built | Time |
+| Conquest of the New World Deluxe | 10 | 150 | points at the turn limit | by the game, Time |
+| Fall of Rome | 8 | 70 | points at the turn limit | Domination |
+| Into the Renaissance | 12 | 200 | points at the turn limit | Time |
+| Empires of the Smoky Skies | 5 | none | a goal: three of the five Titles, held for five updates | Time |
+| American Civil War | 2 | 50 | a goal: the enemy capital | Domination |
+| Scramble for Africa | 12 | 100 | points at the turn limit | Time |
+
+Seventy-three sides in all. Not settled by the files, to be read in a started game: the game speed of Korea and
+of Scramble for Africa (the map and the menu disagree); whom the game names when the New World's and Korea's
+turns run out; which victory types are on in Fall of Rome. Every scenario puts up text popups of its own that
+have to be closed. Three of the twelve do not fit "a goal or points" as they stand: Korea is both, the New
+World is a race to a number of points, and three have no turn limit, so a run of them needs a length of its own.
 
 **What a run is told.** What a benchmark asks, and how its runs are ranked, is said once: in a briefing that opens
 the prompt of the run's first instance (`llm_seat_loop.py --briefing FILE`), followed by "This briefing will not
@@ -327,9 +417,11 @@ from a stock game:
   (read in the community-kept copy of its source, `CvGame.cpp`; the shipped library is not compared with it): when
   the turn limit is reached and nobody has won, it takes the victory type that is marked as decided by score
   (Time) without asking whether that type is switched on, and names the team with the highest score. The run
-  agrees: the Union led 1265 to 1087. The runner and the scorer of recordings compare the winner with the seat's
-  team, so both rows are read rightly; the scorer's reading of a bare save takes team and seat as one number,
-  which is wrong for this save.
+  agrees: the Union led 1265 to 1087. The runner compares the winner with the seat's team. The scorer of
+  recordings did not until 2026-11-26: it took team and seat as one number and a winner named at the time limit
+  as a win, and so read the Confederacy's failed run as a game won. It now reads the team from the game file and
+  scores a scenario by the scenario's own victory (both runs read rightly: a pass and a fail). Its reading of a
+  bare save, with no game file, still takes team and seat as one number.
 
 **The first two runs (2026-11-25): Claude Opus 5.5 at medium, King, ten-turn instances, no report.** Both were told
 "the run passes if you meet the scenario's victory condition and fails otherwise", and not that fewer turns rank
@@ -344,7 +436,8 @@ Each has its recording, packed and checked (`logs/boards/scenario-civilwar-*-kin
 turns 10 to 40 and the end.
 
 Not looked at yet: the built-in AI playing a scenario's seat (the autoplay of "Autoplay, checked live" needs an
-observer slot), and any scenario but this one.
+observer slot). No scenario but this one has been started; the other eleven are read from their files only
+("The twelve scenarios" above).
 
 ### A map kept as data (2026-11-26)
 

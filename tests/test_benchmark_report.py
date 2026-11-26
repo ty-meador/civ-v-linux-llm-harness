@@ -45,7 +45,8 @@ class Files(unittest.TestCase):
         """A recording of `row` under the recordings folder, as a row of a scores file with no score in it yet."""
         row = row or a_row(**kw)
         manifest = {"format": rec.FORMAT, "name": rec.name_of(row), "player": rec.player_of(row), "seed": row.get("run", 0),
-                    "starting_save": {"id": row["save"]}, "made_with": {"harness": "2.20.0"}, "files": {}}
+                    "starting_save": {"id": row["save"]}, "made_with": {"harness": "2.20.0"}, "files": {},
+                    **({"benchmark": row["benchmark"]} if "benchmark" in row else {})}
         path = self.recordings / folder / (manifest["name"] + rec.SUFFIX)
         rec.write(path, {rec.MANIFEST: json.dumps(manifest).encode(), rec.ROW: json.dumps(row).encode()})
         return {"recording": manifest["name"], "sha256": rec.sha256(path.read_bytes())}
@@ -159,6 +160,15 @@ class Report(Files):
                 {**self.packed(save="start-b"), "score": 0.3}]
         self.assertEqual([(b["starting_save"], b["turns_asked"]) for b in self.report(*rows)["benchmarks"]],
                          [("start-a", 100), ("start-a", 250), ("start-b", 100)])
+
+    def test_two_benchmarks_of_one_starting_save_are_two_tables(self):
+        """A run that names no benchmark is of its starting save, as every run was before a save carried several."""
+        rows = [{**self.packed(), "score": 0.5}, {**self.packed(benchmark="start-a-science"), "score": 0.9},
+                {**self.packed(benchmark="start-a-culture"), "score": 0.0}]
+        made = self.report(*rows)
+        self.assertEqual([(b["benchmark"], b["starting_save"]) for b in made["benchmarks"]],
+                         [("start-a", "start-a"), ("start-a-culture", "start-a"), ("start-a-science", "start-a")])
+        self.assertIn("## start-a-science, 100 turns asked", report.markdown_of(made))
 
     def test_tokens_and_seconds_are_over_the_turns_played_and_runs_that_did_not_finish_are_counted(self):
         whole = {**self.packed(), "score": 0.5}

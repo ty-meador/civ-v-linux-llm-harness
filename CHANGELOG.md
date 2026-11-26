@@ -16,6 +16,26 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A benchmark is a starting save and what is asked on it, and a run names its benchmark** (GitLab #200, #210;
+  the user's choices of 2026-11-26). One save now carries several benchmarks: the four victory types and the open
+  game are all played on `small-king-poland-b` (the open game moved there from the Germany save).
+  `saves/benchmark/benchmarks.json` lists them, each with its class (open, survival, victory, scenario), its
+  starting save, the file its player is told and what the class needs (the victory type asked; for a scenario
+  whether it is won by a goal or on points); `scripts/benchmark_set.py` reads it, prints it, and with `--check`
+  says what it names and the folder does not hold. `scripts/benchmark_run.py --benchmark ID` plays one: the row
+  and the first line of the game file name the benchmark, the run's saves and its recording are named by it
+  (two benchmarks of one save took each other's files before), and `{briefing}` and `{texts}` in the player's
+  command are the benchmark's own files. A recording's `recording.json` names the benchmark and `check` sets it
+  beside the row and the game file; a run started with `--save` names none and packs to the bytes it always did.
+  `scripts/benchmark_report.py` has a table for each benchmark, a run that names none under its save.
+  **The briefings** (`saves/benchmark/briefings/`): one for each victory type (the run passes only by the seat's
+  win by the type asked; a win by another type is a total failure; other civilizations can still win by any
+  type; fewer turns rank higher), one for the open game and one for Venice with its warning. The six
+  `-t100`/`-t200` cuts of the earlier candidates were never checked in and are deleted. Live: the built-in AI's
+  three turns started with `--benchmark small-king-poland-b-science`, the row, the saves and the recording named
+  by the benchmark, `check` nothing differs. The twelve scenarios' victory rules are read from the game's files
+  and set out in `docs/BENCHMARK.md` (73 sides; a scenario's own code names its winner under a victory type of
+  its choosing, so a scenario's entry lists the types its win is named by). 22 tests; 2791 tests.
 - **The Poland save of the victory benchmarks** (`saves/benchmark/small-king-poland-b`, GitLab #210; the
   user's choices of 2026-11-26). Poland against Egypt, Korea, the Inca, Rome and Greece at King on a Small
   Pangaea kept as data (`small-king-poland-b.map.json`, the map as the save holds it), Quick, 12 city-states,

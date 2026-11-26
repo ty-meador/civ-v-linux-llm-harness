@@ -158,6 +158,15 @@ class Pack(Files):
         self.assertEqual(manifest["game_file"], {"packed": False, "why": "the run wrote none"})
         self.assertEqual((manifest["format"], manifest["saves_on_the_way"]), (rec.FORMAT, []))
 
+    def test_a_run_of_a_benchmark_is_named_by_it_and_a_run_that_names_none_by_its_save(self):
+        """One starting save carries several benchmarks: the save alone no longer says which run a file is."""
+        (self.saves / "start-a-science--codex-x-seed0-end.Civ5Save").write_bytes(SAVE)
+        path, manifest = self.pack(benchmark="start-a-science", end_save="start-a-science--codex-x-seed0-end")
+        self.assertEqual(path.name, "start-a-science--codex-x-seed0.recording.zip")
+        self.assertEqual((manifest["benchmark"], manifest["starting_save"]["id"]), ("start-a-science", "start-a"))
+        self.assertNotIn(rec.DIFFERS, self.states(path))
+        self.assertNotIn("benchmark", self.pack()[1])
+
     def test_the_same_run_packs_to_the_same_bytes(self):
         first = self.pack()[0].read_bytes()
         time.sleep(0.01)
@@ -329,6 +338,9 @@ class Check(Files):
     def test_a_game_file_of_another_run_or_one_that_says_other_figures_than_the_row_differs(self):
         self.assertEqual(self.differs(self.with_game_file(about={"save": "start-b", "player": "codex/x", "seed": 0})[0]),
                          ["game.jsonl: it is of ('start-b', 'codex/x', 0), the row is ('start-a', 'codex/x', 0)"])
+        other_benchmark = {"save": "start-a", "player": "codex/x", "seed": 0, "benchmark": "start-a-science"}
+        self.assertEqual(self.differs(self.with_game_file(about=other_benchmark)[0]),
+                         ["game.jsonl: it is of the benchmark 'start-a-science', the row is of None"])
         other_start = {"save": "start-a", "player": "codex/x", "seed": 0, "save_sha256": "0" * 64}
         self.assertEqual(self.differs(self.with_game_file(about=other_start)[0]),
                          ["game.jsonl: the starting save it names is not the one recording.json names"])

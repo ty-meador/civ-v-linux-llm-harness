@@ -22,6 +22,21 @@ Only the first has the built-in AI's study behind it (its share of AI finishes w
 with `"baseline": null` in its manifest has none. How a player's runs on these saves are scored is in
 `docs/BENCHMARK.md`, "How a player is scored".
 
+## The benchmarks
+
+A starting save is a game. A benchmark is a starting save and what is asked of the player on it, and one save can
+carry several. `benchmarks.json` lists them (`scripts/benchmark_set.py` prints the list, `--check` says what it
+names and this folder does not hold); `docs/BENCHMARK.md`, "The classes of benchmark, and what a run is told", has
+the table.
+
+- `briefings/`: what a benchmark's player is told once, at the start of the run: how a run is ranked, then what
+  is asked. One file for each victory type, one for the open game, one for Venice.
+- `scenario-civilwar.md`: a scenario has no briefing. Its player is given the game's own description, victory
+  conditions and special rules, and can read them at any time.
+
+`scripts/benchmark_run.py --benchmark <id>` plays a benchmark; `{briefing}` and `{texts}` in the player's command
+are these files.
+
 ## Using them
 
     scripts/benchmark_save.py --install
