@@ -1,0 +1,55 @@
+{
+ "id": "small-king-poland-b",
+ "save": "small-king-poland-b.Civ5Save",
+ "sha256": "08d2135e02396e75388f623853d4c93f4f33d7fa72568a6df369de29c5123892",
+ "kind": "opening",
+ "turn": 0,
+ "seat": 0,
+ "civilization": "Poland",
+ "opponents": [
+  "Egypt",
+  "Korea",
+  "The Inca",
+  "Rome",
+  "Greece"
+ ],
+ "turns": 330,
+ "seeds": 1,
+ "settings": {
+  "handicap": "HANDICAP_KING",
+  "speed": "GAMESPEED_QUICK",
+  "max_turns": 0,
+  "time_victory": false,
+  "mods": [],
+  "map_script": "omt_map.lua",
+  "start_era": "ERA_ANCIENT",
+  "city_states": 12,
+  "world_size": "WORLDSIZE_SMALL",
+  "seat_row": "HANDICAP_AI_DEFAULT",
+  "victories": [
+   "VICTORY_SPACE_RACE",
+   "VICTORY_DOMINATION",
+   "VICTORY_CULTURAL",
+   "VICTORY_DIPLOMATIC"
+  ]
+ },
+ "origin": {
+  "how": "hosted",
+  "setup_screen": {
+   "civilization_id": "40",
+   "handicap": "HANDICAP_KING",
+   "map_script": "omt_map.lua",
+   "world_size": "WORLDSIZE_SMALL",
+   "game_speed": "GAMESPEED_QUICK",
+   "victories": "VICTORY_TIME,VICTORY_SPACE_RACE,VICTORY_DOMINATION,VICTORY_CULTURAL,VICTORY_DIPLOMATIC",
+   "city_states": "12"
+  },
+  "at": "2026-11-26"
+ },
+ "game_build": "1.0.3.279(130961)",
+ "baseline": null,
+ "map": {
+  "file": "small-king-poland-b.map.json",
+  "sha256": "abf557e07ea9222aa04836fc620066db51dfb81176ffc57ffb3cf889be1a98eb"
+ }
+}

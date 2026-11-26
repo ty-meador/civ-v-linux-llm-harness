@@ -13,6 +13,7 @@ written by `scripts/benchmark_save.py`, which reads the save back from the game 
 | `small-king-venice-a` | opening | 0 | Venice against the Zulus, Russia, Germany, Korea and Morocco, Small, Continents, 12 city-states, King | hosted 2026-11-22 by `--host` | not measured |
 | `small-king-germany-a` | opening | 0 | Germany against America, the Huns, Mongolia, the Celts and the Zulus, Small, Continents, 12 city-states, King | hosted 2026-11-22 by hand, described by `--describe` | not measured |
 | `small-king-poland-a` | opening | 0 | Poland against America, the Huns, Mongolia, the Celts and the Zulus, Small, Pangaea, 12 city-states, King | hosted 2026-11-23 by `--host` | not measured |
+| `small-king-poland-b` | opening | 0 | Poland against Egypt, Korea, the Inca, Rome and Greece, Small, the map `small-king-poland-b.map.json` (a Pangaea kept as data), 12 city-states, King | hosted 2026-11-26 by `--host --map` | not measured |
 | `duel-king-rome-huns-a` | opening | 0 | Rome against the Huns, Duel, Pangaea, 4 city-states, King, Domination the only victory | hosted 2026-11-23 by `--host` | not measured |
 | `scenario-civilwar-union-king` | opening | 0 | the Union against the Confederacy, the American Civil War scenario, King, 50 turns | started 2026-11-25 from the scenario's menu, described by `--describe` | not measured |
 | `scenario-civilwar-confederacy-king` | opening | 0 | the Confederacy against the Union, the same scenario | the same | not measured |

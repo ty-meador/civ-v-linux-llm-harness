@@ -14,6 +14,15 @@ Two counters, on purpose (GitLab #26):
 
 Dates are the day the change was committed; "live tNNN" is the game turn it was checked on.
 
+## Unreleased
+
+- **The Poland save of the victory benchmarks** (`saves/benchmark/small-king-poland-b`, GitLab #210; the
+  user's choices of 2026-11-26). Poland against Egypt, Korea, the Inca, Rome and Greece at King on a Small
+  Pangaea kept as data (`small-king-poland-b.map.json`, the map as the save holds it), Quick, 12 city-states,
+  no Time victory, hosted by `benchmark_save.py --host --map`. Greece stays in the sixth slot although it
+  holds 8 to 12 of the 12 city-states in every game the AI played on the map, and Poland's start is as it
+  was generated although an AI on it from turn 0 led in every game (`docs/BENCHMARK.md`).
+
 ## 2.20.0 -- Where every civilization stands toward every victory, a map kept as data, a run's recording (2026-11-26)
 
 Runtime v349 (v348 in 2.19.0), 9 tools, 2769 tests. A seat that is handed a new context every ten turns is told,
