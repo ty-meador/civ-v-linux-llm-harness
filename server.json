@@ -3,7 +3,7 @@
   "name": "io.github.ty-meador/civ-v-llm-harness",
   "title": "Civilization V Harness (Linux)",
   "description": "Play Sid Meier's Civilization V (native Linux) as a human seat, by the game's own rules.",
-  "version": "2.19.0",
+  "version": "2.20.0",
   "websiteUrl": "https://gitlab.com/Tyler-Meador/civ-v-linux-mcp/-/blob/main/docs/AGENT_INSTALL.md",
   "repository": {
     "url": "https://gitlab.com/Tyler-Meador/civ-v-linux-mcp",
@@ -15,7 +15,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "civ-v-llm-harness",
-      "version": "2.19.0",
+      "version": "2.20.0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

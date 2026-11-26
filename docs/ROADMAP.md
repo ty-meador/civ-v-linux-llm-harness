@@ -349,6 +349,15 @@ With it every stage of the token-accounting plan is built; no issue is open.
 
 First thoughts on CivBench (arXiv 2604.07733): `docs/CIVBENCH.md`. Decided 2026-11-13: no Vox Populi, a benchmark of our own; the sketch is `docs/BENCHMARK.md`. #189 (spectator) is off the 2.15.0 milestone.
 
+**Where every civilization stands toward every victory, a map kept as data and a run's recording are released as
+`v2.20.0` (2026-11-26, runtime v349, 2769 tests)**: the briefing that opens an instance carries `victory_progress`
+(every civilization's row toward each victory the game allows, an unmet one without its name); a map read plot
+for plot, written as a map script and hosted again as it was (`scripts/benchmark_map.py`,
+`benchmark_save.py --host --map`); a scenario played through the benchmark runner, with a briefing shown once; a
+run's recording as one file with the game turn by turn in it, its check, and the report of scored recordings.
+Found on the way: a seat the engine takes over is not one of the game's AIs (`docs/BENCHMARK.md`). Not in it:
+the benchmark's own saves and briefings for the four classes (#210), still being chosen.
+
 **What a seat knows of a war, and the benchmark's starting saves, are released as `v2.19.0` (2026-11-23, runtime
 v348, 2598 tests)**: `status.military` and `todo.unit_attacks` on every status of the seat's own turn, the game's
 Military Advisor's question before a bad attack as a refusal with `confirm`, no quiet turn passed while a rival is
