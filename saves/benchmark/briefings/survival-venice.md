@@ -20,3 +20,5 @@ You play Venice. Venice cannot build Settlers. Your neighbours are militarily ag
 
 The Domination, Science, Cultural and Diplomatic victories are switched on, for you and for every other
 civilization. There is no Time victory.
+
+The run is 330 turns long.

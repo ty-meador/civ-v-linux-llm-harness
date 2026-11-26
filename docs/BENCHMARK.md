@@ -341,16 +341,19 @@ asked, in the order of runs the user set and with no number of the scoring in it
 - Venice: the open game's order, "to last" as what is asked, and the warning in the user's words: Venice cannot
   build Settlers, its neighbours are militarily aggressive and will attack.
 
-The Poland briefings say the run is 330 turns long, the turns of the save's manifest (a test holds the two
-together). Venice's says no length: whether it is played for the 100 turns of its manifest or to the end of the
-game is not decided. A scenario has no briefing: its player is given the game's own texts.
+The briefings say the run is 330 turns long, the turns of the save's manifest (a test holds the two together).
+Venice is played to the end of the game (the user, 2026-11-26: "whole game for venice"): its manifest's turns
+went from 100 to 330 that day, and the runs of it before then asked 100. A scenario has no briefing: its player
+is given the game's own texts.
 
 **Every class has its scorer (2026-11-26).** The scoring is the project's and is not in this repository; what is
 said here is the order of runs, which the briefings tell every player. A recording is scored under the class of
 the benchmark it names. One victory type: a fail is 0; a pass is above every fail, the win in fewer turns higher,
-the state of the civilization between wins of one turn. A scenario with a goal: a fail is 0, a pass by its turns
-alone. A scenario won on points: the seat's points, 0 for a destroyed seat. No built-in AI run stands beside a
-victory-type benchmark as a reference (the user, 2026-11-26): a run passes or fails by itself.
+the state of the civilization between wins of one turn. A scenario with a goal: the same order (the user,
+2026-11-26: "the default win, turn count, scorer cascade"), a win's turn set against the scenario's turn limit,
+or against the game speed's own number of turns where the scenario has none, so that no length has to be chosen
+for such a run. A scenario won on points: the seat's points, 0 for a destroyed seat. No built-in AI run stands
+beside a victory-type benchmark as a reference (the user, 2026-11-26): a run passes or fails by itself.
 
 **Seen live (2026-11-26).** `benchmark_run.py --benchmark small-king-poland-b-science --turns 3 --keep-end
 --checkpoint 2`, the built-in AI on the seat: the row reads `benchmark` `small-king-poland-b-science` and `save`
@@ -383,8 +386,13 @@ own score (`Player:GetScore()`, fed by the scenario), which a game file has for 
 Seventy-three sides in all. Not settled by the files, to be read in a started game: the game speed of Korea and
 of Scramble for Africa (the map and the menu disagree); whom the game names when the New World's and Korea's
 turns run out; which victory types are on in Fall of Rome. Every scenario puts up text popups of its own that
-have to be closed. Three of the twelve do not fit "a goal or points" as they stand: Korea is both, the New
-World is a race to a number of points, and three have no turn limit, so a run of them needs a length of its own.
+have to be closed.
+
+Three of the twelve do not fit "a goal or points" as they stand, and the user settled each (2026-11-26). Korea,
+a goal and points both, is scored on its points: its score already holds 5000 for whoever has Seoul and Beijing.
+The first New World, a race to 1000 points, is scored by the turn count, as a goal: a win is the 1000 reached,
+and fewer turns rank higher. The three with no turn limit need no run length chosen for them: a win's turn is
+set against the game speed's own number of turns, as in a victory-type benchmark.
 
 **What a run is told.** What a benchmark asks, and how its runs are ranked, is said once: in a briefing that opens
 the prompt of the run's first instance (`llm_seat_loop.py --briefing FILE`), followed by "This briefing will not

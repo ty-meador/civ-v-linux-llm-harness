@@ -22,8 +22,8 @@ A benchmark of the list:
     victories   class scenario, won by a goal: the victory types the game names the seat's win by when the goal
                 is reached. A scenario's own code names the winner, each scenario under a type of its choosing,
                 and the game names a winner by Time when a scenario's turns run out, which is no win of it
-    turn_limit  class scenario, won by a goal: the turns the scenario allows, or the turns a run is given where
-                the scenario has no limit of its own
+    turn_limit  class scenario, won by a goal: the turns the scenario allows. Left out where the scenario has no
+                limit of its own: the game speed's number of turns is then what a win's turn is set against
     texts       class scenario: the scenario's description, victory conditions and special rules in the game's
                 own words, a file the player can read at any time
 
@@ -84,8 +84,8 @@ def scenario_faults(entry: dict) -> list[str]:
         return faults + [f"won_by is none of {', '.join(WON_BY)}"]
     if entry["won_by"] == "goal":
         limit = entry.get("turn_limit")
-        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
-            faults.append("a scenario won by a goal needs its turn_limit")
+        if limit is not None and (not isinstance(limit, int) or isinstance(limit, bool) or limit < 1):
+            faults.append("turn_limit is not a number of turns")
         named = entry.get("victories")
         if not isinstance(named, list) or not named or not all(isinstance(v, str) and v.startswith("VICTORY_") for v in named):
             faults.append("a scenario won by a goal needs the victory types the game names its win by")

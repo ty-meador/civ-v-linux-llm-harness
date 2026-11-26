@@ -48,11 +48,17 @@ class TheList(unittest.TestCase):
         self.assertIn("no briefing", self.refused(no_briefing))
         self.assertIn("no texts", self.refused(no_texts))
 
-    def test_a_scenario_won_by_a_goal_needs_its_turn_limit_and_the_victory_types_its_win_is_named_by(self):
-        said = self.refused({k: v for k, v in SCENARIO.items() if k not in ("turn_limit", "victories")})
-        self.assertIn("needs its turn_limit", said)
-        self.assertIn("needs the victory types the game names its win by", said)
+    def test_a_scenario_won_by_a_goal_needs_the_victory_types_its_win_is_named_by(self):
+        self.assertIn("needs the victory types the game names its win by",
+                      self.refused({k: v for k, v in SCENARIO.items() if k != "victories"}))
         self.assertIn("needs the victory types", self.refused({**SCENARIO, "victories": []}))
+
+    def test_a_scenario_with_no_turn_limit_of_its_own_names_none_and_one_that_names_one_names_a_number_of_turns(self):
+        no_limit = {k: v for k, v in SCENARIO.items() if k != "turn_limit"}
+        self.assertEqual(list(benchmark_set.read(self.written(no_limit))), ["scenario-x"])
+        self.assertIn("turn_limit is not a number of turns", self.refused({**SCENARIO, "turn_limit": 0}))
+
+    def test_a_scenario_won_on_points_needs_neither(self):
         points = {k: v for k, v in SCENARIO.items() if k not in ("turn_limit", "victories")} | {"won_by": "points"}
         self.assertEqual(list(benchmark_set.read(self.written(points))), ["scenario-x"])
 

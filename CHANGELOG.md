@@ -36,6 +36,10 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
   by the benchmark, `check` nothing differs. The twelve scenarios' victory rules are read from the game's files
   and set out in `docs/BENCHMARK.md` (73 sides; a scenario's own code names its winner under a victory type of
   its choosing, so a scenario's entry lists the types its win is named by). 22 tests; 2791 tests.
+  **Later the same day, on the user's answers:** Venice is played to the end of the game (its manifest's turns
+  100 to 330, its briefing says so); a scenario with no turn limit of its own names none in its entry
+  (`turn_limit` left out) and needs no run length chosen for it; Korea is scored on points and the first New
+  World by the turn count (`docs/BENCHMARK.md`). 2793 tests.
 - **The Poland save of the victory benchmarks** (`saves/benchmark/small-king-poland-b`, GitLab #210; the
   user's choices of 2026-11-26). Poland against Egypt, Korea, the Inca, Rome and Greece at King on a Small
   Pangaea kept as data (`small-king-poland-b.map.json`, the map as the save holds it), Quick, 12 city-states,
