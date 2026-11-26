@@ -6,6 +6,7 @@ run is told"). No game is needed.
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -15,9 +16,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import benchmark_set
 
-VICTORY = {"id": "start-a-science", "class": "victory", "save": "start-a", "victory": "VICTORY_SPACE_RACE", "briefing": "science.md"}
-SCENARIO = {"id": "scenario-x", "class": "scenario", "save": "scenario-x", "won_by": "goal",
-            "victories": ["VICTORY_DOMINATION"], "turn_limit": 50, "texts": "scenario-x.md"}
+VICTORY = {"id": "start-a-science", "class": "victory", "save": "start-a", "turns": 700, "victory": "VICTORY_SPACE_RACE",
+           "briefing": "science.md"}
+SCENARIO = {"id": "scenario-x", "class": "scenario", "save": "scenario-x", "turns": 50, "won_by": "goal",
+            "victories": ["VICTORY_DOMINATION"], "texts": "scenario-x.md"}
 NAMES = {"VICTORY_DOMINATION": "Domination", "VICTORY_SPACE_RACE": "Science", "VICTORY_CULTURAL": "Cultural",
          "VICTORY_DIPLOMATIC": "Diplomatic"}
 
@@ -53,13 +55,13 @@ class TheList(unittest.TestCase):
                       self.refused({k: v for k, v in SCENARIO.items() if k != "victories"}))
         self.assertIn("needs the victory types", self.refused({**SCENARIO, "victories": []}))
 
-    def test_a_scenario_with_no_turn_limit_of_its_own_names_none_and_one_that_names_one_names_a_number_of_turns(self):
-        no_limit = {k: v for k, v in SCENARIO.items() if k != "turn_limit"}
-        self.assertEqual(list(benchmark_set.read(self.written(no_limit))), ["scenario-x"])
-        self.assertIn("turn_limit is not a number of turns", self.refused({**SCENARIO, "turn_limit": 0}))
+    def test_every_benchmark_says_the_turns_a_run_is_given(self):
+        """A game nobody wins has to stop somewhere, and where is the benchmark's to say, the same for every player."""
+        for wrong in ({k: v for k, v in VICTORY.items() if k != "turns"}, {**SCENARIO, "turns": 0}, {**VICTORY, "turns": "end"}):
+            self.assertIn("turns is not the number of turns a run is given", self.refused(wrong))
 
-    def test_a_scenario_won_on_points_needs_neither(self):
-        points = {k: v for k, v in SCENARIO.items() if k not in ("turn_limit", "victories")} | {"won_by": "points"}
+    def test_a_scenario_won_on_points_names_no_victory_type(self):
+        points = {k: v for k, v in SCENARIO.items() if k != "victories"} | {"won_by": "points"}
         self.assertEqual(list(benchmark_set.read(self.written(points))), ["scenario-x"])
 
     def test_an_unknown_class_an_unknown_key_and_a_name_that_is_no_file_name_are_said(self):
@@ -123,12 +125,30 @@ class TheKeptBenchmarks(unittest.TestCase):
             return words
         self.assertEqual(len({nameless(b) for b in self.victory}), 1)
 
-    def test_a_briefing_that_says_how_long_the_run_is_says_the_starting_saves_own_turns(self):
+    def test_a_briefing_says_where_a_game_nobody_wins_is_stopped_and_it_is_the_benchmarks_own_turns(self):
+        """The user, 2026-11-26: a 700 turn limit as the stop, said in the wording, so that only a game with no
+        chance of ending meets it. The briefing, the list and the starting save's manifest hold one number."""
         for benchmark in self.benchmarks.values():
-            if "briefing" not in benchmark or "turns long" not in self.words(benchmark):
+            if "briefing" not in benchmark:
                 continue
-            turns = json.loads((benchmark_set.KEPT / f"{benchmark['save']}.json").read_text())["turns"]
-            self.assertIn(f"The run is {turns} turns long", self.words(benchmark), benchmark["id"])
+            words, turns = self.words(benchmark), benchmark["turns"]
+            self.assertIn(f"A game that nobody has won when turn {turns} is reached is stopped there", words, benchmark["id"])
+            self.assertEqual(set(re.findall(r"turn (\d+)|(\d+) turns", words)) - {(str(turns), ""), ("", str(turns))}, set(), benchmark["id"])
+            manifest = json.loads((benchmark_set.KEPT / f"{benchmark['save']}.json").read_text())
+            self.assertEqual(manifest["turns"], turns, benchmark["id"])
+
+    def test_a_victory_briefing_says_the_stop_is_a_fail(self):
+        for benchmark in self.victory:
+            self.assertIn("the game is stopped at turn 700 with no winner", self.words(benchmark))
+            self.assertIn("is stopped there, and that is a fail", self.words(benchmark))
+
+    def test_venice_is_ranked_in_two_groups_wins_and_then_the_turns_survived(self):
+        """The user, 2026-11-26: wins above all else, by fewer turns and then the scorer; a run that does not win by
+        the turns it survived, so that the models that can win and those that cannot are both ranked."""
+        [venice] = [b for b in self.benchmarks.values() if b["class"] == "survival"]
+        words = self.words(venice)
+        self.assertIn("A run that wins, by any victory type, ranks above every run that does not.", words)
+        self.assertIn("A run that does not win is ranked by the number of turns your civilization survived", words)
 
     def test_the_survival_briefing_warns_as_the_owner_worded_it(self):
         [venice] = [b for b in self.benchmarks.values() if b["class"] == "survival"]

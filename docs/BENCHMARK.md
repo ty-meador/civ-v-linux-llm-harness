@@ -288,8 +288,8 @@ The user set out four classes. A class says what the player is asked, how a run 
 
 | class | the game | what is asked | how a run is ranked |
 |---|---|---|---|
-| open ended | a fixed map and fixed random numbers; everything else is the player's, the leader included (how a player picks its leader is put off: the map would be saved and the chosen leader put into it, the player choosing before it is given the game) | nothing beyond the game | the score of this section |
-| survival | a seat in a near impossible place (`small-king-venice-a`) | to last; a win ranks above everything | the score of this section |
+| open ended | a fixed map and fixed random numbers; everything else is the player's, the leader included (how a player picks its leader is put off: the map would be saved and the chosen leader put into it, the player choosing before it is given the game) | to win, in as few turns as possible, by any victory type (2026-11-26; "nothing beyond the game" before) | the score of this section |
+| survival | a seat in a near impossible place (`small-king-venice-a`) | to win, and failing that to survive as many turns as possible (2026-11-26; "to last" before) | in two groups (2026-11-26): a win above everything, fewer turns higher, then the score of this section; a run that does not win by the turns the seat survived |
 | one victory type | one map, a leader that leans to no victory type (Poland), one run for each of Domination, Science, Culture and Diplomatic; no victory type is switched off | to win by that type | pass or fail: 0 for a destroyed seat, for a win by another type, for no win. Of two passes the one in fewer turns ranks higher, and the score of this section breaks a tie that is left |
 | scenario | one of the game's own scenarios, as the game ships it | the scenario's own victory conditions | as the scenario decides: pass or fail where it has a goal (fewer turns higher, then the score), its points where it is won on points |
 
@@ -312,8 +312,8 @@ the game names the seat's win by and the scenario's turn limit.
 | `small-king-poland-b-science` | victory | a Science victory | `briefings/victory-science.md` |
 | `small-king-poland-b-culture` | victory | a Cultural victory | `briefings/victory-culture.md` |
 | `small-king-poland-b-diplomatic` | victory | a Diplomatic victory | `briefings/victory-diplomatic.md` |
-| `small-king-poland-b-open` | open | nothing beyond the game | `briefings/open.md` |
-| `small-king-venice-a` | survival | to last | `briefings/survival-venice.md` |
+| `small-king-poland-b-open` | open | to win, in as few turns as possible, by any victory type | `briefings/open.md` |
+| `small-king-venice-a` | survival | to win, and failing that to survive as many turns as possible | `briefings/survival-venice.md` |
 | `scenario-civilwar-union-king` | scenario, a goal | the enemy capital inside 50 turns | `scenario-civilwar.md` |
 | `scenario-civilwar-confederacy-king` | scenario, a goal | the same | `scenario-civilwar.md` |
 
@@ -337,16 +337,37 @@ asked, in the order of runs the user set and with no number of the scoring in it
   for the type named (a test holds them to that).
 - The open game: a win by any type above every run without one (fewer turns higher), then the seat alive at the
   end, then the seat destroyed (the longer it lasted the higher); runs still level by the state of the whole
-  civilization.
-- Venice: the open game's order, "to last" as what is asked, and the warning in the user's words: Venice cannot
-  build Settlers, its neighbours are militarily aggressive and will attack.
+  civilization. What is asked, in the user's words (2026-11-26): "To win, in as few turns as possible with any
+  available victory type."
+- Venice, in two groups that are ranked apart (the user, 2026-11-26: "Wins above else, tie-broken by wins in
+  fewer turns, tie broken by scorer"; "turns survived should be the ranking for failing runs"; "This splits
+  models into those capable of winning the scenario with those that aren't, without throwing out either result
+  set"). A run that wins, by any victory type, is above every run that does not: fewer turns higher, then the
+  state of the whole civilization. A run that does not win is ranked by the turns the seat survived and by
+  nothing else: the turn it was destroyed on, or the turn the game ended on with the seat alive, so a seat
+  destroyed on turn 300 stands above one alive when another civilization won on turn 250. What is asked is to
+  win, and failing that to survive as many turns as possible; then the warning in the user's words: Venice
+  cannot build Settlers, its neighbours are militarily aggressive and will attack.
+- The words for the last tie-breaker ("the state of the whole civilization: every part of it counts, and no one
+  part of it decides") are agreed by the user (2026-11-26).
 
-The briefings say the run is 330 turns long, the turns of the save's manifest (a test holds the two together).
-Venice is played to the end of the game (the user, 2026-11-26: "whole game for venice"): its manifest's turns
-went from 100 to 330 that day, and the runs of it before then asked 100. A scenario has no briefing: its player
-is given the game's own texts.
+**A game is stopped at turn 700, and not at 330 (the user, 2026-11-26: "Remove the turn limits, why do we limit
+to 330?").** The 330 was the game speed's own number of turns at Quick, the turn a Time victory would fall on.
+With Time off the game has no last turn (a game from a turn-325 save ran on to a Diplomatic victory on turn 372,
+"The seat's row, and the Time victory" below), so that limit was the benchmark's and not the game's, and it cut
+games that somebody would have won. A game nobody wins still has to stop, and a stop by the clock gives a slow
+player fewer turns than a quick one. So the stop is a turn, the same for every player, and far out: "Lets set a
+700 turn limit as the timeout trigger ... Instead of gating legitimate runs it'll stop games with no chance of
+ending." Each benchmark's entry carries its `turns` (700 for the six played on a stock game, a scenario's own
+turn limit for a scenario), `benchmark_run.py --benchmark` gives a run those turns (`--turns` is then only for a
+trial of fewer), the starting saves' manifests say 700, and every briefing says it: "A game that nobody has won
+when turn 700 is reached is stopped there", a fail under a victory type, a run that has not won in the open game
+and Venice. A test holds the briefing, the list and the manifest to one number. Venice is played as a whole
+game (the user, the same day); its runs before then asked 100 turns. A scenario has no briefing: its player is
+given the game's own texts.
 
-**Every class has its scorer (2026-11-26).** The scoring is the project's and is not in this repository; what is
+**Every class has its scorer (2026-11-26).** Venice has two modes: a win is ranked as in the open game, a run
+that does not win by the turns survived alone. The scoring is the project's and is not in this repository; what is
 said here is the order of runs, which the briefings tell every player. A recording is scored under the class of
 the benchmark it names. One victory type: a fail is 0; a pass is above every fail, the win in fewer turns higher,
 the state of the civilization between wins of one turn. A scenario with a goal: the same order (the user,

@@ -16,6 +16,18 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **A whole game is stopped at turn 700, not 330; Venice in two groups; the open game's ask** (GitLab #200,
+  #210; the user, 2026-11-26: "Remove the turn limits, why do we limit to 330?", then "Lets set a 700 turn limit
+  as the timeout trigger"). The 330 turns were the Quick speed's own number, where a Time victory would fall;
+  with Time off the game has no last turn, so that limit was only the benchmark's and cut games somebody would
+  have won. A benchmark now carries its `turns` in `saves/benchmark/benchmarks.json` (700 for the six played on
+  a stock game, a scenario's own limit for a scenario; `turn_limit` is gone, the one number serves both), and
+  `benchmark_run.py --benchmark` gives a run those turns: `--turns` defaults to them and is only for a trial of
+  fewer. The manifests of `small-king-poland-b` and `small-king-venice-a` say 700 turns (Venice 100 before: it
+  is played as a whole game). Every briefing says where a game nobody wins is stopped: a fail under a victory
+  type, a run that has not won in the open game and Venice. The open game's briefing asks "To win, in as few
+  turns as possible with any available victory type". Venice's ranks its runs in two groups: a win above
+  everything, fewer turns higher; a run that does not win by the turns its civilization survived. 2798 tests.
 - **A benchmark is a starting save and what is asked on it, and a run names its benchmark** (GitLab #200, #210;
   the user's choices of 2026-11-26). One save now carries several benchmarks: the four victory types and the open
   game are all played on `small-king-poland-b` (the open game moved there from the Germany save).

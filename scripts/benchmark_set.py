@@ -15,6 +15,10 @@ A benchmark of the list:
                 when the save carries more than one benchmark
     class       open, survival, victory or scenario: what is asked and how a run is ranked
     save        the starting save's id
+    turns       the turns a run is given: a game that is not over when they are played is stopped there. A
+                scenario's own turn limit; 700 for a game with no last turn of its own (the user, 2026-11-26: with
+                no Time victory a game nobody wins would never end, and the stop is far enough out to end none
+                that somebody can)
     briefing    the file a run's first instance is told once, how a run is ranked and what is asked (not for a
                 scenario, whose own texts say it and stay readable)
     victory     class victory: the victory type asked, under the game's name
@@ -22,8 +26,6 @@ A benchmark of the list:
     victories   class scenario, won by a goal: the victory types the game names the seat's win by when the goal
                 is reached. A scenario's own code names the winner, each scenario under a type of its choosing,
                 and the game names a winner by Time when a scenario's turns run out, which is no win of it
-    turn_limit  class scenario, won by a goal: the turns the scenario allows. Left out where the scenario has no
-                limit of its own: the game speed's number of turns is then what a win's turn is set against
     texts       class scenario: the scenario's description, victory conditions and special rules in the game's
                 own words, a file the player can read at any time
 
@@ -42,7 +44,7 @@ FORMAT = 1
 CLASSES = ("open", "survival", "victory", "scenario")
 VICTORY_TYPES = ("VICTORY_DOMINATION", "VICTORY_SPACE_RACE", "VICTORY_CULTURAL", "VICTORY_DIPLOMATIC")
 WON_BY = ("goal", "points")
-KEYS = {"id", "class", "save", "briefing", "victory", "won_by", "victories", "turn_limit", "texts"}
+KEYS = {"id", "class", "save", "turns", "briefing", "victory", "won_by", "victories", "texts"}
 
 
 class Refused(Exception):
@@ -66,6 +68,9 @@ def faults_of(entry) -> list[str]:
     faults += [f"{key} is not a name of letters, digits and hyphens" for key in ("id", "save") if not is_name(entry.get(key))]
     faults += [f"{key} is not a file under saves/benchmark" for key in ("briefing", "texts")
                if key in entry and not is_file_name(entry[key])]
+    turns = entry.get("turns")
+    if not isinstance(turns, int) or isinstance(turns, bool) or turns < 1:
+        faults.append("turns is not the number of turns a run is given")
     kind = entry.get("class")
     if kind not in CLASSES:
         return faults + [f"class is none of {', '.join(CLASSES)}"]
@@ -83,9 +88,6 @@ def scenario_faults(entry: dict) -> list[str]:
     if entry.get("won_by") not in WON_BY:
         return faults + [f"won_by is none of {', '.join(WON_BY)}"]
     if entry["won_by"] == "goal":
-        limit = entry.get("turn_limit")
-        if limit is not None and (not isinstance(limit, int) or isinstance(limit, bool) or limit < 1):
-            faults.append("turn_limit is not a number of turns")
         named = entry.get("victories")
         if not isinstance(named, list) or not named or not all(isinstance(v, str) and v.startswith("VICTORY_") for v in named):
             faults.append("a scenario won by a goal needs the victory types the game names its win by")
@@ -147,7 +149,7 @@ def is_on_points(benchmark: dict) -> bool:
 
 def line_of(benchmark: dict) -> str:
     asked = {"victory": benchmark.get("victory", ""), "scenario": f"won by {benchmark.get('won_by')}"}.get(benchmark["class"], "")
-    return f"{benchmark['id']}: {benchmark['class']}{', ' + asked if asked else ''}, on {benchmark['save']}"
+    return f"{benchmark['id']}: {benchmark['class']}{', ' + asked if asked else ''}, {benchmark['turns']} turns on {benchmark['save']}"
 
 
 def main(argv: list[str] | None = None) -> int:

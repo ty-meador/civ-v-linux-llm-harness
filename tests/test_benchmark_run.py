@@ -1028,6 +1028,7 @@ class RunsOfABenchmark(unittest.TestCase):
         seen = {}
 
         def fake(_g, save, turns, **kw):
+            self.turns_played = turns
             seen.update(save=save, end_save=kw.get("end_save"), checkpoint_name=kw.get("checkpoint_name"))
             return {"player": "built-in-ai", "save": save, "end_reason": "all_turns_played", "turns_played": turns,
                     "seconds": 1.0}
@@ -1037,7 +1038,7 @@ class RunsOfABenchmark(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, mock.patch.object(benchmark_run, "run_once", fake), \
                 mock.patch.object(benchmark_run, "wait_main_menu"), mock.patch.object(benchmark_run, "summarise", return_value=[]), \
                 mock.patch("harness.game.Game", return_value=game), contextlib.redirect_stdout(io.StringIO()):
-            benchmark_run.main([*argv, "--turns", "330", "--keep-end", "--checkpoint", "10", "--out", str(Path(d) / "rows.jsonl")])
+            benchmark_run.main([*argv, "--keep-end", "--checkpoint", "10", "--out", str(Path(d) / "rows.jsonl")])
             [row] = benchmark_run.read_rows(Path(d) / "rows.jsonl")
         return seen, row
 
@@ -1052,6 +1053,15 @@ class RunsOfABenchmark(unittest.TestCase):
         self.assertEqual(seen, {"save": "small-king-poland-b", "end_save": f"{self.SCIENCE}--built-in-ai-seed0-end",
                                 "checkpoint_name": f"{self.SCIENCE}--built-in-ai-seed0"})
         self.assertEqual((row["benchmark"], row["save"]), (self.SCIENCE, "small-king-poland-b"))
+
+    def test_a_benchmarks_run_is_given_the_benchmarks_own_turns_unless_fewer_are_asked_for_a_trial(self):
+        """The stop of a game nobody wins is the benchmark's, the same for every player, and not the caller's."""
+        self.played("--benchmark", self.SCIENCE)
+        self.assertEqual(self.turns_played, 700)
+        self.played("--benchmark", self.SCIENCE, "--turns", "3")
+        self.assertEqual(self.turns_played, 3)
+        self.played("--save", "a")
+        self.assertEqual(self.turns_played, benchmark_run.DEFAULT_TURNS)
 
     def test_a_run_of_a_save_alone_names_no_benchmark_and_its_saves_are_named_by_the_save(self):
         seen, row = self.played("--save", "a")

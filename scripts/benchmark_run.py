@@ -24,11 +24,12 @@ them in place of the engine. The command plays the seat (a seat loop, `scripts/p
 seat's when its turns are over (the save's turn plus the turns asked): the player is told that turn.
 
 A benchmark is a starting save and what is asked on it (`scripts/benchmark_set.py`), and one save can carry
-several. `--benchmark ID` in place of `--save` plays the benchmark's save; the row and the game file then name
-the benchmark, and the run's saves and its recording are named by it, so that two benchmarks of one save do not
-take each other's files. `{briefing}` and `{texts}` in the command are the benchmark's own files.
+several. `--benchmark ID` in place of `--save` plays the benchmark's save for the benchmark's own turns (`--turns`
+is then only for a trial of fewer); the row and the game file name the benchmark, and the run's saves and its
+recording are named by it, so that two benchmarks of one save do not take each other's files. `{briefing}` and
+`{texts}` in the command are the benchmark's own files.
 
-    scripts/benchmark_run.py --benchmark small-king-poland-b-science --turns 330 --player claude/opus-5.5-medium \
+    scripts/benchmark_run.py --benchmark small-king-poland-b-science --player claude/opus-5.5-medium \
         --notebook none --keep-end --checkpoint 10 --out logs/boards/small-king-poland-b-science/rows.jsonl \
         -- scripts/llm_seat_loop.py --agent claude --seat 0 --dir ../bench-seats/science-{seed} --model claude-opus-5-5 \
            --turns 10 --until-turn {until} --no-report --briefing {briefing} --log-dir logs/boards/science-{seed}
@@ -1331,6 +1332,7 @@ def summarise(rows: list[dict]) -> list[str]:
 
 
 TOLD = ("briefing", "texts")    # a benchmark's files that a command may name as {briefing} and {texts}
+DEFAULT_TURNS = 10              # of a run that names no benchmark; a benchmark's run is given the benchmark's turns
 
 
 def benchmark_set():
@@ -1407,9 +1409,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="a benchmark of saves/benchmark/benchmarks.json (scripts/benchmark_set.py), in place of --save: "
                          "its starting save is played, the row and the game file name the benchmark, and the run's "
                          "saves and recording are named by it; {briefing} and {texts} in the command are its files")
-    ap.add_argument("--turns", type=int, default=10,
-                    help="turns to play (default 10): the turns the engine plays the seat, and the turns a command's run must "
-                         "have moved the game on to count as played")
+    ap.add_argument("--turns", type=int, default=None,
+                    help="turns to play: the turns the engine plays the seat, and the turns a command's run must have moved "
+                         f"the game on to count as played. Default: the benchmark's own turns with --benchmark, else {DEFAULT_TURNS}")
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--seat", type=int, default=None, help="default: the starting save's one human seat")
     ap.add_argument("--out", type=Path, help="JSON lines, one row a run, appended")
@@ -1504,6 +1506,8 @@ def main(argv: list[str] | None = None) -> int:
         except Refused as e:
             ap.error(str(e))
         a.save = asked["save"]
+    if a.turns is None:
+        a.turns = asked["turns"] if a.benchmark else DEFAULT_TURNS
     if not a.save or not a.out:
         ap.error("--save or --benchmark, and --out, are needed for a run")
     stem = a.benchmark or a.save        # what the run's saves are named by: one save may carry several benchmarks

@@ -49,7 +49,8 @@ and overwrites nothing. `scripts/benchmark_run.py --save <id>` then plays it.
 - `id`, `save`, `sha256`: the name the game loads it by, the file, and the file's hash.
 - `kind`, `turn`: opening, middle or late, and the game turn the save is on.
 - `seat`, `civilization`, `opponents`: the seat a player is given and who else is alive.
-- `turns`, `seeds`: the turns a player plays on it and the seeds it is measured on.
+- `turns`, `seeds`: the turns a player plays on it and the seeds it is measured on. 700 turns is a whole game:
+  the turn a game that nobody has won is stopped on (`docs/BENCHMARK.md`).
 - `settings`: what the game reads after a load: the difficulty the game was hosted at, the row the seat is on
   (`HANDICAP_AI_DEFAULT`, the one every AI plays on), speed, world size, map script, the victory types that are on,
   whether Time is among them, the turn limit, the start era, the living city-states.

@@ -5,6 +5,7 @@
    "id": "small-king-poland-b-domination",
    "class": "victory",
    "save": "small-king-poland-b",
+   "turns": 700,
    "victory": "VICTORY_DOMINATION",
    "briefing": "briefings/victory-domination.md"
   },
@@ -12,6 +13,7 @@
    "id": "small-king-poland-b-science",
    "class": "victory",
    "save": "small-king-poland-b",
+   "turns": 700,
    "victory": "VICTORY_SPACE_RACE",
    "briefing": "briefings/victory-science.md"
   },
@@ -19,6 +21,7 @@
    "id": "small-king-poland-b-culture",
    "class": "victory",
    "save": "small-king-poland-b",
+   "turns": 700,
    "victory": "VICTORY_CULTURAL",
    "briefing": "briefings/victory-culture.md"
   },
@@ -26,6 +29,7 @@
    "id": "small-king-poland-b-diplomatic",
    "class": "victory",
    "save": "small-king-poland-b",
+   "turns": 700,
    "victory": "VICTORY_DIPLOMATIC",
    "briefing": "briefings/victory-diplomatic.md"
   },
@@ -33,20 +37,22 @@
    "id": "small-king-poland-b-open",
    "class": "open",
    "save": "small-king-poland-b",
+   "turns": 700,
    "briefing": "briefings/open.md"
   },
   {
    "id": "small-king-venice-a",
    "class": "survival",
    "save": "small-king-venice-a",
+   "turns": 700,
    "briefing": "briefings/survival-venice.md"
   },
   {
    "id": "scenario-civilwar-union-king",
    "class": "scenario",
    "save": "scenario-civilwar-union-king",
+   "turns": 50,
    "won_by": "goal",
-   "turn_limit": 50,
    "victories": [
     "VICTORY_DOMINATION"
    ],
@@ -56,8 +62,8 @@
    "id": "scenario-civilwar-confederacy-king",
    "class": "scenario",
    "save": "scenario-civilwar-confederacy-king",
+   "turns": 50,
    "won_by": "goal",
-   "turn_limit": 50,
    "victories": [
     "VICTORY_DOMINATION"
    ],

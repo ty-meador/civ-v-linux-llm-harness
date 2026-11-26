@@ -178,12 +178,12 @@ class Report(Files):
         self.assertIn("| codex/x | 2 | 0.500 |", printed)
 
     def test_the_benchmarks_scored_in_points_come_from_the_list_of_benchmarks(self):
-        scenario = {"class": "scenario", "texts": "x.md"}
+        scenario = {"class": "scenario", "turns": 100, "texts": "x.md"}
         listed = self.dir / "benchmarks.json"
         listed.write_text(json.dumps({"format": 1, "benchmarks": [
             {"id": "scenario-points", "save": "scenario-points", "won_by": "points", **scenario},
             {"id": "scenario-goal", "save": "scenario-goal", "won_by": "goal", "victories": ["VICTORY_DOMINATION"], **scenario},
-            {"id": "start-a-open", "save": "start-a", "class": "open", "briefing": "open.md"}]}))
+            {"id": "start-a-open", "save": "start-a", "turns": 700, "class": "open", "briefing": "open.md"}]}))
         self.assertEqual(report.benchmarks_on_points(listed), frozenset({"scenario-points"}))
         listed.write_text("{}")
         with self.assertRaises(report.Refused):
