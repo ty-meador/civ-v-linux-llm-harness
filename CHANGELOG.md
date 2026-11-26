@@ -16,6 +16,18 @@ Dates are the day the change was committed; "live tNNN" is the game turn it was 
 
 ## Unreleased
 
+- **The report of scored recordings, and the scores file it reads** (`scripts/benchmark_report.py`, GitLab #202).
+  The scorer is on a machine with no network, so what the report has of the scoring is one file carried back
+  from it: for each recording its name, the sha256 of the file that was scored, and its score or the reason it
+  has none. `benchmark_report.py SCORES... --recordings FOLDER...` sets each score beside the recording of its
+  hash and prints a table for each starting save and number of turns asked: each player's score, its standard
+  error and spread over its own runs, the runs that would bring the error to 0.05, how many runs played their
+  turns, seconds and tokens a turn, and the built-in AI's run as the reference. `--json FILE` writes the same
+  for the site, with no path of this machine and nothing of a row but named fields. A scores file is refused
+  whole when a row holds anything but scores or a recording has two rows; of several files a recording takes
+  the row of the last. A row may carry the run's score turn by turn (`by_turn`), kept through to the JSON for a
+  graph that is not decided on. 23 tests. Docs: `docs/BENCHMARK.md`, "The scores file and the report".
+
 - **A game that ended under the engine: its save, its row and its game file's last line are of one moment**
   (`scripts/benchmark_run.py`, `scripts/benchmark_recording.py`). A game the built-in AI wins or loses goes on by
   itself, and the save the game took when it saw the end was up to one poll older than the runner's read: on

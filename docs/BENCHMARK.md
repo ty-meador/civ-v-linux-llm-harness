@@ -237,6 +237,51 @@ format above, the three models' runs without a game file, which they did not wri
   as before.
 - With the network cut off (`unshare -rn`): the file check and the check in the game, both as above.
 
+### The scores file and the report (2026-11-25)
+
+The scorer is on a machine with no network. Once a week the packed recordings are carried to it by hand and
+scored there. What is carried back is one file, the **scores file**, and nothing else of the scoring:
+
+```json
+{"format": 1,
+ "scores": [{"recording": "duel-king-rome-huns-a--claude-opus-5-5-medium-seed0", "sha256": "…", "score": 0.512},
+            {"recording": "…", "sha256": "…", "not_scored": "why it has no score"}]}
+```
+
+- `recording` is the recording's own name (`recording.json`), which is one run: its starting save, its player
+  and its run number. `sha256` is of the file that was scored. A recording of one name can be packed more than
+  once and kept in more than one folder, and only the hash says which file a score is of.
+- A row has a `score` or a `not_scored` with the reason, never both.
+- A row may carry `by_turn`, the run's score as of each turn (`[[turn, score], …]`, the turns going up), for a
+  graph of a run. Whether that is published is not decided (the user, 2026-11-25): the file's format, the report
+  and the site's data have the place for it, the scorer does not write it, and the site draws no such graph.
+- A row with any other key is refused, and with it the whole file. The file holds scores; a file that holds
+  more is a slip on the scoring machine, and it is seen before anything is published.
+- A name has one row in a file. Of several files (one a week), a recording takes its row from the last given: a
+  run packed again and scored again is one run with its later score.
+
+`scripts/benchmark_report.py SCORES [SCORES ...] --recordings FOLDER [FOLDER ...]` sets each score beside the
+recording of its hash and prints the report: a table for each starting save and number of turns asked, a line a
+player. A player's score is the mean of its runs there; with more than one run it has its standard error and
+its spread (the standard deviation over its own runs), and from the spread the runs that would bring the error
+to 0.05. Beside them: how many of its runs played their turns, and the seconds and tokens a turn. The built-in
+AI's run stands in the same table, named as the reference. Under the tables it lists what has no place in
+them: a recording sent to be scored and given none, a score whose recording is not here, a recording here with
+no score yet, a file that is no recording.
+
+Runs are set side by side only when they are runs of the same starting save **and** the same number of turns
+asked. A hundred turns and a whole game from one opening are two tables.
+
+`--json FILE` writes the same report as data, for the site: the tables, each run under its player (its `by_turn`
+where the scores file had one) and what was given no score. Only named fields of a run's row go into it. The
+command line a player was started by, and every path of this machine, stay out.
+
+Seen on 2026-11-25 over the 26 recordings kept in the `recordings/` folders under `logs/boards/` (the working
+material of GitLab #200, not a benchmark's set), scored on this machine from the packed files: 23 with a score
+and 3 given none (packed before a run kept a game file), every score beside its file, thirteen tables, each
+player with one run. Five earlier packings of four of the same names are kept beside them: the report lists
+them as recordings with no score, and the scorer given them too wrote no file and named the four names.
+
 ### The spectator page's own recording is another thing
 
 The page (docs/VISUALIZATION.md) records what a watcher saw: `--record` writes its stream to a file, a snapshot
